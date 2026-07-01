@@ -1,6 +1,8 @@
-import { Client, LocalAuth } from 'whatsapp-web.js';
+import whatsappWeb from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
 import env from '../config/env.js';
+
+const { Client, LocalAuth } = whatsappWeb;
 
 /**
  * WhatsApp client instance.
@@ -13,6 +15,7 @@ export const whatsappClient = new Client({
   }),
   puppeteer: {
     headless: true,
+    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',

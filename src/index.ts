@@ -34,19 +34,19 @@ async function main(): Promise<void> {
 
     console.log('Bot is running. Press Ctrl+C to stop.\n');
   } catch (error) {
-    console.error('❌ Failed to start TireFlow:', error);
+    console.error('Failed to start TireFlow:', error);
     process.exit(1);
   }
 }
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('\n🛑 Shutting down TireFlow...');
+  console.log('\n Shutting down TireFlow...');
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('\n🛑 Shutting down TireFlow...');
+  console.log('\n Shutting down TireFlow...');
   process.exit(0);
 });
 

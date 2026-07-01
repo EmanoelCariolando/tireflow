@@ -1,15 +1,14 @@
 import { Message } from 'whatsapp-web.js';
 import { isPingCommand, handlePingCommand } from '../commands/pingCommand.js';
+import { isPneuCommand, handlePneuCommand } from '../commands/pneuCommand.js';
 
 /**
- * Message Handler (Phase 1)
+ * Message Handler (Fase 2)
  * 
  * Responsible for:
  * - Receiving incoming WhatsApp messages
  * - Identifying commands
  * - Routing to the appropriate command handler
- * 
- * In Fase 1, the ONLY command is "ping".
  * 
  * Architecture rule (from SPEC):
  * - messageHandler only identifies commands.
@@ -38,6 +37,13 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
-  // No other commands in Phase 1
-  // Future phases will add: pneu, venda, estoque, etc.
+  if (isPneuCommand(body)) {
+    // Extract everything after "pneu " (case-insensitive detection already done)
+    const rawMeasure = body.trim().slice(5).trim();
+    await handlePneuCommand(message, rawMeasure);
+    return;
+  }
+
+  // No other commands in Fase 2
+  // Future phases will add: venda, entrada, etc.
 }
