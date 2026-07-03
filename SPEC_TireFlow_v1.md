@@ -204,35 +204,30 @@ O bot pergunta:
 ```text
 Forma de pagamento?
 
-1️⃣ À vista
-2️⃣ A prazo
+1️⃣ Dinheiro
+2️⃣ PIX
+3️⃣ Cartão
+4️⃣ Nota
 ```
 
-Usuário responde:
+Regras de pagamento:
+
+- Dinheiro: não pede foto e não pede nome da nota.
+- PIX: pedir foto do comprovante.
+- Cartão: pedir foto do comprovante.
+- Nota: pedir foto da nota/pedido e depois pedir o nome da nota.
+- A foto não deve ser salva no banco.
+- A foto deve ficar apenas na operação em andamento.
+- Se cancelar ou expirar, descartar a foto.
+- Se o bot estiver esperando imagem e o usuário mandar texto, pedir a imagem novamente.
+
+Se o usuário escolher Nota, depois de receber a foto o bot pergunta:
 
 ```text
-1
-```
+Nome da nota?
 
-Depois o bot pergunta:
-
-```text
-Observação?
-Ex: Prefeitura de Congo
-
-Digite: pular
-```
-
-Usuário pode responder:
-
-```text
+Exemplo:
 Prefeitura de Congo
-```
-
-ou:
-
-```text
-pular
 ```
 
 Depois o bot mostra:
@@ -245,7 +240,9 @@ Descrição: SpeedMax Street MH01
 Quantidade: 5
 Valor unitário: R$320,00
 Total da venda: R$1.600,00
-Obs: Prefeitura de Congo
+Pagamento: Nota
+Foto da nota/comprovante: recebida
+Nome da nota: Prefeitura de Congo
 
 Digite: confirmar ou cancelar
 ```
@@ -255,8 +252,10 @@ Após `confirmar`, o sistema:
 1. Confere o estoque novamente.
 2. Baixa o estoque.
 3. Registra a venda.
-4. Envia mensagem no grupo.
-5. Envia notificação privada para o patrão.
+4. Envia mensagem da venda no grupo.
+5. Envia/encaminha a foto da nota/comprovante no grupo, quando existir.
+6. Envia notificação privada para o patrão.
+7. Envia/encaminha a foto da nota/comprovante no privado do patrão, quando existir.
 
 Mensagem no grupo:
 
@@ -269,11 +268,14 @@ Descrição: SpeedMax Street MH01
 Quantidade: 5
 Valor unitário: R$320,00
 Total da venda: R$1.600,00
+Pagamento: Nota
+Nome da nota: Prefeitura de Congo
 Vendedor: João
-Obs: Prefeitura de Congo
 
 Estoque atual: 7
 ```
+
+Após essa mensagem, enviar/encaminhar a foto da nota/comprovante no grupo.
 
 Mensagem privada para o patrão:
 
@@ -286,9 +288,26 @@ João vendeu 5 pneus
 
 Valor unitário: R$320,00
 Total da venda: R$1.600,00
-Obs: Prefeitura de Congo
+Pagamento: Nota
+Nome da nota: Prefeitura de Congo
 Estoque atual: 7
 ```
+
+Após essa mensagem, enviar/encaminhar a foto da nota/comprovante no privado do patrão.
+
+Regra de exibição:
+
+- `Foto da nota/comprovante: recebida` só deve aparecer quando houver foto exigida pela forma de pagamento.
+- `Nome da nota` só deve aparecer quando o pagamento for Nota.
+- Para Dinheiro, a confirmação, a mensagem no grupo e a notificação privada mostram apenas o campo `Pagamento`.
+- Para PIX ou Cartão, a confirmação, a mensagem no grupo e a notificação privada mostram `Pagamento` e a indicação de foto recebida, mas não mostram `Nome da nota`.
+
+Regra de banco e arquivos:
+
+- Manter `paymentMethod`.
+- Manter `invoiceName` para vendas por Nota.
+- Não adicionar campo para imagem.
+- Não armazenar arquivo de imagem no banco.
 
 Regra de cálculo:
 
@@ -875,10 +894,13 @@ Observação de implementação:
 - unitPrice
 - totalValue
 - paymentMethod
+- invoiceName
 - observation
 - supplier
 - reason
 - createdAt
+
+> **Nota:** O campo `invoiceName` só é preenchido quando o pagamento da venda for Nota.
 
 Tipos de movimentação:
 

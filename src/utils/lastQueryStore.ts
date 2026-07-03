@@ -7,6 +7,8 @@
  */
 
 export interface QueriedProduct {
+  id: string;
+  reference: string;
   description: string;
   stock: number;
   cashPrice: number;

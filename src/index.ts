@@ -1,12 +1,14 @@
-import { whatsappClient, initializeWhatsAppClient, startWhatsAppClient } from './whatsapp/client.js';
+import { whatsappClient, initializeWhatsAppClient, startWhatsAppClient, stopWhatsAppClient } from './whatsapp/client.js';
 import { handleIncomingMessage } from './whatsapp/messageHandler.js';
 
+let isShuttingDown = false;
+
 /**
- * TireFlow - Main Entry Point (Fase 1)
+ * TireFlow - Main Entry Point (Fase 3)
  * 
  * This is the ONLY file that should be executed directly.
  * 
- * Responsibilities in Phase 1:
+ * Responsibilities:
  * - Load environment configuration
  * - Initialize WhatsApp client
  * - Set up message listener
@@ -14,12 +16,11 @@ import { handleIncomingMessage } from './whatsapp/messageHandler.js';
  * 
  * Rules followed:
  * - No business logic here
- * - No commands implemented except ping
  * - Clean separation of concerns
  */
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('   TireFlow - WhatsApp Bot (Fase 1)');
+  console.log('   TireFlow - WhatsApp Bot (Fase 3)');
   console.log('========================================\n');
 
   try {
@@ -39,16 +40,30 @@ async function main(): Promise<void> {
   }
 }
 
-// Handle graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n Shutting down TireFlow...');
-  process.exit(0);
+async function shutdown(signal: string): Promise<void> {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+  console.log(`\nShutting down TireFlow (${signal})...`);
+
+  try {
+    await stopWhatsAppClient();
+  } catch (error) {
+    console.error('Error while stopping WhatsApp client:', error);
+  } finally {
+    process.exit(0);
+  }
+}
+
+process.on('SIGINT', () => {
+  void shutdown('SIGINT');
 });
 
-process.on('SIGTERM', async () => {
-  console.log('\n Shutting down TireFlow...');
-  process.exit(0);
+process.on('SIGTERM', () => {
+  void shutdown('SIGTERM');
 });
 
 // Start the application
-main();
+void main();

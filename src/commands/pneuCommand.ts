@@ -1,6 +1,8 @@
 import { Message } from 'whatsapp-web.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
+import { formatCurrency } from '../utils/formatCurrency.js';
+import { getMessageUserId } from '../utils/messageContext.js';
 
 /**
  * Pneu Command - Fase 2 (Consulta fake)
@@ -11,18 +13,15 @@ import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
  * - Return a numbered list of fake matching products
  * - Save the last query in memory for 5 minutes (per SPEC)
  * 
- * Does NOT start any sale/operation.
- * Does NOT implement venda, entrada, etc. (Fase 3+)
+ * Does NOT start any sale/operation by itself.
+ * Sale is handled by saleCommand in Fase 3.
  */
 
-interface FakeProduct extends QueriedProduct {
-  reference: string;
-}
-
-// Fake product list for Fase 2 only.
+// Fake product list used until the real database query is implemented.
 // This will be replaced by real DB query in Fase 6.
-const fakeProducts: FakeProduct[] = [
+const fakeProducts: QueriedProduct[] = [
   {
+    id: 'p1',
     reference: '175/70 R14',
     description: 'SpeedMax Street MH01',
     stock: 12,
@@ -30,6 +29,7 @@ const fakeProducts: FakeProduct[] = [
     creditPrice: 350,
   },
   {
+    id: 'p2',
     reference: '175/70 R14',
     description: 'Pirelli Cinturato P7',
     stock: 8,
@@ -37,6 +37,7 @@ const fakeProducts: FakeProduct[] = [
     creditPrice: 430,
   },
   {
+    id: 'p3',
     reference: '175/70 R14',
     description: 'Goodyear Assurance',
     stock: 15,
@@ -44,6 +45,7 @@ const fakeProducts: FakeProduct[] = [
     creditPrice: 410,
   },
   {
+    id: 'p4',
     reference: '195/65 R15',
     description: 'Michelin Primacy 4',
     stock: 20,
@@ -51,6 +53,7 @@ const fakeProducts: FakeProduct[] = [
     creditPrice: 490,
   },
   {
+    id: 'p5',
     reference: '195/65 R15',
     description: 'Continental PremiumContact 6',
     stock: 5,
@@ -59,26 +62,37 @@ const fakeProducts: FakeProduct[] = [
   },
 ];
 
-function formatPrice(value: number): string {
-  return `R$${value.toFixed(2).replace('.', ',')}`;
+export function getFakeProductById(productId: string): QueriedProduct | null {
+  return fakeProducts.find((product) => product.id === productId) || null;
 }
 
-function formatProductList(products: FakeProduct[], normalized: string): string {
+export function decreaseFakeProductStock(productId: string, quantity: number): QueriedProduct | null {
+  const product = getFakeProductById(productId);
+
+  if (!product || product.stock < quantity) {
+    return null;
+  }
+
+  product.stock -= quantity;
+  return product;
+}
+
+function formatProductList(products: QueriedProduct[], normalized: string): string {
   let text = `🛞 ${normalized}\n\n`;
 
   products.forEach((product, index) => {
     const num = index + 1;
     text += `${num}️⃣ ${product.description}\n`;
     text += `📦 Estoque: ${product.stock}\n`;
-    text += `💰 À vista: ${formatPrice(product.cashPrice)}\n`;
-    text += `💳 A prazo: ${formatPrice(product.creditPrice)}\n`;
+    text += `💰 À vista: ${formatCurrency(product.cashPrice)}\n`;
+    text += `💳 A prazo: ${formatCurrency(product.creditPrice)}\n`;
 
     if (index < products.length - 1) {
       text += '\n';
     }
   });
 
-  text += '\nPara vender:\nvenda 1 5';
+  text += '\nPara vender digite:\nvenda 1 5';
 
   return text;
 }
@@ -105,7 +119,7 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
     }
 
     // Save last consultation (5 minute TTL) - required for Fase 2
-    saveLastQuery(message.from, normalized, matches);
+    saveLastQuery(getMessageUserId(message), normalized, matches);
 
     const response = formatProductList(matches, normalized);
     await message.reply(response);

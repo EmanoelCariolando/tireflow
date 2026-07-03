@@ -1,9 +1,12 @@
 import { Message } from 'whatsapp-web.js';
 import { isPingCommand, handlePingCommand } from '../commands/pingCommand.js';
 import { isPneuCommand, handlePneuCommand } from '../commands/pneuCommand.js';
+import { isSaleCommand, handleSaleCommand, handleSaleConversation } from '../commands/saleCommand.js';
+import env from '../config/env.js';
+import { isGroupMessage } from '../utils/messageContext.js';
 
 /**
- * Message Handler (Fase 2)
+ * Message Handler (Fase 3)
  * 
  * Responsible for:
  * - Receiving incoming WhatsApp messages
@@ -15,23 +18,22 @@ import { isPneuCommand, handlePneuCommand } from '../commands/pneuCommand.js';
  * - commands handle the conversation flow.
  */
 export async function handleIncomingMessage(message: Message): Promise<void> {
-  // Ignore messages from groups for now (Phase 1 focus on direct/private)
-  // We can expand this later when we implement group notifications.
-  if (message.from.includes('@g.us')) {
+  if (!isAuthorizedChat(message)) {
     return;
   }
 
   const body = message.body?.trim() || '';
 
-  // Skip empty messages
+  console.log(`[MSG] From: ${message.from} | Body: "${body}" | Media: ${message.hasMedia}`);
+
+  if (await handleSaleConversation(message, body)) {
+    return;
+  }
+
   if (!body) {
     return;
   }
 
-  // Log incoming message (for development/debugging)
-  console.log(`[MSG] From: ${message.from} | Body: "${body}"`);
-
-  // Route commands
   if (isPingCommand(body)) {
     await handlePingCommand(message);
     return;
@@ -44,6 +46,18 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
-  // No other commands in Fase 2
-  // Future phases will add: venda, entrada, etc.
+  if (isSaleCommand(body)) {
+    await handleSaleCommand(message, body);
+    return;
+  }
+
+  // Future phases will add: entrada, ajuste, preco, etc.
+}
+
+function isAuthorizedChat(message: Message): boolean {
+  if (isGroupMessage(message)) {
+    return Boolean(env.whatsappOfficialGroupId) && message.from === env.whatsappOfficialGroupId;
+  }
+
+  return env.allowPrivateTestMode;
 }
