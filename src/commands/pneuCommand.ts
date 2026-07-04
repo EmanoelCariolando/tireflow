@@ -3,7 +3,7 @@ import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageUserId } from '../utils/messageContext.js';
-import { findActiveProductsByReference } from '../services/productService.js';
+import { findAvailableProductsByReference } from '../services/productService.js';
 
 /**
  * Pneu Command - Fase 6 (Consulta real no banco)
@@ -11,7 +11,7 @@ import { findActiveProductsByReference } from '../services/productService.js';
  * Responsibilities:
  * - Detect "pneu <medida>"
  * - Normalize the tire size (175/70 R14 etc.)
- * - Return a numbered list of active matching products from the database
+ * - Return a numbered list of active matching products with stock
  * - Save the last query in memory for 5 minutes (per SPEC)
  * 
  * Does NOT start any sale/operation by itself.
@@ -78,7 +78,7 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
       return;
     }
 
-    const matches = await findActiveProductsByReference(normalized);
+    const matches = await findAvailableProductsByReference(normalized);
 
     if (matches.length === 0) {
       await message.reply(`Nenhum pneu encontrado para ${normalized}.`);

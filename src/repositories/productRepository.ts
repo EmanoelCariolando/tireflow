@@ -35,6 +35,24 @@ export const productRepository = {
     });
   },
 
+  findAvailableByReferences(references: string[]) {
+    return prisma.product.findMany({
+      where: {
+        reference: {
+          in: references,
+        },
+        isActive: true,
+        stock: {
+          gt: 0,
+        },
+      },
+      orderBy: [
+        { reference: 'asc' },
+        { description: 'asc' },
+      ],
+    });
+  },
+
   findByReferenceAndDescription(reference: string, description: string) {
     return prisma.product.findFirst({
       where: {

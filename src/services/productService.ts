@@ -64,7 +64,7 @@ function buildReferenceCandidates(reference: string): string[] {
   return [...candidates];
 }
 
-export async function findActiveProductsByReference(reference: string): Promise<QueriedProduct[]> {
-  const products = await productRepository.findActiveByReferences(buildReferenceCandidates(reference));
+export async function findAvailableProductsByReference(reference: string): Promise<QueriedProduct[]> {
+  const products = await productRepository.findAvailableByReferences(buildReferenceCandidates(reference));
   return products.map(mapProductToQueryResult);
 }

@@ -15,6 +15,8 @@
  * - 12.5/80-18
  * - 6.00-9
  * - 31X10.50R15
+ * - RODA
+ * - AGRICOLA
  */
 export function normalizeTireSize(input: string): string | null {
   if (!input || typeof input !== 'string') return null;
@@ -26,6 +28,10 @@ export function normalizeTireSize(input: string): string | null {
     .replace(',', '.')
     .replace(/[^0-9A-Z\/\-\. X R]/g, '')
     .replace(/\s+/g, ' ');
+
+  if (cleaned === 'RODA' || cleaned === 'AGRICOLA') {
+    return cleaned;
+  }
 
   const flotationMatch = cleaned.match(/^(\d{2})\s*X\s*(\d{1,2}(?:\.\d{1,2})?)\s*R\s*(\d{2}(?:\.\d)?[A-Z]?)$/);
   if (flotationMatch) {
