@@ -20,6 +20,10 @@ yarn-error.log*
 .wwebjs_auth/
 .wwebjs_cache/
 
+# Local SQLite database
+prisma/*.db
+prisma/*.db-journal
+
 # OS generated files
 .DS_Store
 Thumbs.db
@@ -33,3 +37,5 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
+
+/src/generated/prisma

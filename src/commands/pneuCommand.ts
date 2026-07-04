@@ -3,78 +3,45 @@ import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageUserId } from '../utils/messageContext.js';
+import { findActiveProductsByReference } from '../services/productService.js';
 
 /**
- * Pneu Command - Fase 2 (Consulta fake)
+ * Pneu Command - Fase 6 (Consulta real no banco)
  * 
  * Responsibilities:
  * - Detect "pneu <medida>"
  * - Normalize the tire size (175/70 R14 etc.)
- * - Return a numbered list of fake matching products
+ * - Return a numbered list of active matching products from the database
  * - Save the last query in memory for 5 minutes (per SPEC)
  * 
  * Does NOT start any sale/operation by itself.
- * Sale is handled by saleCommand in Fase 3.
+ * Sale is handled by saleCommand.
  */
 
-// Fake product list used until the real database query is implemented.
-// This will be replaced by real DB query in Fase 6.
-const fakeProducts: QueriedProduct[] = [
-  {
-    id: 'p1',
-    reference: '175/70 R14',
-    description: 'SpeedMax Street MH01',
-    stock: 12,
-    cashPrice: 320,
-    creditPrice: 350,
-  },
-  {
-    id: 'p2',
-    reference: '175/70 R14',
-    description: 'Pirelli Cinturato P7',
-    stock: 8,
-    cashPrice: 395,
-    creditPrice: 430,
-  },
-  {
-    id: 'p3',
-    reference: '175/70 R14',
-    description: 'Goodyear Assurance',
-    stock: 15,
-    cashPrice: 380,
-    creditPrice: 410,
-  },
-  {
-    id: 'p4',
-    reference: '195/65 R15',
-    description: 'Michelin Primacy 4',
-    stock: 20,
-    cashPrice: 450,
-    creditPrice: 490,
-  },
-  {
-    id: 'p5',
-    reference: '195/65 R15',
-    description: 'Continental PremiumContact 6',
-    stock: 5,
-    cashPrice: 470,
-    creditPrice: 510,
-  },
-];
+// Compatibilidade temporaria para a venda fake da Fase 3.
+// Na Fase 7, a venda real passara a consultar e alterar o banco.
+const fakeSaleProducts = new Map<string, QueriedProduct>();
+
+function rememberProductsForFakeSale(products: QueriedProduct[]): void {
+  products.forEach((product) => {
+    fakeSaleProducts.set(product.id, { ...product });
+  });
+}
 
 export function getFakeProductById(productId: string): QueriedProduct | null {
-  return fakeProducts.find((product) => product.id === productId) || null;
+  const product = fakeSaleProducts.get(productId);
+  return product ? { ...product } : null;
 }
 
 export function decreaseFakeProductStock(productId: string, quantity: number): QueriedProduct | null {
-  const product = getFakeProductById(productId);
+  const product = fakeSaleProducts.get(productId);
 
   if (!product || product.stock < quantity) {
     return null;
   }
 
   product.stock -= quantity;
-  return product;
+  return { ...product };
 }
 
 function formatProductList(products: QueriedProduct[], normalized: string): string {
@@ -111,14 +78,16 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
       return;
     }
 
-    const matches = fakeProducts.filter((p) => p.reference === normalized);
+    const matches = await findActiveProductsByReference(normalized);
 
     if (matches.length === 0) {
       await message.reply(`Nenhum pneu encontrado para ${normalized}.`);
       return;
     }
 
-    // Save last consultation (5 minute TTL) - required for Fase 2
+    rememberProductsForFakeSale(matches);
+
+    // Save last consultation (5 minute TTL) - required for indexed commands
     saveLastQuery(getMessageUserId(message), normalized, matches);
 
     const response = formatProductList(matches, normalized);

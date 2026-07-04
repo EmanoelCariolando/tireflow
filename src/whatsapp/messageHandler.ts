@@ -2,6 +2,7 @@ import { Message } from 'whatsapp-web.js';
 import { isPingCommand, handlePingCommand } from '../commands/pingCommand.js';
 import { isPneuCommand, handlePneuCommand } from '../commands/pneuCommand.js';
 import { isSaleCommand, handleSaleCommand, handleSaleConversation } from '../commands/saleCommand.js';
+import { isGroupIdCommand, handleGroupIdCommand } from '../commands/groupIdCommand.js';
 import env from '../config/env.js';
 import { isGroupMessage } from '../utils/messageContext.js';
 
@@ -18,11 +19,16 @@ import { isGroupMessage } from '../utils/messageContext.js';
  * - commands handle the conversation flow.
  */
 export async function handleIncomingMessage(message: Message): Promise<void> {
-  if (!isAuthorizedChat(message)) {
+  const body = message.body?.trim() || '';
+
+  if (body && isGroupIdCommand(body)) {
+    await handleGroupIdCommand(message);
     return;
   }
 
-  const body = message.body?.trim() || '';
+  if (!isAuthorizedChat(message)) {
+    return;
+  }
 
   console.log(`[MSG] From: ${message.from} | Body: "${body}" | Media: ${message.hasMedia}`);
 
