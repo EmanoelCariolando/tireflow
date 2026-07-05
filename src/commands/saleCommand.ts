@@ -4,9 +4,13 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
   calculateSaleTotal,
-  generateFakeSaleCode,
+  getCurrentProductStock,
   getUnitPriceForPayment,
+  InsufficientStockError,
+  registerSale,
+  SaleProductNotFoundError,
 } from '../services/saleService.js';
+import { sendBossNotification } from '../services/notificationService.js';
 import {
   clearSaleSession,
   getSaleSession,
@@ -15,7 +19,6 @@ import {
   SaleSession,
   saveSaleSession,
 } from '../utils/saleSessionStore.js';
-import { decreaseFakeProductStock, getFakeProductById } from './pneuCommand.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 
@@ -62,10 +65,16 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     return;
   }
 
-  const currentProduct = getFakeProductById(product.id) || product;
-  if (currentProduct.stock < quantity) {
+  const currentStock = await getCurrentProductStock(product.id);
+
+  if (currentStock === null) {
+    await message.reply('⚠️ Produto não está mais disponível. Faça uma nova consulta.');
+    return;
+  }
+
+  if (currentStock < quantity) {
     await message.reply(
-      `⚠️ Venda cancelada.\n\nEstoque atual: ${currentProduct.stock}\nQuantidade solicitada: ${quantity}`
+      `⚠️ Venda cancelada.\n\nEstoque atual: ${currentStock}\nQuantidade solicitada: ${quantity}`
     );
     return;
   }
@@ -127,6 +136,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   if (session.step === 'awaiting_confirmation') {
     await handleConfirmationStep(message, session, normalizedBody);
+    return true;
+  }
+
+  if (session.step === 'processing') {
+    await message.reply('⏳ Venda em processamento. Aguarde um instante.');
     return true;
   }
 
@@ -234,31 +248,77 @@ async function handleConfirmationStep(
     return;
   }
 
-  const currentProduct = getFakeProductById(session.productId);
-
-  if (!currentProduct || currentProduct.stock < session.quantity) {
+  if (!session.paymentMethod || session.unitPrice === undefined || session.totalValue === undefined) {
     clearSaleSession(session.userId, session.chatId);
-    await message.reply(
-      `⚠️ Venda cancelada.\n\nEstoque atual: ${currentProduct?.stock ?? 0}\nQuantidade solicitada: ${session.quantity}`
-    );
+    await message.reply('Ocorreu um erro na sessão da venda. Faça a consulta novamente.');
     return;
   }
 
-  const updatedProduct = decreaseFakeProductStock(session.productId, session.quantity);
+  saveSaleSession({
+    ...session,
+    step: 'processing',
+    updatedAt: Date.now(),
+  });
 
-  if (!updatedProduct) {
-    clearSaleSession(session.userId, session.chatId);
-    await message.reply('Ocorreu um erro ao simular a baixa de estoque. Tente novamente.');
-    return;
-  }
-
-  const movementCode = generateFakeSaleCode();
   const sellerName = await getSellerName(message, session.userId);
 
-  await message.reply(formatRegisteredSale(session, movementCode, sellerName, updatedProduct.stock));
+  let registeredSale: Awaited<ReturnType<typeof registerSale>>;
 
-  if (session.receiptMedia) {
-    await message.reply(session.receiptMedia);
+  try {
+    registeredSale = await registerSale({
+      productId: session.productId,
+      sellerPhone: session.userId,
+      sellerName,
+      quantity: session.quantity,
+      unitPrice: session.unitPrice,
+      totalValue: session.totalValue,
+      paymentMethod: session.paymentMethod,
+      invoiceName: session.invoiceName,
+    });
+  } catch (error) {
+    clearSaleSession(session.userId, session.chatId);
+
+    if (error instanceof InsufficientStockError) {
+      await message.reply(
+        `⚠️ Venda cancelada.\n\nEstoque atual: ${error.currentStock}\nQuantidade solicitada: ${error.requestedQuantity}`
+      );
+      return;
+    }
+
+    if (error instanceof SaleProductNotFoundError) {
+      await message.reply('⚠️ Produto não está mais disponível. Faça uma nova consulta.');
+      return;
+    }
+
+    console.error('[SALE] Error registering sale:', error);
+    await message.reply('Ocorreu um erro ao registrar a venda. Tente novamente.');
+    return;
+  }
+
+  const groupMessage = formatRegisteredSale(
+    session,
+    registeredSale.movementCode,
+    sellerName,
+    registeredSale.currentStock
+  );
+
+  try {
+    await message.reply(groupMessage);
+
+    if (session.receiptMedia) {
+      await message.reply(session.receiptMedia);
+    }
+  } catch (error) {
+    console.error('[SALE] Error sending sale message to group:', error);
+  }
+
+  try {
+    await sendBossNotification(
+      formatBossSaleNotification(session, registeredSale.movementCode, sellerName, registeredSale.currentStock),
+      session.receiptMedia
+    );
+  } catch (error) {
+    console.error('[SALE] Error sending boss notification:', error);
   }
 
   clearSaleSession(session.userId, session.chatId);
@@ -322,6 +382,27 @@ function formatRegisteredSale(
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     `Vendedor: ${sellerName}`,
     '',
+    `Estoque atual: ${currentStock}`,
+  ].join('\n');
+}
+
+function formatBossSaleNotification(
+  session: SaleSession,
+  movementCode: string,
+  sellerName: string,
+  currentStock: number
+): string {
+  return [
+    '🔔 Nova venda',
+    '',
+    `Movimentação: ${movementCode}`,
+    `${sellerName} vendeu ${session.quantity} pneus`,
+    `${session.reference} ${session.description}`,
+    '',
+    `Valor unitário: ${formatCurrency(session.unitPrice ?? 0)}`,
+    `Total da venda: ${formatCurrency(session.totalValue ?? 0)}`,
+    `Pagamento: ${session.paymentMethod}`,
+    ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     `Estoque atual: ${currentStock}`,
   ].join('\n');
 }

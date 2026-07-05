@@ -6,7 +6,8 @@ export type SaleSessionStep =
   | 'awaiting_payment'
   | 'awaiting_photo'
   | 'awaiting_invoice_name'
-  | 'awaiting_confirmation';
+  | 'awaiting_confirmation'
+  | 'processing';
 
 export interface SaleSession {
   userId: string;

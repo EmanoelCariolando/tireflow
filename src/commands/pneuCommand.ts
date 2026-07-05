@@ -18,32 +18,6 @@ import { findAvailableProductsByReference } from '../services/productService.js'
  * Sale is handled by saleCommand.
  */
 
-// Compatibilidade temporaria para a venda fake da Fase 3.
-// Na Fase 7, a venda real passara a consultar e alterar o banco.
-const fakeSaleProducts = new Map<string, QueriedProduct>();
-
-function rememberProductsForFakeSale(products: QueriedProduct[]): void {
-  products.forEach((product) => {
-    fakeSaleProducts.set(product.id, { ...product });
-  });
-}
-
-export function getFakeProductById(productId: string): QueriedProduct | null {
-  const product = fakeSaleProducts.get(productId);
-  return product ? { ...product } : null;
-}
-
-export function decreaseFakeProductStock(productId: string, quantity: number): QueriedProduct | null {
-  const product = fakeSaleProducts.get(productId);
-
-  if (!product || product.stock < quantity) {
-    return null;
-  }
-
-  product.stock -= quantity;
-  return { ...product };
-}
-
 function formatProductList(products: QueriedProduct[], normalized: string): string {
   let text = `🛞 ${normalized}\n\n`;
 
@@ -84,8 +58,6 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
       await message.reply(`Nenhum pneu encontrado para ${normalized}.`);
       return;
     }
-
-    rememberProductsForFakeSale(matches);
 
     // Save last consultation (5 minute TTL) - required for indexed commands
     saveLastQuery(getMessageUserId(message), normalized, matches);

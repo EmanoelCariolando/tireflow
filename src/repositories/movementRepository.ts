@@ -1,9 +1,11 @@
 import { prisma } from '../database/prisma.js';
-import type { Prisma } from '@prisma/client';
+import type { MovementType, Prisma } from '@prisma/client';
+
+type PrismaClientOrTransaction = Prisma.TransactionClient | typeof prisma;
 
 export const movementRepository = {
-  findByCode(code: string) {
-    return prisma.movement.findUnique({
+  findByCode(code: string, client: PrismaClientOrTransaction = prisma) {
+    return client.movement.findUnique({
       where: { code },
       include: {
         product: true,
@@ -12,14 +14,20 @@ export const movementRepository = {
     });
   },
 
-  create(data: Prisma.MovementCreateInput) {
-    return prisma.movement.create({
+  create(data: Prisma.MovementCreateInput, client: PrismaClientOrTransaction = prisma) {
+    return client.movement.create({
       data,
     });
   },
 
-  findRecent(limit = 50) {
-    return prisma.movement.findMany({
+  countByType(type: MovementType, client: PrismaClientOrTransaction = prisma) {
+    return client.movement.count({
+      where: { type },
+    });
+  },
+
+  findRecent(limit = 50, client: PrismaClientOrTransaction = prisma) {
+    return client.movement.findMany({
       take: limit,
       orderBy: {
         createdAt: 'desc',

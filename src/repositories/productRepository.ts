@@ -1,15 +1,17 @@
 import { prisma } from '../database/prisma.js';
 import type { Prisma } from '@prisma/client';
 
+type PrismaClientOrTransaction = Prisma.TransactionClient | typeof prisma;
+
 export const productRepository = {
-  findById(id: string) {
-    return prisma.product.findUnique({
+  findById(id: string, client: PrismaClientOrTransaction = prisma) {
+    return client.product.findUnique({
       where: { id },
     });
   },
 
-  findActiveByReference(reference: string) {
-    return prisma.product.findMany({
+  findActiveByReference(reference: string, client: PrismaClientOrTransaction = prisma) {
+    return client.product.findMany({
       where: {
         reference,
         isActive: true,
@@ -20,8 +22,8 @@ export const productRepository = {
     });
   },
 
-  findActiveByReferences(references: string[]) {
-    return prisma.product.findMany({
+  findActiveByReferences(references: string[], client: PrismaClientOrTransaction = prisma) {
+    return client.product.findMany({
       where: {
         reference: {
           in: references,
@@ -35,8 +37,8 @@ export const productRepository = {
     });
   },
 
-  findAvailableByReferences(references: string[]) {
-    return prisma.product.findMany({
+  findAvailableByReferences(references: string[], client: PrismaClientOrTransaction = prisma) {
+    return client.product.findMany({
       where: {
         reference: {
           in: references,
@@ -53,8 +55,12 @@ export const productRepository = {
     });
   },
 
-  findByReferenceAndDescription(reference: string, description: string) {
-    return prisma.product.findFirst({
+  findByReferenceAndDescription(
+    reference: string,
+    description: string,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.findFirst({
       where: {
         reference,
         description,
@@ -62,16 +68,37 @@ export const productRepository = {
     });
   },
 
-  create(data: Prisma.ProductCreateInput) {
-    return prisma.product.create({
+  create(data: Prisma.ProductCreateInput, client: PrismaClientOrTransaction = prisma) {
+    return client.product.create({
       data,
     });
   },
 
-  updateStock(id: string, stock: number) {
-    return prisma.product.update({
+  updateStock(id: string, stock: number, client: PrismaClientOrTransaction = prisma) {
+    return client.product.update({
       where: { id },
       data: { stock },
+    });
+  },
+
+  decreaseStockIfAvailable(
+    id: string,
+    quantity: number,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.updateMany({
+      where: {
+        id,
+        isActive: true,
+        stock: {
+          gte: quantity,
+        },
+      },
+      data: {
+        stock: {
+          decrement: quantity,
+        },
+      },
     });
   },
 };
