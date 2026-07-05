@@ -272,9 +272,7 @@ export function initializeWhatsAppClient(): void {
  */
 export async function startWhatsAppClient(): Promise<void> {
   console.log('🚀 Starting WhatsApp client...');
-  console.log(`🔐 WhatsApp auth data path: ${env.whatsappAuthDataPath}`);
-  console.log(`🧭 WhatsApp browser mode: ${env.whatsappHeadless ? 'headless' : 'visible'}`);
-  console.log(`🧩 WhatsApp Web version: ${env.whatsappWebVersion || 'latest'}`);
+
 
   try {
     const initializePromise = whatsappClient.initialize();

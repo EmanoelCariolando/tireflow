@@ -1,5 +1,4 @@
 import { Message } from 'whatsapp-web.js';
-import { isPingCommand, handlePingCommand } from '../commands/pingCommand.js';
 import { isPneuCommand, handlePneuCommand } from '../commands/pneuCommand.js';
 import { isSaleCommand, handleSaleCommand, handleSaleConversation } from '../commands/saleCommand.js';
 import { isGroupIdCommand, handleGroupIdCommand } from '../commands/groupIdCommand.js';
@@ -37,11 +36,6 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   }
 
   if (!body) {
-    return;
-  }
-
-  if (isPingCommand(body)) {
-    await handlePingCommand(message);
     return;
   }
 
