@@ -11,6 +11,8 @@ interface EnvConfig {
   whatsappWebVersion: string;
   whatsappOfficialGroupId: string;
   bossPrivateNumber: string;
+  ownerPhone: string;
+  dailyReportTime: string;
   allowPrivateTestMode: boolean;
 }
 
@@ -28,6 +30,8 @@ export const env: EnvConfig = {
   whatsappWebVersion: process.env.WHATSAPP_WEB_VERSION || '',
   whatsappOfficialGroupId: process.env.WHATSAPP_OFFICIAL_GROUP_ID || '',
   bossPrivateNumber: process.env.BOSS_PRIVATE_NUMBER || '',
+  ownerPhone: process.env.OWNER_PHONE || '',
+  dailyReportTime: process.env.DAILY_REPORT_TIME || '',
   allowPrivateTestMode: process.env.ALLOW_PRIVATE_TEST_MODE === 'true',
 };
 

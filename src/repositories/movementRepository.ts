@@ -38,4 +38,35 @@ export const movementRepository = {
       },
     });
   },
+
+  findByDateRange(start: Date, end: Date, client: PrismaClientOrTransaction = prisma) {
+    return client.movement.findMany({
+      where: {
+        createdAt: {
+          gte: start,
+          lt: end,
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+      include: {
+        product: true,
+        user: true,
+      },
+    });
+  },
+
+  findByType(type: MovementType, client: PrismaClientOrTransaction = prisma) {
+    return client.movement.findMany({
+      where: { type },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        product: true,
+        user: true,
+      },
+    });
+  },
 };

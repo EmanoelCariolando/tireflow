@@ -9,6 +9,9 @@ import {
 } from '../commands/adjustmentCommand.js';
 import { isPriceCommand, handlePriceCommand, handlePriceConversation } from '../commands/priceCommand.js';
 import { isGroupIdCommand, handleGroupIdCommand } from '../commands/groupIdCommand.js';
+import { isLowStockCommand, handleLowStockCommand } from '../commands/lowStockCommand.js';
+import { isBestSellersCommand, handleBestSellersCommand } from '../commands/bestSellersCommand.js';
+import { isTodayReportCommand, handleTodayReportCommand } from '../commands/todayReportCommand.js';
 import env from '../config/env.js';
 import { isGroupMessage } from '../utils/messageContext.js';
 
@@ -85,7 +88,20 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
-  // Future phases will add: baixo, relatorios, etc.
+  if (isLowStockCommand(body)) {
+    await handleLowStockCommand(message);
+    return;
+  }
+
+  if (isBestSellersCommand(body)) {
+    await handleBestSellersCommand(message);
+    return;
+  }
+
+  if (isTodayReportCommand(body)) {
+    await handleTodayReportCommand(message);
+    return;
+  }
 }
 
 function isAuthorizedChat(message: Message): boolean {

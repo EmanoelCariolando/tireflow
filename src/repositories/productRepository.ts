@@ -153,4 +153,17 @@ export const productRepository = {
       },
     });
   },
+
+  findActiveForStockReport(client: PrismaClientOrTransaction = prisma) {
+    return client.product.findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: [
+        { stock: 'asc' },
+        { reference: 'asc' },
+        { description: 'asc' },
+      ],
+    });
+  },
 };

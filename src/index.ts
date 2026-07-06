@@ -1,5 +1,6 @@
 import { whatsappClient, initializeWhatsAppClient, startWhatsAppClient, stopWhatsAppClient } from './whatsapp/client.js';
 import { handleIncomingMessage } from './whatsapp/messageHandler.js';
+import { startDailyReportScheduler, stopDailyReportScheduler } from './services/dailyReportScheduler.js';
 
 let isShuttingDown = false;
 
@@ -20,7 +21,7 @@ let isShuttingDown = false;
  */
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('   TireFlow - WhatsApp Bot (Fase 6)');
+  console.log('   TireFlow - WhatsApp Bot (MVP)');
   console.log('========================================\n');
 
   try {
@@ -32,6 +33,9 @@ async function main(): Promise<void> {
 
     // 3. Start the client (this will show QR code if needed)
     await startWhatsAppClient();
+
+    // 4. Start daily report scheduler
+    startDailyReportScheduler();
 
     console.log('Bot is running. Press Ctrl+C to stop.\n');
   } catch (error) {
@@ -49,6 +53,7 @@ async function shutdown(signal: string): Promise<void> {
   console.log(`\nShutting down TireFlow (${signal})...`);
 
   try {
+    stopDailyReportScheduler();
     await stopWhatsAppClient();
   } catch (error) {
     console.error('Error while stopping WhatsApp client:', error);

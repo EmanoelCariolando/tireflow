@@ -1,7 +1,6 @@
 import { Message } from 'whatsapp-web.js';
 import { getLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
-import { isMessageFromGroupAdmin } from '../utils/groupAdminPermission.js';
 import {
   AdjustmentSession,
   clearAdjustmentSession,
@@ -27,11 +26,6 @@ export function isAdjustmentCommand(body: string): boolean {
 export async function handleAdjustmentCommand(message: Message, body: string): Promise<void> {
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
-
-  if (!(await isMessageFromGroupAdmin(message))) {
-    await message.reply('⚠️ Apenas administradores do grupo podem ajustar estoque.');
-    return;
-  }
 
   if (hasExpiredAdjustmentSession(userId, chatId)) {
     await message.reply('⏳ Operação cancelada por inatividade.');
