@@ -34,13 +34,33 @@ function formatProductList(products: QueriedProduct[], normalized: string): stri
   });
 
   text += '\nPara vender digite:\nvenda 1 5';
+  text += '\nPara dar entrada:\n entrada 1 ';
+  text += '\nAjustar Estoque:\n ajuste 1';
+  text += '\nAjustar Preço:\n ajuste 1';
 
   return text;
+}
+
+export function isPneuHelpCommand(body: string): boolean {
+  return body.trim().toLowerCase() === 'pneu';
 }
 
 export function isPneuCommand(body: string): boolean {
   const normalized = body.trim().toLowerCase();
   return normalized.startsWith('pneu ');
+}
+
+export async function handlePneuHelpCommand(message: Message): Promise<void> {
+  await message.reply(
+    [
+      'Comandos após consultar pneus:',
+      '',
+      'venda <número> <quantidade>',
+      'entrada <número>',
+      'ajuste <número>',
+      'preco <número>',
+    ].join('\n')
+  );
 }
 
 export async function handlePneuCommand(message: Message, rawMeasure: string): Promise<void> {

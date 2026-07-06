@@ -1,5 +1,10 @@
 import { Message } from 'whatsapp-web.js';
-import { isPneuCommand, handlePneuCommand } from '../commands/pneuCommand.js';
+import {
+  isPneuCommand,
+  handlePneuCommand,
+  isPneuHelpCommand,
+  handlePneuHelpCommand,
+} from '../commands/pneuCommand.js';
 import { isSaleCommand, handleSaleCommand, handleSaleConversation } from '../commands/saleCommand.js';
 import { isEntryCommand, handleEntryCommand, handleEntryConversation } from '../commands/entryCommand.js';
 import {
@@ -12,6 +17,7 @@ import { isGroupIdCommand, handleGroupIdCommand } from '../commands/groupIdComma
 import { isLowStockCommand, handleLowStockCommand } from '../commands/lowStockCommand.js';
 import { isBestSellersCommand, handleBestSellersCommand } from '../commands/bestSellersCommand.js';
 import { isTodayReportCommand, handleTodayReportCommand } from '../commands/todayReportCommand.js';
+import { isMenuCommand, handleMenuCommand, handleMenuSelection } from '../commands/menuCommand.js';
 import env from '../config/env.js';
 import { isGroupMessage } from '../utils/messageContext.js';
 
@@ -58,6 +64,20 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   }
 
   if (!body) {
+    return;
+  }
+
+  if (await handleMenuSelection(message, body)) {
+    return;
+  }
+
+  if (isMenuCommand(body)) {
+    await handleMenuCommand(message);
+    return;
+  }
+
+  if (isPneuHelpCommand(body)) {
+    await handlePneuHelpCommand(message);
     return;
   }
 
