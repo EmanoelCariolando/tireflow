@@ -101,4 +101,56 @@ export const productRepository = {
       },
     });
   },
+
+  increaseStockIfActive(
+    id: string,
+    quantity: number,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.updateMany({
+      where: {
+        id,
+        isActive: true,
+      },
+      data: {
+        stock: {
+          increment: quantity,
+        },
+      },
+    });
+  },
+
+  setStockIfActive(
+    id: string,
+    stock: number,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.updateMany({
+      where: {
+        id,
+        isActive: true,
+      },
+      data: {
+        stock,
+      },
+    });
+  },
+
+  updatePricesIfActive(
+    id: string,
+    cashPrice: number,
+    creditPrice: number,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.updateMany({
+      where: {
+        id,
+        isActive: true,
+      },
+      data: {
+        cashPrice,
+        creditPrice,
+      },
+    });
+  },
 };

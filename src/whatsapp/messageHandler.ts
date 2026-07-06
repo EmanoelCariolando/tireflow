@@ -1,6 +1,13 @@
 import { Message } from 'whatsapp-web.js';
 import { isPneuCommand, handlePneuCommand } from '../commands/pneuCommand.js';
 import { isSaleCommand, handleSaleCommand, handleSaleConversation } from '../commands/saleCommand.js';
+import { isEntryCommand, handleEntryCommand, handleEntryConversation } from '../commands/entryCommand.js';
+import {
+  isAdjustmentCommand,
+  handleAdjustmentCommand,
+  handleAdjustmentConversation,
+} from '../commands/adjustmentCommand.js';
+import { isPriceCommand, handlePriceCommand, handlePriceConversation } from '../commands/priceCommand.js';
 import { isGroupIdCommand, handleGroupIdCommand } from '../commands/groupIdCommand.js';
 import env from '../config/env.js';
 import { isGroupMessage } from '../utils/messageContext.js';
@@ -31,6 +38,18 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   console.log(`[MSG] From: ${message.from} | Body: "${body}" | Media: ${message.hasMedia}`);
 
+  if (await handlePriceConversation(message, body)) {
+    return;
+  }
+
+  if (await handleAdjustmentConversation(message, body)) {
+    return;
+  }
+
+  if (await handleEntryConversation(message, body)) {
+    return;
+  }
+
   if (await handleSaleConversation(message, body)) {
     return;
   }
@@ -51,7 +70,22 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
-  // Future phases will add: entrada, ajuste, preco, etc.
+  if (isEntryCommand(body)) {
+    await handleEntryCommand(message, body);
+    return;
+  }
+
+  if (isAdjustmentCommand(body)) {
+    await handleAdjustmentCommand(message, body);
+    return;
+  }
+
+  if (isPriceCommand(body)) {
+    await handlePriceCommand(message, body);
+    return;
+  }
+
+  // Future phases will add: baixo, relatorios, etc.
 }
 
 function isAuthorizedChat(message: Message): boolean {

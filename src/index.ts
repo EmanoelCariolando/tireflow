@@ -20,7 +20,7 @@ let isShuttingDown = false;
  */
 async function main(): Promise<void> {
   console.log('========================================');
-  console.log('   TireFlow - WhatsApp Bot (Fase 3)');
+  console.log('   TireFlow - WhatsApp Bot (Fase 6)');
   console.log('========================================\n');
 
   try {

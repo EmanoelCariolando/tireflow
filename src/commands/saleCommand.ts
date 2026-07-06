@@ -19,6 +19,8 @@ import {
   SaleSession,
   saveSaleSession,
 } from '../utils/saleSessionStore.js';
+import { getEntrySession } from '../utils/entrySessionStore.js';
+import { getAdjustmentSession } from '../utils/adjustmentSessionStore.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 
@@ -35,7 +37,11 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     return;
   }
 
-  if (getSaleSession(userId, chatId)) {
+  if (
+    getSaleSession(userId, chatId) ||
+    getEntrySession(userId, chatId) ||
+    getAdjustmentSession(userId, chatId)
+  ) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return;
   }
@@ -116,6 +122,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
   if (normalizedBody === 'cancelar') {
     clearSaleSession(userId, chatId);
     await message.reply('❌ Operação cancelada.');
+    return true;
+  }
+
+  if (isNewOperationCommand(normalizedBody)) {
+    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return true;
   }
 
@@ -333,6 +344,10 @@ function parsePaymentMethod(value: string): PaymentMethod | null {
   if (normalized === '4' || normalized === 'nota') return 'Nota';
 
   return null;
+}
+
+function isNewOperationCommand(normalizedBody: string): boolean {
+  return /^(venda|entrada|ajuste|preco)\b/i.test(normalizedBody);
 }
 
 function applyPaymentToSession(session: SaleSession, paymentMethod: PaymentMethod): SaleSession {

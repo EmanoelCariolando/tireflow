@@ -1111,6 +1111,47 @@ Observação:
 2. Mais vendidos.
 3. Relatório diário.
 
+#### Relatório Diário Automático
+
+O TireFlow deve enviar automaticamente um relatório diário no horário configurado.
+
+Requisitos:
+
+- O horário do envio deve ser configurável por variável de ambiente (`.env`).
+- O relatório deve ser enviado somente para o WhatsApp privado do patrão (`OWNER_PHONE`).
+- O relatório deve ser gerado utilizando as movimentações registradas no banco durante o dia.
+- O envio deve ocorrer apenas uma vez por dia.
+- Se não houver movimentações, o sistema deve enviar um relatório informando que não houve movimentações no período.
+- O relatório deve ser gerado automaticamente, sem necessidade de comando manual.
+- O horário será definido futuramente através do arquivo `.env`.
+
+Conteúdo do relatório:
+
+```text
+📊 Relatório Diário
+
+Data
+
+Resumo financeiro:
+- Total vendido em Dinheiro
+- Total vendido em PIX
+- Total vendido em Cartão
+- Total vendido em Nota
+- Faturamento total do dia
+
+Movimentações:
+- Quantidade de vendas
+- Quantidade de entradas
+- Quantidade de ajustes
+- Quantidade de alterações de preço
+
+Estoque:
+- Produtos com estoque baixo
+- Produto mais vendido do dia
+
+TireFlow - Relatório automático
+```
+
 ---
 
 ## 18. Prompt para IA
