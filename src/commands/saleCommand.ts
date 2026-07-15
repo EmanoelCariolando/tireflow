@@ -10,7 +10,10 @@ import {
   registerSale,
   SaleProductNotFoundError,
 } from '../services/saleService.js';
-import { sendBossNotification } from '../services/notificationService.js';
+import {
+  sendBossMediaNotification,
+  sendBossTextNotification,
+} from '../services/notificationService.js';
 import {
   clearSaleSession,
   getSaleSession,
@@ -199,12 +202,25 @@ async function handlePaymentStep(
 }
 
 async function handlePhotoStep(message: Message, session: SaleSession): Promise<void> {
-  if (!message.hasMedia || message.type !== 'image') {
+  if (!message.hasMedia) {
     await message.reply('Envie a imagem da nota/comprovante para continuar.');
     return;
   }
 
-  const receiptMedia = await message.downloadMedia();
+  let receiptMedia: Awaited<ReturnType<Message['downloadMedia']>>;
+
+  try {
+    receiptMedia = await message.downloadMedia();
+  } catch (error) {
+    console.error('[SALE] Error downloading receipt media:', error);
+    await message.reply('Não consegui receber a imagem. Envie a foto novamente.');
+    return;
+  }
+
+  if (!receiptMedia || !receiptMedia.mimetype?.startsWith('image/')) {
+    await message.reply('Envie uma imagem da nota/comprovante para continuar.');
+    return;
+  }
 
   if (session.paymentMethod === 'Nota') {
     saveSaleSession({
@@ -213,7 +229,7 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
       receiptMedia,
       updatedAt: Date.now(),
     });
-    await message.reply('Nome da nota?\n\nExemplo:\nPrefeitura de Congo');
+    await message.reply('✅ Comprovante recebido.\n\nNome da nota?\n\nExemplo:\nPrefeitura de Congo');
     return;
   }
 
@@ -224,7 +240,7 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
-  await message.reply(formatSaleConfirmation(nextSession));
+  await message.reply(`✅ Comprovante recebido.\n\n${formatSaleConfirmation(nextSession)}`);
 }
 
 async function handleInvoiceNameStep(
@@ -315,24 +331,41 @@ async function handleConfirmationStep(
 
   try {
     await message.reply(groupMessage);
-
-    if (session.receiptMedia) {
-      await message.reply(session.receiptMedia);
-    }
   } catch (error) {
     console.error('[SALE] Error sending sale message to group:', error);
   }
 
   try {
-    await sendBossNotification(
-      formatBossSaleNotification(session, registeredSale.movementCode, sellerName, registeredSale.currentStock),
-      session.receiptMedia
+    await sendBossTextNotification(
+      formatBossSaleNotification(session, registeredSale.movementCode, sellerName, registeredSale.currentStock)
     );
   } catch (error) {
-    console.error('[SALE] Error sending boss notification:', error);
+    console.error('[SALE] Error sending boss text notification:', error);
+  }
+
+  if (session.receiptMedia) {
+    void sendSaleReceiptMedia(message, session.receiptMedia);
   }
 
   clearSaleSession(session.userId, session.chatId);
+}
+
+async function sendSaleReceiptMedia(message: Message, receiptMedia: SaleSession['receiptMedia']): Promise<void> {
+  if (!receiptMedia) {
+    return;
+  }
+
+  try {
+    await message.reply(receiptMedia);
+  } catch (error) {
+    console.error('[SALE] Error sending sale media to group:', error);
+  }
+
+  try {
+    await sendBossMediaNotification(receiptMedia);
+  } catch (error) {
+    console.error('[SALE] Error sending boss media notification:', error);
+  }
 }
 
 function parsePaymentMethod(value: string): PaymentMethod | null {

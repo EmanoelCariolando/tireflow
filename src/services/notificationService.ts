@@ -11,25 +11,26 @@ function normalizePhoneNumber(value: string): string | null {
   return digits || null;
 }
 
-async function getPrivateChatId(phoneNumberConfig: string, label: string): Promise<string | null> {
+function getPrivateChatId(phoneNumberConfig: string): string | null {
   const phoneNumber = normalizePhoneNumber(phoneNumberConfig.trim());
 
   if (!phoneNumber) {
     return null;
   }
 
-  const contactId = await whatsappClient.getNumberId(phoneNumber);
-
-  if (!contactId) {
-    console.warn(`${label} is not registered on WhatsApp: ${phoneNumber}`);
-    return null;
-  }
-
-  return contactId._serialized;
+  return `${phoneNumber}@c.us`;
 }
 
 export async function sendBossNotification(text: string, media?: MessageMedia): Promise<void> {
-  const bossChatId = await getPrivateChatId(env.bossPrivateNumber, 'BOSS_PRIVATE_NUMBER');
+  await sendBossTextNotification(text);
+
+  if (media) {
+    await sendBossMediaNotification(media);
+  }
+}
+
+export async function sendBossTextNotification(text: string): Promise<void> {
+  const bossChatId = getPrivateChatId(env.bossPrivateNumber);
 
   if (!bossChatId) {
     console.warn('BOSS_PRIVATE_NUMBER is not configured. Private boss notification was skipped.');
@@ -37,14 +38,21 @@ export async function sendBossNotification(text: string, media?: MessageMedia): 
   }
 
   await whatsappClient.sendMessage(bossChatId, text);
+}
 
-  if (media) {
-    await whatsappClient.sendMessage(bossChatId, media);
+export async function sendBossMediaNotification(media: MessageMedia): Promise<void> {
+  const bossChatId = getPrivateChatId(env.bossPrivateNumber);
+
+  if (!bossChatId) {
+    console.warn('BOSS_PRIVATE_NUMBER is not configured. Private boss media notification was skipped.');
+    return;
   }
+
+  await whatsappClient.sendMessage(bossChatId, media);
 }
 
 export async function sendOwnerNotification(text: string): Promise<void> {
-  const ownerChatId = await getPrivateChatId(env.ownerPhone, 'OWNER_PHONE');
+  const ownerChatId = getPrivateChatId(env.ownerPhone);
 
   if (!ownerChatId) {
     console.warn('OWNER_PHONE is not configured. Daily report notification was skipped.');
