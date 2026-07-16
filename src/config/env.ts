@@ -8,6 +8,7 @@ interface EnvConfig {
   whatsappAuthDataPath: string;
   whatsappDebug: boolean;
   whatsappHeadless: boolean;
+  chromeExecutablePath: string;
   whatsappWebVersion: string;
   whatsappOfficialGroupId: string;
   bossPrivateNumber: string;
@@ -27,6 +28,8 @@ export const env: EnvConfig = {
     `${process.env.LOCALAPPDATA || process.cwd()}\\TireFlow\\wwebjs_auth`,
   whatsappDebug: process.env.WHATSAPP_DEBUG === 'true',
   whatsappHeadless: process.env.WHATSAPP_HEADLESS !== 'false',
+  chromeExecutablePath:
+    process.env.CHROME_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   whatsappWebVersion: process.env.WHATSAPP_WEB_VERSION || '',
   whatsappOfficialGroupId: process.env.WHATSAPP_OFFICIAL_GROUP_ID || '',
   bossPrivateNumber: process.env.BOSS_PRIVATE_NUMBER || '',

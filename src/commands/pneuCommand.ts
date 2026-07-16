@@ -64,6 +64,8 @@ export async function handlePneuHelpCommand(message: Message): Promise<void> {
 }
 
 export async function handlePneuCommand(message: Message, rawMeasure: string): Promise<void> {
+  const startedAt = Date.now();
+
   try {
     const normalized = normalizeTireSize(rawMeasure);
 
@@ -72,10 +74,19 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
       return;
     }
 
+    const queryStartedAt = Date.now();
     const matches = await findAvailableProductsByReference(normalized);
+    const queryMs = Date.now() - queryStartedAt;
 
     if (matches.length === 0) {
+      const replyStartedAt = Date.now();
       await message.reply(`Nenhum pneu encontrado para ${normalized}.`);
+      const replyMs = Date.now() - replyStartedAt;
+      console.log(
+        `[PNEU] ${message.from} -> ${normalized} (0 produtos) queryMs=${queryMs} replyMs=${replyMs} totalMs=${
+          Date.now() - startedAt
+        }`
+      );
       return;
     }
 
@@ -83,9 +94,15 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
     saveLastQuery(getMessageUserId(message), normalized, matches);
 
     const response = formatProductList(matches, normalized);
+    const replyStartedAt = Date.now();
     await message.reply(response);
+    const replyMs = Date.now() - replyStartedAt;
 
-    console.log(`[PNEU] ${message.from} → ${normalized} (${matches.length} produtos)`);
+    console.log(
+      `[PNEU] ${message.from} -> ${normalized} (${matches.length} produtos) queryMs=${queryMs} replyMs=${replyMs} totalMs=${
+        Date.now() - startedAt
+      }`
+    );
   } catch (error) {
     console.error('[PNEU] Error:', error);
     await message.reply('Ocorreu um erro ao consultar os pneus. Tente novamente.');

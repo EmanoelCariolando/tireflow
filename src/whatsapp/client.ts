@@ -258,7 +258,7 @@ export const whatsappClient = new Client({
   puppeteer: {
     headless: env.whatsappHeadless,
     defaultViewport: null,
-    executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    executablePath: env.chromeExecutablePath,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',

@@ -2,7 +2,12 @@ import type { Product } from '@prisma/client';
 import { productRepository } from '../repositories/productRepository.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 
-function mapProductToQueryResult(product: Product): QueriedProduct {
+type ProductQueryRow = Pick<
+  Product,
+  'id' | 'reference' | 'description' | 'stock' | 'cashPrice' | 'creditPrice'
+>;
+
+function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
   return {
     id: product.id,
     reference: product.reference,

@@ -1,6 +1,7 @@
 import { whatsappClient, initializeWhatsAppClient, startWhatsAppClient, stopWhatsAppClient } from './whatsapp/client.js';
 import { handleIncomingMessage } from './whatsapp/messageHandler.js';
 import { startDailyReportScheduler, stopDailyReportScheduler } from './services/dailyReportScheduler.js';
+import { warmUpNotificationTargets } from './services/notificationService.js';
 
 let isShuttingDown = false;
 
@@ -34,7 +35,10 @@ async function main(): Promise<void> {
     // 3. Start the client (this will show QR code if needed)
     await startWhatsAppClient();
 
-    // 4. Start daily report scheduler
+    // 4. Resolve private notification chats before the first sale/report needs them
+    await warmUpNotificationTargets();
+
+    // 5. Start daily report scheduler
     startDailyReportScheduler();
 
     console.log('Bot is running. Press Ctrl+C to stop.\n');

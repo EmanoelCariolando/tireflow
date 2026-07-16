@@ -60,6 +60,34 @@ export async function getBossChatId(): Promise<string | null> {
   return bossChatId;
 }
 
+export async function warmUpNotificationTargets(): Promise<void> {
+  const warmUpTasks: Promise<string | null>[] = [];
+
+  if (hasBossNotificationTarget()) {
+    warmUpTasks.push(getPrivateChatId(env.bossPrivateNumber));
+  }
+
+  if (normalizePhoneNumber(env.ownerPhone.trim())) {
+    warmUpTasks.push(getPrivateChatId(env.ownerPhone));
+  }
+
+  if (warmUpTasks.length === 0) {
+    return;
+  }
+
+  const startedAt = Date.now();
+  const results = await Promise.allSettled(warmUpTasks);
+  const resolvedCount = results.filter(
+    (result) => result.status === 'fulfilled' && Boolean(result.value)
+  ).length;
+
+  console.log(
+    `[NOTIFICATION] Private notification targets warmed up (${resolvedCount}/${warmUpTasks.length}) in ${
+      Date.now() - startedAt
+    }ms.`
+  );
+}
+
 export async function sendBossNotification(text: string, media?: MessageMedia): Promise<void> {
   await sendBossTextNotification(text);
 

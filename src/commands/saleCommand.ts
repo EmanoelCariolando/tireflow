@@ -335,19 +335,24 @@ async function handleConfirmationStep(
     sellerName,
     registeredSale.currentStock
   );
+  const bossMessage = formatBossSaleNotification(
+    session,
+    registeredSale.movementCode,
+    sellerName,
+    registeredSale.currentStock
+  );
 
-  try {
-    await message.reply(groupMessage);
-  } catch (error) {
-    console.error('[SALE] Error sending sale message to group:', error);
+  const [groupMessageResult, bossMessageResult] = await Promise.allSettled([
+    message.reply(groupMessage),
+    sendBossTextNotification(bossMessage),
+  ]);
+
+  if (groupMessageResult.status === 'rejected') {
+    console.error('[SALE] Error sending sale message to group:', groupMessageResult.reason);
   }
 
-  try {
-    await sendBossTextNotification(
-      formatBossSaleNotification(session, registeredSale.movementCode, sellerName, registeredSale.currentStock)
-    );
-  } catch (error) {
-    console.error('[SALE] Error sending boss text notification:', error);
+  if (bossMessageResult.status === 'rejected') {
+    console.error('[SALE] Error sending boss text notification:', bossMessageResult.reason);
   }
 
   if (session.receiptMessageId) {

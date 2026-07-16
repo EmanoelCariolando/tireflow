@@ -39,6 +39,14 @@ export const productRepository = {
 
   findAvailableByReferences(references: string[], client: PrismaClientOrTransaction = prisma) {
     return client.product.findMany({
+      select: {
+        id: true,
+        reference: true,
+        description: true,
+        stock: true,
+        cashPrice: true,
+        creditPrice: true,
+      },
       where: {
         reference: {
           in: references,
