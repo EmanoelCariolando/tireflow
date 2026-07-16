@@ -34,9 +34,7 @@ function formatProductList(products: QueriedProduct[], normalized: string): stri
   });
 
   text += '\nPara vender digite:\nvenda 1 5';
-  text += '\nPara dar entrada:\n entrada 1 ';
-  text += '\nAjustar Estoque:\n ajuste 1';
-  text += '\nAjustar Preço:\n ajuste 1';
+  
 
   return text;
 }
