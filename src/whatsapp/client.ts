@@ -44,6 +44,46 @@ function shorten(value: string, maxLength = 700): string {
   return value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isLockedSessionCleanupError(error: unknown): boolean {
+  const message = getErrorMessage(error);
+  return message.includes('EBUSY') || message.includes('EPERM') || message.includes('resource busy or locked');
+}
+
+function isNoisyRequestFailure(errorText: string, url: string): boolean {
+  return errorText === 'net::ERR_ABORTED' && url.includes('/emoji/');
+}
+
+function createResilientLocalAuth(): InstanceType<typeof LocalAuth> {
+  const auth = new LocalAuth({
+    clientId: env.whatsappSessionName,
+    dataPath: env.whatsappAuthDataPath,
+    rmMaxRetries: 20,
+  });
+  const originalLogout = auth.logout.bind(auth);
+
+  auth.logout = async (): Promise<void> => {
+    try {
+      await originalLogout();
+    } catch (error) {
+      if (isLockedSessionCleanupError(error)) {
+        console.warn(
+          'WhatsApp LocalAuth session cleanup was skipped because Chrome still holds a session file. Restart the bot and scan the QR code if WhatsApp asks for it.',
+        );
+        console.warn('LocalAuth cleanup error:', getErrorMessage(error));
+        return;
+      }
+
+      throw error;
+    }
+  };
+
+  return auth;
+}
+
 async function waitForPuppeteerPage(): Promise<Page | undefined> {
   for (let attempt = 0; attempt < 100; attempt++) {
     if (whatsappClient.pupPage) {
@@ -84,7 +124,14 @@ async function attachBrowserDiagnostics(): Promise<void> {
 
   page.on('requestfailed', (request: HTTPRequest) => {
     const failure = request.failure();
-    console.error(`[WA REQUEST FAILED] ${failure?.errorText || 'unknown'} ${shorten(request.url())}`);
+    const errorText = failure?.errorText || 'unknown';
+    const url = request.url();
+
+    if (isNoisyRequestFailure(errorText, url)) {
+      return;
+    }
+
+    console.error(`[WA REQUEST FAILED] ${errorText} ${shorten(url)}`);
   });
 }
 
@@ -197,10 +244,7 @@ function createReadyOrManualAttachPromise(): Promise<void> {
  * This avoids needing to scan the QR code every time.
  */
 export const whatsappClient = new Client({
-  authStrategy: new LocalAuth({
-    clientId: env.whatsappSessionName,
-    dataPath: env.whatsappAuthDataPath,
-  }),
+  authStrategy: createResilientLocalAuth(),
   webVersion: env.whatsappWebVersion || undefined,
   webVersionCache: {
     type: 'local',
@@ -223,6 +267,8 @@ export const whatsappClient = new Client({
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      '--disk-cache-size=0',
+      '--media-cache-size=0',
     ],
   },
 });

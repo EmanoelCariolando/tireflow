@@ -1,4 +1,4 @@
-import { MessageMedia } from 'whatsapp-web.js';
+import type { Message } from 'whatsapp-web.js';
 
 export type PaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão' | 'Nota';
 
@@ -23,7 +23,8 @@ export interface SaleSession {
   totalValue?: number;
   paymentMethod?: PaymentMethod;
   invoiceName?: string;
-  receiptMedia?: MessageMedia;
+  receiptMessageId?: string;
+  receiptMessage?: Message;
   updatedAt: number;
 }
 

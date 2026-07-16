@@ -11,7 +11,7 @@ import {
   SaleProductNotFoundError,
 } from '../services/saleService.js';
 import {
-  sendBossMediaNotification,
+  forwardMessageToBoss,
   sendBossTextNotification,
 } from '../services/notificationService.js';
 import {
@@ -128,6 +128,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (isDuplicateReceiptMessage(message, session)) {
+    console.log(`[SALE] Duplicate receipt media message ignored: ${session.receiptMessageId}`);
+    return true;
+  }
+
   if (isNewOperationCommand(normalizedBody)) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return true;
@@ -202,31 +207,32 @@ async function handlePaymentStep(
 }
 
 async function handlePhotoStep(message: Message, session: SaleSession): Promise<void> {
-  if (!message.hasMedia) {
+  if (!isReceiptImageMessage(message)) {
     await message.reply('Envie a imagem da nota/comprovante para continuar.');
     return;
   }
 
-  let receiptMedia: Awaited<ReturnType<Message['downloadMedia']>>;
+  const receiptMessageId = getReceiptMessageId(message);
 
-  try {
-    receiptMedia = await message.downloadMedia();
-  } catch (error) {
-    console.error('[SALE] Error downloading receipt media:', error);
-    await message.reply('Não consegui receber a imagem. Envie a foto novamente.');
+  if (!receiptMessageId) {
+    logReceiptMessageIdDiagnostics(message);
+    await message.reply('Não consegui identificar a imagem. Envie a foto novamente.');
     return;
   }
 
-  if (!receiptMedia || !receiptMedia.mimetype?.startsWith('image/')) {
-    await message.reply('Envie uma imagem da nota/comprovante para continuar.');
-    return;
-  }
+  console.log('[SALE] Receipt image accepted', {
+    messageId: receiptMessageId,
+    type: message.type,
+    from: message.from,
+    author: message.author,
+  });
 
   if (session.paymentMethod === 'Nota') {
     saveSaleSession({
       ...session,
       step: 'awaiting_invoice_name',
-      receiptMedia,
+      receiptMessageId,
+      receiptMessage: message,
       updatedAt: Date.now(),
     });
     await message.reply('✅ Comprovante recebido.\n\nNome da nota?\n\nExemplo:\nPrefeitura de Congo');
@@ -236,7 +242,8 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
   const nextSession: SaleSession = {
     ...session,
     step: 'awaiting_confirmation',
-    receiptMedia,
+    receiptMessageId,
+    receiptMessage: message,
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
@@ -343,29 +350,92 @@ async function handleConfirmationStep(
     console.error('[SALE] Error sending boss text notification:', error);
   }
 
-  if (session.receiptMedia) {
-    void sendSaleReceiptMedia(message, session.receiptMedia);
+  if (session.receiptMessageId) {
+    await forwardSaleReceiptToBoss(session.receiptMessageId, session.receiptMessage);
   }
 
   clearSaleSession(session.userId, session.chatId);
 }
 
-async function sendSaleReceiptMedia(message: Message, receiptMedia: SaleSession['receiptMedia']): Promise<void> {
-  if (!receiptMedia) {
+async function forwardSaleReceiptToBoss(
+  receiptMessageId: string,
+  receiptMessage: SaleSession['receiptMessage']
+): Promise<void> {
+  if (!receiptMessageId) {
     return;
   }
 
   try {
-    await message.reply(receiptMedia);
+    console.log(`[SALE] Forwarding receipt image to boss: ${receiptMessageId}`);
+    await forwardMessageToBoss(receiptMessageId, receiptMessage);
   } catch (error) {
-    console.error('[SALE] Error sending sale media to group:', error);
+    console.error('[SALE] Error forwarding receipt image to boss:', {
+      receiptMessageId,
+      error,
+    });
+  }
+}
+
+function isReceiptImageMessage(message: Message): boolean {
+  return message.hasMedia && message.type === 'image';
+}
+
+function isDuplicateReceiptMessage(message: Message, session: SaleSession): boolean {
+  return Boolean(session.receiptMessageId && getReceiptMessageId(message) === session.receiptMessageId);
+}
+
+interface MessageIdLike {
+  fromMe?: boolean;
+  remote?: string;
+  id?: string;
+  _serialized?: string;
+  participant?: string | { _serialized?: string; user?: string };
+}
+
+function getReceiptMessageId(message: Message): string | null {
+  const id = message.id as MessageIdLike | undefined;
+
+  if (id?._serialized) {
+    return id._serialized;
   }
 
-  try {
-    await sendBossMediaNotification(receiptMedia);
-  } catch (error) {
-    console.error('[SALE] Error sending boss media notification:', error);
+  if (id?.fromMe === undefined || !id.remote || !id.id) {
+    return null;
   }
+
+  const participant = getParticipantId(id.participant) || message.author;
+  const serialized =
+    participant && id.remote.includes('@g.us')
+      ? `${id.fromMe}_${id.remote}_${id.id}_${participant}`
+      : `${id.fromMe}_${id.remote}_${id.id}`;
+
+  id._serialized = serialized;
+  return serialized;
+}
+
+function getParticipantId(participant: MessageIdLike['participant']): string | null {
+  if (!participant) {
+    return null;
+  }
+
+  if (typeof participant === 'string') {
+    return participant;
+  }
+
+  return participant._serialized || participant.user || null;
+}
+
+function logReceiptMessageIdDiagnostics(message: Message): void {
+  const rawData = message.rawData as { id?: unknown };
+
+  console.error('[SALE] Receipt image message has no recoverable serialized id.', {
+    type: message.type,
+    hasMedia: message.hasMedia,
+    from: message.from,
+    author: message.author,
+    messageId: message.id,
+    rawId: rawData.id,
+  });
 }
 
 function parsePaymentMethod(value: string): PaymentMethod | null {
@@ -404,7 +474,7 @@ function formatSaleConfirmation(session: SaleSession): string {
     `Valor unitário: ${formatCurrency(session.unitPrice ?? 0)}`,
     `Total da venda: ${formatCurrency(session.totalValue ?? 0)}`,
     `Pagamento: ${session.paymentMethod}`,
-    ...(session.receiptMedia ? ['Foto da nota/comprovante: recebida'] : []),
+    ...(session.receiptMessageId ? ['Foto da nota/comprovante: recebida'] : []),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     '',
     'Digite: confirmar ou cancelar',
