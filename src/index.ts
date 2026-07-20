@@ -2,6 +2,11 @@ import { whatsappClient, initializeWhatsAppClient, startWhatsAppClient, stopWhat
 import { handleIncomingMessage } from './whatsapp/messageHandler.js';
 import { startDailyReportScheduler, stopDailyReportScheduler } from './services/dailyReportScheduler.js';
 import { warmUpNotificationTargets } from './services/notificationService.js';
+import env from './config/env.js';
+import { disconnectPrisma } from './database/prisma.js';
+import { installStructuredLogging } from './services/logger.js';
+import { runStartupChecks } from './services/startupService.js';
+import { startHealthMonitor, stopHealthMonitor } from './services/healthService.js';
 
 let isShuttingDown = false;
 
@@ -21,25 +26,40 @@ let isShuttingDown = false;
  * - Clean separation of concerns
  */
 async function main(): Promise<void> {
+  installStructuredLogging();
   console.log('========================================');
   console.log('   TireFlow - WhatsApp Bot (MVP)');
   console.log('========================================\n');
 
   try {
-    // 1. Initialize WhatsApp client (sets up event listeners)
+    // 1. Refuse to start with an incomplete installation.
+    await runStartupChecks();
+
+    // 2. Initialize WhatsApp client (sets up event listeners)
     initializeWhatsAppClient();
 
-    // 2. Register message handler
-    whatsappClient.on('message', handleIncomingMessage);
+    // 3. Register message handler with a rejection boundary.
+    whatsappClient.on('message', (message) => {
+      void handleIncomingMessage(message).catch((error: unknown) => {
+        console.error('[MESSAGE] Unhandled command error.', error);
+      });
+    });
 
-    // 3. Start the client (this will show QR code if needed)
+    whatsappClient.on('disconnected', (reason: string) => {
+      if (env.nodeEnv !== 'production' || isShuttingDown) return;
+      console.error('[WHATSAPP] Disconnected in production; exiting for service restart.', { reason });
+      setTimeout(() => void shutdown('WHATSAPP_DISCONNECTED', 1), 2000);
+    });
+
+    // 4. Start the client (this will show QR code if needed)
     await startWhatsAppClient();
 
-    // 4. Resolve private notification chats before the first sale/report needs them
+    // 5. Resolve private notification chats before the first sale/report needs them
     await warmUpNotificationTargets();
 
-    // 5. Start daily report scheduler
+    // 6. Start daily report scheduler
     startDailyReportScheduler();
+    startHealthMonitor();
 
     console.log('Bot is running. Press Ctrl+C to stop.\n');
   } catch (error) {
@@ -48,7 +68,7 @@ async function main(): Promise<void> {
   }
 }
 
-async function shutdown(signal: string): Promise<void> {
+async function shutdown(signal: string, exitCode = 0): Promise<void> {
   if (isShuttingDown) {
     return;
   }
@@ -58,11 +78,15 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     stopDailyReportScheduler();
+    stopHealthMonitor();
     await stopWhatsAppClient();
   } catch (error) {
     console.error('Error while stopping WhatsApp client:', error);
   } finally {
-    process.exit(0);
+    await disconnectPrisma().catch((error: unknown) => {
+      console.error('[DATABASE] Error disconnecting Prisma.', error);
+    });
+    process.exit(exitCode);
   }
 }
 
@@ -72,6 +96,16 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   void shutdown('SIGTERM');
+});
+
+process.on('unhandledRejection', (error: unknown) => {
+  console.error('[PROCESS] Unhandled promise rejection.', error);
+  void shutdown('UNHANDLED_REJECTION', 1);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('[PROCESS] Uncaught exception.', error);
+  void shutdown('UNCAUGHT_EXCEPTION', 1);
 });
 
 // Start the application

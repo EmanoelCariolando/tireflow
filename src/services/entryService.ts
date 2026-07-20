@@ -4,6 +4,7 @@ import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
+import { withInventoryMutationLock } from './inventoryMutationLock.js';
 
 export class EntryProductNotFoundError extends Error {
   constructor() {
@@ -26,7 +27,7 @@ interface RegisteredEntry {
 }
 
 export async function registerEntry(input: RegisterEntryInput): Promise<RegisteredEntry> {
-  return prisma.$transaction(async (tx) => {
+  return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
     const product = await productRepository.findById(input.productId, tx);
 
     if (!product || !product.isActive) {
@@ -81,5 +82,5 @@ export async function registerEntry(input: RegisterEntryInput): Promise<Register
       previousStock,
       currentStock: updatedProduct.stock,
     };
-  });
+  }));
 }

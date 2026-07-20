@@ -13,9 +13,12 @@ export interface QueriedProduct {
   stock: number;
   cashPrice: number;
   creditPrice: number;
+  hasPhoto?: boolean;
 }
 
 interface StoredQuery {
+  userId: string;
+  chatId: string;
   normalizedMeasure: string;
   products: QueriedProduct[];
   timestamp: number;
@@ -25,15 +28,22 @@ const lastQueries = new Map<string, StoredQuery>();
 
 const TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+function buildKey(userId: string, chatId: string): string {
+  return `${chatId}:${userId}`;
+}
+
 /**
  * Save the results of a pneu query for a user.
  */
 export function saveLastQuery(
   userId: string,
+  chatId: string,
   normalizedMeasure: string,
   products: QueriedProduct[]
 ): void {
-  lastQueries.set(userId, {
+  lastQueries.set(buildKey(userId, chatId), {
+    userId,
+    chatId,
     normalizedMeasure,
     products: [...products],
     timestamp: Date.now(),
@@ -44,15 +54,16 @@ export function saveLastQuery(
  * Get the last query if it is still valid (< 5 minutes old).
  * Automatically removes expired entries.
  */
-export function getLastQuery(userId: string): {
+export function getLastQuery(userId: string, chatId: string): {
   normalizedMeasure: string;
   products: QueriedProduct[];
 } | null {
-  const stored = lastQueries.get(userId);
+  const key = buildKey(userId, chatId);
+  const stored = lastQueries.get(key);
   if (!stored) return null;
 
   if (Date.now() - stored.timestamp > TTL_MS) {
-    lastQueries.delete(userId);
+    lastQueries.delete(key);
     return null;
   }
 
@@ -65,6 +76,13 @@ export function getLastQuery(userId: string): {
 /**
  * Manually clear a user's last query (useful for future cancel/confirm flows).
  */
-export function clearLastQuery(userId: string): void {
-  lastQueries.delete(userId);
+export function clearLastQuery(userId: string, chatId?: string): void {
+  if (chatId) {
+    lastQueries.delete(buildKey(userId, chatId));
+    return;
+  }
+
+  for (const [key, query] of lastQueries) {
+    if (query.userId === userId) lastQueries.delete(key);
+  }
 }

@@ -46,6 +46,7 @@ export const productRepository = {
         stock: true,
         cashPrice: true,
         creditPrice: true,
+        imagePath: true,
       },
       where: {
         reference: {
@@ -86,6 +87,22 @@ export const productRepository = {
     return client.product.update({
       where: { id },
       data: { stock },
+    });
+  },
+
+  updateImagePathIfActive(
+    id: string,
+    imagePath: string,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.updateMany({
+      where: {
+        id,
+        isActive: true,
+      },
+      data: {
+        imagePath,
+      },
     });
   },
 

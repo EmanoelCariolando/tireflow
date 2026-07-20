@@ -2,7 +2,8 @@ import { Message } from 'whatsapp-web.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
-import { getMessageUserId } from '../utils/messageContext.js';
+import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
+import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
 import { findAvailableProductsByReference } from '../services/productService.js';
 
 /**
@@ -18,7 +19,7 @@ import { findAvailableProductsByReference } from '../services/productService.js'
  * Sale is handled by saleCommand.
  */
 
-function formatProductList(products: QueriedProduct[], normalized: string): string {
+export function formatProductList(products: QueriedProduct[], normalized: string): string {
   let text = `🛞 ${normalized}\n\n`;
 
   products.forEach((product, index) => {
@@ -27,6 +28,7 @@ function formatProductList(products: QueriedProduct[], normalized: string): stri
     text += `📦 Estoque: ${product.stock}\n`;
     text += `💰 À vista: ${formatCurrency(product.cashPrice)}\n`;
     text += `💳 A prazo: ${formatCurrency(product.creditPrice)}\n`;
+    if (product.hasPhoto) text += '📷\n';
 
     if (index < products.length - 1) {
       text += '\n';
@@ -40,7 +42,7 @@ function formatProductList(products: QueriedProduct[], normalized: string): stri
 }
 
 export function isPneuHelpCommand(body: string): boolean {
-  return body.trim().toLowerCase() === 'pneu';
+  return /^(pneu|pneus)$/i.test(body.trim());
 }
 
 export function isPneuCommand(body: string): boolean {
@@ -51,18 +53,51 @@ export function isPneuCommand(body: string): boolean {
 export async function handlePneuHelpCommand(message: Message): Promise<void> {
   await message.reply(
     [
-      'Comandos após consultar pneus:',
+      '🛞 COMANDOS DE PNEUS',
+      '',
+      'Primeiro, consulte uma medida:',
+      'pneu <medida>',
+      '↳ Pesquisa os pneus disponíveis dessa medida.',
+      'Exemplo: pneu 175/70 R14',
+      '',
+      'Depois da consulta, use o número do produto mostrado na lista:',
       '',
       'venda <número> <quantidade>',
+      '↳ Inicia a venda do produto e da quantidade informados.',
+      'Exemplo: venda 1 2',
+      '',
       'entrada <número>',
+      '↳ Registra a chegada de novas unidades ao estoque.',
+      'Exemplo: entrada 1',
+      '',
       'ajuste <número>',
+      '↳ Corrige manualmente o estoque atual do produto.',
+      'Exemplo: ajuste 1',
+      '',
       'preco <número>',
+      '↳ Altera os preços à vista e a prazo do produto.',
+      'Exemplo: preco 1',
+      '',
+      'foto <número>',
+      '↳ Mostra a foto cadastrada do produto escolhido.',
+      'Exemplo: foto 1',
+      '',
+      'addfoto <número>',
+      '↳ Adiciona uma foto ou substitui a foto atual do produto.',
+      'Depois do comando, envie a imagem solicitada.',
+      'Exemplo: addfoto 1',
+      '',
+      'ℹ️ O número é a posição do produto na última consulta.',
     ].join('\n')
   );
 }
 
 export async function handlePneuCommand(message: Message, rawMeasure: string): Promise<void> {
   const startedAt = Date.now();
+
+  const userId = getMessageUserId(message);
+  const chatId = getMessageChatId(message);
+  clearAllOperationSessions(userId, chatId);
 
   try {
     const normalized = normalizeTireSize(rawMeasure);
@@ -89,7 +124,7 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
     }
 
     // Save last consultation (5 minute TTL) - required for indexed commands
-    saveLastQuery(getMessageUserId(message), normalized, matches);
+    saveLastQuery(userId, chatId, normalized, matches);
 
     const response = formatProductList(matches, normalized);
     const replyStartedAt = Date.now();

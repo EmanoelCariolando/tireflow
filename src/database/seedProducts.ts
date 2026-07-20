@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
 import { Prisma } from '@prisma/client';
 import { disconnectPrisma } from './prisma.js';
 import { productRepository } from '../repositories/productRepository.js';
+import { PRODUCT_SEED_CSV_PATH } from '../config/appPaths.js';
 
 interface CsvRow {
   reference: string;
@@ -34,7 +34,7 @@ interface SeedReport {
 }
 
 const REQUIRED_HEADERS = ['reference', 'description', 'cash_price', 'credit_price', 'stock'];
-const CSV_PATH = path.resolve(process.cwd(), 'data', 'seed', 'initial_products.csv');
+const CSV_PATH = PRODUCT_SEED_CSV_PATH;
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];

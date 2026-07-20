@@ -7,10 +7,18 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
+    "test": "tsx --test tests/*.test.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test && npm run build && npx prisma validate",
+    "check:runtime": "tsx src/runtimeCheck.ts",
+    "backup": "tsx src/database/backup.ts",
+    "restore": "tsx src/database/restoreBackup.ts",
+    "service:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-nssm-service.ps1",
+    "service:remove": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/remove-nssm-service.ps1",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed:products": "tsx src/database/seedProducts.ts"
   },

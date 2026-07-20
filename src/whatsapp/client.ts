@@ -8,6 +8,7 @@ const { Client, LocalAuth } = whatsappWeb;
 const START_TIMEOUT_MS = 120_000;
 const SHUTDOWN_TIMEOUT_MS = 5000;
 let diagnosticsAttached = false;
+let whatsappReady = false;
 
 interface WhatsAppPageDiagnostics {
   url: string;
@@ -30,14 +31,16 @@ function wait(milliseconds: number): Promise<void> {
 }
 
 async function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
-  return Promise.race([
+  let timeout: NodeJS.Timeout;
+  const result = Promise.race([
     promise,
     new Promise<T>((_, reject) => {
-      setTimeout(() => {
+      timeout = setTimeout(() => {
         reject(new Error(`Operation timed out after ${milliseconds}ms`));
       }, milliseconds);
     }),
   ]);
+  return result.finally(() => clearTimeout(timeout));
 }
 
 function shorten(value: string, maxLength = 700): string {
@@ -212,7 +215,18 @@ function createReadyOrManualAttachPromise(): Promise<void> {
 
       whatsappClient.removeListener('authenticated', onAuthenticated);
       whatsappClient.removeListener('ready', onReady);
+      whatsappClient.removeListener('auth_failure', onAuthFailure);
+      whatsappClient.removeListener('disconnected', onDisconnected);
       resolve();
+    };
+
+    const fail = (error: Error): void => {
+      if (recoveryTimeout) clearTimeout(recoveryTimeout);
+      whatsappClient.removeListener('authenticated', onAuthenticated);
+      whatsappClient.removeListener('ready', onReady);
+      whatsappClient.removeListener('auth_failure', onAuthFailure);
+      whatsappClient.removeListener('disconnected', onDisconnected);
+      reject(error);
     };
 
     const onReady = (): void => {
@@ -233,8 +247,18 @@ function createReadyOrManualAttachPromise(): Promise<void> {
       }, 15_000);
     };
 
+    const onAuthFailure = (message: string): void => {
+      fail(new Error(`WhatsApp authentication failed: ${message}`));
+    };
+
+    const onDisconnected = (reason: string): void => {
+      fail(new Error(`WhatsApp disconnected before becoming ready: ${reason}`));
+    };
+
     whatsappClient.once('ready', onReady);
     whatsappClient.once('authenticated', onAuthenticated);
+    whatsappClient.once('auth_failure', onAuthFailure);
+    whatsappClient.once('disconnected', onDisconnected);
   });
 }
 
@@ -280,12 +304,16 @@ export function initializeWhatsAppClient(): void {
   // Show QR code in terminal when authentication is needed
   whatsappClient.on('qr', (qr: string) => {
     console.log('\n📱 Scan this QR code with your WhatsApp to authenticate:\n');
-    qrcode.generate(qr, { small: true });
+    // Print directly to the terminal so the authentication token is never written to application logs.
+    qrcode.generate(qr, { small: true }, (qrOutput: string) => {
+      process.stdout.write(`${qrOutput}\n`);
+    });
     console.log('\nWaiting for authentication...\n');
   });
 
   // Client is ready to receive messages
   whatsappClient.on('ready', () => {
+    whatsappReady = true;
     console.log('✅ WhatsApp client is ready!');
     console.log('🤖 TireFlow bot is now listening for messages.\n');
   });
@@ -296,11 +324,13 @@ export function initializeWhatsAppClient(): void {
 
   // Handle authentication failures
   whatsappClient.on('auth_failure', (msg: string) => {
+    whatsappReady = false;
     console.error('❌ Authentication failed:', msg);
   });
 
   // Handle disconnection
   whatsappClient.on('disconnected', (reason: string) => {
+    whatsappReady = false;
     console.log('⚠️ WhatsApp client disconnected:', reason);
   });
 
@@ -311,6 +341,10 @@ export function initializeWhatsAppClient(): void {
   whatsappClient.on('loading_screen', (percent: number, message: string) => {
     console.log(`Loading: ${percent}% - ${message}`);
   });
+}
+
+export function isWhatsAppConnected(): boolean {
+  return whatsappReady;
 }
 
 /**
@@ -344,6 +378,7 @@ export async function startWhatsAppClient(): Promise<void> {
  * Stop the WhatsApp client and close the controlled browser.
  */
 export async function stopWhatsAppClient(): Promise<void> {
+  whatsappReady = false;
   const browserProcess = whatsappClient.pupBrowser?.process?.();
 
   try {

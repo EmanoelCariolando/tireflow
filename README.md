@@ -77,6 +77,24 @@ Todas as alterações ficam registradas.
 
 ---
 
+## 📷 Fotos de produtos
+
+Após consultar uma medida, qualquer usuário autorizado pode visualizar a foto cadastrada:
+
+```text
+foto 1
+```
+
+Qualquer usuário autorizado no grupo pode adicionar ou substituir a imagem:
+
+```text
+addfoto 1
+```
+
+As imagens são mantidas localmente em `uploads/products/` e o banco armazena apenas o caminho relativo.
+
+---
+
 ## 📊 Relatórios
 
 Disponíveis:
@@ -128,7 +146,6 @@ Notificação privada ao proprietário
 # 🔐 Segurança
 
 - Apenas grupo autorizado pode utilizar o sistema.
-- Administradores possuem comandos administrativos.
 - Operações possuem timeout.
 - Confirmação obrigatória.
 - Registro de responsável.
@@ -185,14 +202,20 @@ Criar o arquivo:
 Exemplo:
 
 ```env
-AUTHORIZED_GROUP_ID=
-
+NODE_ENV=production
+DATABASE_URL="file:./tireflow.db"
+WHATSAPP_OFFICIAL_GROUP_ID=
+BOSS_PRIVATE_NUMBER=
 OWNER_PHONE=
-
-ALLOW_PRIVATE_TEST=true
-
-REPORT_TIME=20:00
+DAILY_REPORT_TIME=18:00
+ALLOW_PRIVATE_TEST_MODE=false
+BRANCH_NAME="ATC PNEUS CONGO"
 ```
+
+`ALLOW_PRIVATE_TEST_MODE` pode ser `true` ou `false` em produção. Com `true`, os comandos também podem ser testados em conversa privada.
+
+O guia completo para Congo e Monteiro está em [docs/PRODUCTION.md](docs/PRODUCTION.md),
+com a instalação do serviço do Windows em [docs/NSSM.md](docs/NSSM.md).
 
 ---
 
@@ -254,6 +277,20 @@ preco 1
 
 ---
 
+## Foto do produto
+
+```text
+foto 1
+```
+
+## Adicionar ou substituir foto
+
+```text
+addfoto 1
+```
+
+---
+
 ## Menu
 
 ```text
@@ -270,6 +307,20 @@ Opções:
 3 Mais vendidos
 ```
 
+## Estado do sistema
+
+```text
+status
+```
+
+Verifica WhatsApp, banco, uploads, filial, tempo ativo e versão sem expor segredos.
+
+## Backup
+
+```text
+npm run backup
+```
+
 ---
 
 # 📈 Roadmap
@@ -281,6 +332,7 @@ Opções:
 - Entrada
 - Ajuste
 - Alteração de preços
+- Fotos de produtos
 - Relatórios
 - Controle de estoque
 - Banco de dados

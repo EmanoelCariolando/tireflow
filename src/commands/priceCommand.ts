@@ -9,9 +9,8 @@ import {
   PriceSession,
   savePriceSession,
 } from '../utils/priceSessionStore.js';
-import { getAdjustmentSession } from '../utils/adjustmentSessionStore.js';
-import { getEntrySession } from '../utils/entrySessionStore.js';
-import { getSaleSession } from '../utils/saleSessionStore.js';
+import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import { runPostCommitTask } from '../services/postCommitTask.js';
 import { PriceProductNotFoundError, registerPriceChange } from '../services/priceService.js';
 import { sendBossNotification } from '../services/notificationService.js';
 
@@ -30,12 +29,7 @@ export async function handlePriceCommand(message: Message, body: string): Promis
     return;
   }
 
-  if (
-    getPriceSession(userId, chatId) ||
-    getAdjustmentSession(userId, chatId) ||
-    getEntrySession(userId, chatId) ||
-    getSaleSession(userId, chatId)
-  ) {
+  if (hasActiveOperationSession(userId, chatId)) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return;
   }
@@ -52,9 +46,9 @@ export async function handlePriceCommand(message: Message, body: string): Promis
     return;
   }
 
-  const lastQuery = getLastQuery(userId);
+  const lastQuery = getLastQuery(userId, chatId);
   if (!lastQuery) {
-    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14');
+    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque');
     return;
   }
 
@@ -97,7 +91,7 @@ export async function handlePriceConversation(message: Message, body: string): P
   const normalizedBody = body.trim().toLowerCase();
 
   if (normalizedBody === 'cancelar') {
-    clearPriceSession(userId, chatId);
+    clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
   }
@@ -224,26 +218,22 @@ async function handleConfirmationStep(
     return;
   }
 
-  try {
-    await message.reply(
+  await runPostCommitTask('price group confirmation', () =>
+    message.reply(
       formatRegisteredPriceChange(
         session,
         registeredPriceChange.movementCode,
         responsibleName,
         registeredPriceChange.currentStock
       )
-    );
-  } catch (error) {
-    console.error('[PRICE] Error sending price message to group:', error);
-  }
+    )
+  );
 
-  try {
-    await sendBossNotification(
+  await runPostCommitTask('price private owner notification', () =>
+    sendBossNotification(
       formatBossPriceNotification(session, registeredPriceChange.movementCode, responsibleName)
-    );
-  } catch (error) {
-    console.error('[PRICE] Error sending boss notification:', error);
-  }
+    )
+  );
 
   clearPriceSession(session.userId, session.chatId);
 }

@@ -1,10 +1,11 @@
 import type { Product } from '@prisma/client';
 import { productRepository } from '../repositories/productRepository.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
+import { hasProductImageFile } from './productPhotoStorage.js';
 
 type ProductQueryRow = Pick<
   Product,
-  'id' | 'reference' | 'description' | 'stock' | 'cashPrice' | 'creditPrice'
+  'id' | 'reference' | 'description' | 'stock' | 'cashPrice' | 'creditPrice' | 'imagePath'
 >;
 
 function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
@@ -15,6 +16,7 @@ function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
     stock: product.stock,
     cashPrice: Number(product.cashPrice),
     creditPrice: Number(product.creditPrice),
+    hasPhoto: hasProductImageFile(product.imagePath),
   };
 }
 

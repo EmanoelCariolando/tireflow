@@ -8,8 +8,8 @@ import {
   hasExpiredEntrySession,
   saveEntrySession,
 } from '../utils/entrySessionStore.js';
-import { getSaleSession } from '../utils/saleSessionStore.js';
-import { getAdjustmentSession } from '../utils/adjustmentSessionStore.js';
+import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import { runPostCommitTask } from '../services/postCommitTask.js';
 import { EntryProductNotFoundError, registerEntry } from '../services/entryService.js';
 import { sendBossNotification } from '../services/notificationService.js';
 
@@ -28,11 +28,7 @@ export async function handleEntryCommand(message: Message, body: string): Promis
     return;
   }
 
-  if (
-    getEntrySession(userId, chatId) ||
-    getSaleSession(userId, chatId) ||
-    getAdjustmentSession(userId, chatId)
-  ) {
+  if (hasActiveOperationSession(userId, chatId)) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return;
   }
@@ -49,9 +45,9 @@ export async function handleEntryCommand(message: Message, body: string): Promis
     return;
   }
 
-  const lastQuery = getLastQuery(userId);
+  const lastQuery = getLastQuery(userId, chatId);
   if (!lastQuery) {
-    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14');
+    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque');
     return;
   }
 
@@ -91,7 +87,7 @@ export async function handleEntryConversation(message: Message, body: string): P
   const normalizedBody = body.trim().toLowerCase();
 
   if (normalizedBody === 'cancelar') {
-    clearEntrySession(userId, chatId);
+    clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
   }
@@ -216,31 +212,27 @@ async function handleConfirmationStep(
     return;
   }
 
-  try {
-    await message.reply(
+  await runPostCommitTask('entry group confirmation', () =>
+    message.reply(
       formatRegisteredEntry(
         session,
         registeredEntry.movementCode,
         responsibleName,
         registeredEntry.currentStock
       )
-    );
-  } catch (error) {
-    console.error('[ENTRY] Error sending entry message to group:', error);
-  }
+    )
+  );
 
-  try {
-    await sendBossNotification(
+  await runPostCommitTask('entry private owner notification', () =>
+    sendBossNotification(
       formatBossEntryNotification(
         session,
         registeredEntry.movementCode,
         responsibleName,
         registeredEntry.currentStock
       )
-    );
-  } catch (error) {
-    console.error('[ENTRY] Error sending boss notification:', error);
-  }
+    )
+  );
 
   clearEntrySession(session.userId, session.chatId);
 }

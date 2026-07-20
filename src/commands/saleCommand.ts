@@ -22,8 +22,8 @@ import {
   SaleSession,
   saveSaleSession,
 } from '../utils/saleSessionStore.js';
-import { getEntrySession } from '../utils/entrySessionStore.js';
-import { getAdjustmentSession } from '../utils/adjustmentSessionStore.js';
+import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import { runPostCommitTask } from '../services/postCommitTask.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 
@@ -40,11 +40,7 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     return;
   }
 
-  if (
-    getSaleSession(userId, chatId) ||
-    getEntrySession(userId, chatId) ||
-    getAdjustmentSession(userId, chatId)
-  ) {
+  if (hasActiveOperationSession(userId, chatId)) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return;
   }
@@ -62,9 +58,9 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     return;
   }
 
-  const lastQuery = getLastQuery(userId);
+  const lastQuery = getLastQuery(userId, chatId);
   if (!lastQuery) {
-    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14');
+    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque');
     return;
   }
 
@@ -123,13 +119,13 @@ export async function handleSaleConversation(message: Message, body: string): Pr
   const normalizedBody = body.trim().toLowerCase();
 
   if (normalizedBody === 'cancelar') {
-    clearSaleSession(userId, chatId);
+    clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
   }
 
   if (isDuplicateReceiptMessage(message, session)) {
-    console.log(`[SALE] Duplicate receipt media message ignored: ${session.receiptMessageId}`);
+    console.log('[SALE] Duplicate receipt media message ignored.');
     return true;
   }
 
@@ -342,18 +338,10 @@ async function handleConfirmationStep(
     registeredSale.currentStock
   );
 
-  const [groupMessageResult, bossMessageResult] = await Promise.allSettled([
-    message.reply(groupMessage),
-    sendBossTextNotification(bossMessage),
+  await Promise.all([
+    runPostCommitTask('sale group confirmation', () => message.reply(groupMessage)),
+    runPostCommitTask('sale private owner notification', () => sendBossTextNotification(bossMessage)),
   ]);
-
-  if (groupMessageResult.status === 'rejected') {
-    console.error('[SALE] Error sending sale message to group:', groupMessageResult.reason);
-  }
-
-  if (bossMessageResult.status === 'rejected') {
-    console.error('[SALE] Error sending boss text notification:', bossMessageResult.reason);
-  }
 
   if (session.receiptMessageId) {
     await forwardSaleReceiptToBoss(session.receiptMessageId, session.receiptMessage);
@@ -371,7 +359,7 @@ async function forwardSaleReceiptToBoss(
   }
 
   try {
-    console.log(`[SALE] Forwarding receipt image to boss: ${receiptMessageId}`);
+    console.log('[SALE] Forwarding receipt image to boss.');
     await forwardMessageToBoss(receiptMessageId, receiptMessage);
   } catch (error) {
     console.error('[SALE] Error forwarding receipt image to boss:', {

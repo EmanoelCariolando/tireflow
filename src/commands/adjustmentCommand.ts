@@ -8,8 +8,8 @@ import {
   hasExpiredAdjustmentSession,
   saveAdjustmentSession,
 } from '../utils/adjustmentSessionStore.js';
-import { getEntrySession } from '../utils/entrySessionStore.js';
-import { getSaleSession } from '../utils/saleSessionStore.js';
+import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import { runPostCommitTask } from '../services/postCommitTask.js';
 import {
   AdjustmentProductNotFoundError,
   registerAdjustment,
@@ -32,11 +32,7 @@ export async function handleAdjustmentCommand(message: Message, body: string): P
     return;
   }
 
-  if (
-    getAdjustmentSession(userId, chatId) ||
-    getEntrySession(userId, chatId) ||
-    getSaleSession(userId, chatId)
-  ) {
+  if (hasActiveOperationSession(userId, chatId)) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return;
   }
@@ -53,9 +49,9 @@ export async function handleAdjustmentCommand(message: Message, body: string): P
     return;
   }
 
-  const lastQuery = getLastQuery(userId);
+  const lastQuery = getLastQuery(userId, chatId);
   if (!lastQuery) {
-    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14');
+    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque');
     return;
   }
 
@@ -102,7 +98,7 @@ export async function handleAdjustmentConversation(message: Message, body: strin
   const normalizedBody = body.trim().toLowerCase();
 
   if (normalizedBody === 'cancelar') {
-    clearAdjustmentSession(userId, chatId);
+    clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
   }
@@ -227,8 +223,8 @@ async function handleConfirmationStep(
     return;
   }
 
-  try {
-    await message.reply(
+  await runPostCommitTask('adjustment group confirmation', () =>
+    message.reply(
       formatRegisteredAdjustment(
         session,
         registeredAdjustment.movementCode,
@@ -236,13 +232,11 @@ async function handleConfirmationStep(
         registeredAdjustment.previousStock,
         registeredAdjustment.currentStock
       )
-    );
-  } catch (error) {
-    console.error('[ADJUSTMENT] Error sending adjustment message to group:', error);
-  }
+    )
+  );
 
-  try {
-    await sendBossNotification(
+  await runPostCommitTask('adjustment private owner notification', () =>
+    sendBossNotification(
       formatBossAdjustmentNotification(
         session,
         registeredAdjustment.movementCode,
@@ -250,10 +244,8 @@ async function handleConfirmationStep(
         registeredAdjustment.previousStock,
         registeredAdjustment.currentStock
       )
-    );
-  } catch (error) {
-    console.error('[ADJUSTMENT] Error sending boss notification:', error);
-  }
+    )
+  );
 
   clearAdjustmentSession(session.userId, session.chatId);
 }

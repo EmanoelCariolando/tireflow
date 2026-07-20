@@ -13,5 +13,5 @@ export async function handleGroupIdCommand(message: Message): Promise<void> {
   }
 
   await message.reply(`ID deste grupo:\n${message.from}`);
-  console.log(`[GROUP_ID] Group id requested: ${message.from}`);
+  console.log('[GROUP_ID] Group id requested in a WhatsApp group.');
 }

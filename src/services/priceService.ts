@@ -4,6 +4,7 @@ import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
+import { withInventoryMutationLock } from './inventoryMutationLock.js';
 
 export class PriceProductNotFoundError extends Error {
   constructor() {
@@ -38,7 +39,7 @@ function buildPriceChangeObservation(input: RegisterPriceChangeInput): string {
 export async function registerPriceChange(
   input: RegisterPriceChangeInput
 ): Promise<RegisteredPriceChange> {
-  return prisma.$transaction(async (tx) => {
+  return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
     const product = await productRepository.findById(input.productId, tx);
 
     if (!product || !product.isActive) {
@@ -86,5 +87,5 @@ export async function registerPriceChange(
       movementCode,
       currentStock: product.stock,
     };
-  });
+  }));
 }

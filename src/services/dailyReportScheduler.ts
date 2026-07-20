@@ -1,14 +1,14 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import env from '../config/env.js';
+import { DAILY_REPORT_STATE_PATH } from '../config/appPaths.js';
 import { buildTodayReport } from './reportService.js';
 import { sendOwnerNotification } from './notificationService.js';
 
 const CHECK_INTERVAL_MS = 30_000;
-const STATE_FILE_PATH = join(process.cwd(), 'data', 'daily-report-state.json');
-
 let scheduler: NodeJS.Timeout | null = null;
 let lastSentDateKey: string | null = null;
+let reportSendInProgress = false;
 
 export function startDailyReportScheduler(): void {
   if (scheduler) {
@@ -43,6 +43,10 @@ export function stopDailyReportScheduler(): void {
 }
 
 async function sendReportIfDue(now = new Date()): Promise<void> {
+  if (reportSendInProgress) {
+    return;
+  }
+
   const reportTime = parseDailyReportTime(env.dailyReportTime);
 
   if (!reportTime || !isReportTime(now, reportTime)) {
@@ -55,6 +59,7 @@ async function sendReportIfDue(now = new Date()): Promise<void> {
     return;
   }
 
+  reportSendInProgress = true;
   try {
     const report = await buildTodayReport(now);
     await sendOwnerNotification(report);
@@ -63,6 +68,8 @@ async function sendReportIfDue(now = new Date()): Promise<void> {
     console.log(`[REPORT] Daily report sent for ${todayKey}.`);
   } catch (error) {
     console.error('[REPORT] Error sending daily report:', error);
+  } finally {
+    reportSendInProgress = false;
   }
 }
 
@@ -101,7 +108,7 @@ function getDateKey(date: Date): string {
 
 async function readLastSentDateKey(): Promise<string | null> {
   try {
-    const content = await readFile(STATE_FILE_PATH, 'utf8');
+    const content = await readFile(DAILY_REPORT_STATE_PATH, 'utf8');
     const parsed = JSON.parse(content) as { lastSentDateKey?: unknown };
 
     return typeof parsed.lastSentDateKey === 'string' ? parsed.lastSentDateKey : null;
@@ -111,9 +118,9 @@ async function readLastSentDateKey(): Promise<string | null> {
 }
 
 async function writeLastSentDateKey(dateKey: string): Promise<void> {
-  await mkdir(dirname(STATE_FILE_PATH), { recursive: true });
+  await mkdir(dirname(DAILY_REPORT_STATE_PATH), { recursive: true });
   await writeFile(
-    STATE_FILE_PATH,
+    DAILY_REPORT_STATE_PATH,
     JSON.stringify({ lastSentDateKey: dateKey }, null, 2),
     'utf8'
   );

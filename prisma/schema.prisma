@@ -34,6 +34,7 @@ model Product {
   id          String   @id @default(cuid())
   reference   String
   description String
+  imagePath   String?
   stock       Int      @default(0)
   minStock    Int      @default(0)
   cashPrice   Decimal
@@ -46,6 +47,7 @@ model Product {
 
   @@index([reference])
   @@index([isActive])
+  @@unique([reference, description])
   @@map("products")
 }
 

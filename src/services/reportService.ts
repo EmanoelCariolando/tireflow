@@ -3,6 +3,7 @@ import type { Movement, Product, User } from '@prisma/client';
 import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
+import type { QueriedProduct } from '../utils/lastQueryStore.js';
 
 type MovementWithRelations = Movement & {
   product: Product;
@@ -25,6 +26,22 @@ const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
 export async function buildLowStockReport(limit = 20): Promise<string> {
   const lowStockProducts = await getLowStockProducts(limit);
 
+  return formatLowStockReport(lowStockProducts);
+}
+
+export async function buildLowStockOperationalReport(limit = 20): Promise<{
+  report: string;
+  products: QueriedProduct[];
+}> {
+  const lowStockProducts = await getLowStockProducts(limit);
+
+  return {
+    report: formatLowStockReport(lowStockProducts),
+    products: lowStockProducts.map(mapProductToQueriedProduct),
+  };
+}
+
+function formatLowStockReport(lowStockProducts: Product[]): string {
   if (lowStockProducts.length === 0) {
     return [
       '✅ Estoque baixo',
@@ -41,8 +58,14 @@ export async function buildLowStockReport(limit = 20): Promise<string> {
         `${index + 1}. ${product.reference} - ${product.description}`,
         `Estoque: ${product.stock}`,
         `Mínimo: ${product.minStock}`,
+        `À vista: ${formatCurrency(toNumber(product.cashPrice))}`,
+        `A prazo: ${formatCurrency(toNumber(product.creditPrice))}`,
       ].join('\n')
     ),
+    '',
+    'Para repor estoque:\nentrada 1',
+    'Para ajustar estoque:\najuste 1',
+    'Para alterar preço:\npreco 1',
   ].join('\n\n');
 }
 
@@ -74,7 +97,6 @@ export async function buildBestSellersReport(limit = 10): Promise<string> {
 export async function buildTodayReport(referenceDate = new Date()): Promise<string> {
   const range = getDayRange(referenceDate);
   const movements = await movementRepository.findByDateRange(range.start, range.end);
-  const lowStockProducts = await getLowStockProducts(10);
   const sales = movements.filter((movement) => movement.type === MovementType.SALE);
   const paymentTotals = getPaymentTotals(sales);
   const totalRevenue = PAYMENT_METHODS.reduce((sum, method) => sum + paymentTotals[method], 0);
@@ -108,9 +130,6 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
     `Alterações de preço: ${movementCounts.priceChange}`,
     '',
     `Produto mais vendido do dia: ${formatBestSeller(bestSeller)}`,
-    '',
-    'Produtos com estoque baixo:',
-    formatLowStockSummary(lowStockProducts),
     '',
     'TireFlow - Relatório automático'
   );
@@ -202,18 +221,6 @@ function formatBestSeller(bestSeller: ProductSalesSummary | undefined): string {
   return `${bestSeller.product.reference} - ${bestSeller.product.description} (${bestSeller.quantity} un.)`;
 }
 
-function formatLowStockSummary(products: Product[]): string {
-  if (products.length === 0) {
-    return 'Nenhum produto abaixo do estoque mínimo.';
-  }
-
-  return products
-    .map((product, index) =>
-      `${index + 1}. ${product.reference} - ${product.description} | Estoque: ${product.stock} | Mínimo: ${product.minStock}`
-    )
-    .join('\n');
-}
-
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('pt-BR', {
     timeZone: 'America/Sao_Paulo',
@@ -221,6 +228,17 @@ function formatDate(date: Date): string {
     month: '2-digit',
     year: 'numeric',
   }).format(date);
+}
+
+function mapProductToQueriedProduct(product: Product): QueriedProduct {
+  return {
+    id: product.id,
+    reference: product.reference,
+    description: product.description,
+    stock: product.stock,
+    cashPrice: toNumber(product.cashPrice),
+    creditPrice: toNumber(product.creditPrice),
+  };
 }
 
 function toNumber(value: unknown): number {
