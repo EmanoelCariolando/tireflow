@@ -23,13 +23,13 @@ interface ProductSalesSummary {
 
 const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
 
-export async function buildLowStockReport(limit = 20): Promise<string> {
+export async function buildLowStockReport(limit?: number): Promise<string> {
   const lowStockProducts = await getLowStockProducts(limit);
 
   return formatLowStockReport(lowStockProducts);
 }
 
-export async function buildLowStockOperationalReport(limit = 20): Promise<{
+export async function buildLowStockOperationalReport(limit?: number): Promise<{
   report: string;
   products: QueriedProduct[];
 }> {
@@ -137,12 +137,11 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
   return lines.join('\n');
 }
 
-async function getLowStockProducts(limit: number): Promise<Product[]> {
+async function getLowStockProducts(limit?: number): Promise<Product[]> {
   const products = await productRepository.findActiveForStockReport();
+  const lowStockProducts = products.filter((product) => product.stock <= product.minStock);
 
-  return products
-    .filter((product) => product.stock <= product.minStock)
-    .slice(0, limit);
+  return limit === undefined ? lowStockProducts : lowStockProducts.slice(0, limit);
 }
 
 function getDayRange(date: Date): DateRange {

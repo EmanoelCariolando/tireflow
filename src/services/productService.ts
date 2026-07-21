@@ -75,3 +75,8 @@ export async function findAvailableProductsByReference(reference: string): Promi
   const products = await productRepository.findAvailableByReferences(buildReferenceCandidates(reference));
   return products.map(mapProductToQueryResult);
 }
+
+export async function findActiveProductsByReference(reference: string): Promise<QueriedProduct[]> {
+  const products = await productRepository.findActiveByReferences(buildReferenceCandidates(reference));
+  return products.map(mapProductToQueryResult);
+}

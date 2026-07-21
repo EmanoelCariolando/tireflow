@@ -4,7 +4,10 @@ import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
-import { findAvailableProductsByReference } from '../services/productService.js';
+import {
+  findActiveProductsByReference,
+  findAvailableProductsByReference,
+} from '../services/productService.js';
 
 /**
  * Pneu Command - Fase 6 (Consulta real no banco)
@@ -112,6 +115,27 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
     const queryMs = Date.now() - queryStartedAt;
 
     if (matches.length === 0) {
+      const activeMatches = await findActiveProductsByReference(normalized);
+
+      if (activeMatches.length > 0) {
+        const totalStock = activeMatches.reduce((sum, product) => sum + product.stock, 0);
+        const replyStartedAt = Date.now();
+
+        if (totalStock <= 0) {
+          await message.reply(`A medida ${normalized} existe, mas está com estoque 0 no momento.`);
+        } else {
+          await message.reply(`Nenhum pneu disponível para ${normalized} no momento.`);
+        }
+
+        const replyMs = Date.now() - replyStartedAt;
+        console.log(
+          `[PNEU] ${message.from} -> ${normalized} (0 disponíveis, ${activeMatches.length} ativos, estoque=${totalStock}) queryMs=${queryMs} replyMs=${replyMs} totalMs=${
+            Date.now() - startedAt
+          }`
+        );
+        return;
+      }
+
       const replyStartedAt = Date.now();
       await message.reply(`Nenhum pneu encontrado para ${normalized}.`);
       const replyMs = Date.now() - replyStartedAt;

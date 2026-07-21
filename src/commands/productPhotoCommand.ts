@@ -112,7 +112,7 @@ export async function handlePhotoCommand(
     }
 
     await message.reply(media, undefined, {
-      caption: formatProductPhotoCaption(product, optionNumber),
+      caption: formatProductPhotoCaption(product),
     });
   } catch (error) {
     console.error('[PRODUCT_PHOTO] Could not send product image.', {
@@ -279,7 +279,7 @@ export async function handleAddPhotoConversation(
   return true;
 }
 
-export function formatProductPhotoCaption(product: PhotoProduct, optionNumber: number): string {
+export function formatProductPhotoCaption(product: PhotoProduct): string {
   return [
     `🛞 ${product.description}`,
     '',
