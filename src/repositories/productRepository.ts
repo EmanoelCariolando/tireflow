@@ -44,6 +44,7 @@ export const productRepository = {
         reference: true,
         description: true,
         stock: true,
+        stockLocation: true,
         cashPrice: true,
         creditPrice: true,
         imagePath: true,

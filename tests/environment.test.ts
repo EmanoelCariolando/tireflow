@@ -14,7 +14,9 @@ function validEnvironment(): NodeJS.ProcessEnv {
     WHATSAPP_DEBUG: 'false',
     WHATSAPP_HEADLESS: 'true',
     ALLOW_PRIVATE_TEST_MODE: 'false',
+    INVENTORY_LOCATIONS_ENABLED: 'false',
     LOG_TO_CONSOLE: 'false',
+    BACKUP_ROOT: 'C:\\backups\\tireflowcongo_snapshots',
   };
 }
 
@@ -49,9 +51,18 @@ test('rejects malformed values in production', () => {
   source.WHATSAPP_OFFICIAL_GROUP_ID = 'grupo-invalido';
   source.DAILY_REPORT_TIME = '25:90';
   source.LOG_TO_CONSOLE = 'talvez';
+  source.INVENTORY_LOCATIONS_ENABLED = 'talvez';
   const errors = validateEnvironment(source);
   assert.ok(errors.some((error) => error.startsWith('ALLOW_PRIVATE_TEST_MODE')));
   assert.ok(errors.some((error) => error.startsWith('WHATSAPP_OFFICIAL_GROUP_ID')));
   assert.ok(errors.some((error) => error.startsWith('DAILY_REPORT_TIME')));
   assert.ok(errors.some((error) => error.startsWith('LOG_TO_CONSOLE')));
+  assert.ok(errors.some((error) => error.startsWith('INVENTORY_LOCATIONS_ENABLED')));
+});
+
+test('rejects relative backup root in production', () => {
+  const source = validEnvironment();
+  source.BACKUP_ROOT = 'backups';
+  const errors = validateEnvironment(source);
+  assert.ok(errors.some((error) => error.startsWith('BACKUP_ROOT')));
 });

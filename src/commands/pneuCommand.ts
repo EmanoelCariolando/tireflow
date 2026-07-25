@@ -4,6 +4,7 @@ import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
+import { formatStockLocationLine } from '../utils/stockLocation.js';
 import {
   findActiveProductsByReference,
   findAvailableProductsByReference,
@@ -22,13 +23,19 @@ import {
  * Sale is handled by saleCommand.
  */
 
-export function formatProductList(products: QueriedProduct[], normalized: string): string {
+export function formatProductList(
+  products: QueriedProduct[],
+  normalized: string,
+  showStockLocation?: boolean
+): string {
   let text = `🛞 ${normalized}\n\n`;
 
   products.forEach((product, index) => {
     const num = index + 1;
     text += `${num}️⃣ ${product.description}\n`;
     text += `📦 Estoque: ${product.stock}\n`;
+    const stockLocationLine = formatStockLocationLine(product.stockLocation, showStockLocation);
+    if (stockLocationLine) text += `${stockLocationLine}\n`;
     text += `💰 À vista: ${formatCurrency(product.cashPrice)}\n`;
     text += `💳 A prazo: ${formatCurrency(product.creditPrice)}\n`;
     if (product.hasPhoto) text += '📷\n';
@@ -37,10 +44,7 @@ export function formatProductList(products: QueriedProduct[], normalized: string
       text += '\n';
     }
   });
-
-  text += '\nPara vender digite:\nvenda 1 5';
   
-
   return text;
 }
 

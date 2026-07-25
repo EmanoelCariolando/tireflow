@@ -35,6 +35,7 @@ model Product {
   reference   String
   description String
   imagePath   String?
+  stockLocation String?
   stock       Int      @default(0)
   minStock    Int      @default(0)
   cashPrice   Decimal

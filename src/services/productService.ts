@@ -5,7 +5,14 @@ import { hasProductImageFile } from './productPhotoStorage.js';
 
 type ProductQueryRow = Pick<
   Product,
-  'id' | 'reference' | 'description' | 'stock' | 'cashPrice' | 'creditPrice' | 'imagePath'
+  | 'id'
+  | 'reference'
+  | 'description'
+  | 'stock'
+  | 'stockLocation'
+  | 'cashPrice'
+  | 'creditPrice'
+  | 'imagePath'
 >;
 
 function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
@@ -14,6 +21,7 @@ function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
     reference: product.reference,
     description: product.description,
     stock: product.stock,
+    stockLocation: product.stockLocation,
     cashPrice: Number(product.cashPrice),
     creditPrice: Number(product.creditPrice),
     hasPhoto: hasProductImageFile(product.imagePath),

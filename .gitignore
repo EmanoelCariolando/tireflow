@@ -24,6 +24,11 @@ yarn-error.log*
 # Local SQLite database
 prisma/*.db
 prisma/*.db-journal
+data/*.db
+data/*.db-*
+
+# Runtime WhatsApp session stored under data
+data/wwebjs_auth/
 
 # OS generated files
 .DS_Store

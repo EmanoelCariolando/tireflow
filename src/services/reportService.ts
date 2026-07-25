@@ -4,6 +4,7 @@ import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
+import { formatStockLocationLine } from '../utils/stockLocation.js';
 
 type MovementWithRelations = Movement & {
   product: Product;
@@ -57,10 +58,11 @@ function formatLowStockReport(lowStockProducts: Product[]): string {
       [
         `${index + 1}. ${product.reference} - ${product.description}`,
         `Estoque: ${product.stock}`,
+        formatStockLocationLine(product.stockLocation),
         `Mínimo: ${product.minStock}`,
         `À vista: ${formatCurrency(toNumber(product.cashPrice))}`,
         `A prazo: ${formatCurrency(toNumber(product.creditPrice))}`,
-      ].join('\n')
+      ].filter((line): line is string => Boolean(line)).join('\n')
     ),
     '',
     'Para repor estoque:\nentrada 1',
@@ -235,6 +237,7 @@ function mapProductToQueriedProduct(product: Product): QueriedProduct {
     reference: product.reference,
     description: product.description,
     stock: product.stock,
+    stockLocation: product.stockLocation,
     cashPrice: toNumber(product.cashPrice),
     creditPrice: toNumber(product.creditPrice),
   };

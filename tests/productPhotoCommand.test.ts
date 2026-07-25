@@ -6,6 +6,7 @@ import {
   handleAddPhotoCommand,
   handleAddPhotoConversation,
   handlePhotoCommand,
+  formatProductPhotoCaption,
 } from '../src/commands/productPhotoCommand.js';
 import {
   ADD_PHOTO_SESSION_TTL_MS,
@@ -91,7 +92,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
   };
 }
 
-test('foto envia a imagem cadastrada com estoque, preços e atalho da venda', async () => {
+test('foto envia a imagem cadastrada somente com descrição, estoque e preços', async () => {
   const userId = 'photo-with-image';
   queryProduct(userId);
   const { message, replies } = fakeMessage({ userId });
@@ -100,10 +101,33 @@ test('foto envia a imagem cadastrada com estoque, preços e atalho da venda', as
 
   assert.equal(replies.length, 1);
   assert.equal(replies[0]?.[0], jpegMedia);
-  assert.match(String((replies[0]?.[2] as { caption?: string }).caption), /🛞 ITARO 203/);
-  assert.match(String((replies[0]?.[2] as { caption?: string }).caption), /venda 1 <quantidade>/);
-  assert.match(String((replies[0]?.[2] as { caption?: string }).caption), /Exemplo: venda 1 2$/);
+  assert.equal(
+    String((replies[0]?.[2] as { caption?: string }).caption),
+    [
+      '🛞 ITARO 203',
+      '',
+      '📦 Estoque: 9',
+      '💰 À vista: R$299,00',
+      '💳 A prazo: R$313,95',
+    ].join('\n')
+  );
   clearLastQuery(userId);
+});
+
+test('legenda da foto não expõe localização interna nem comandos', () => {
+  const product = {
+    id: 'product',
+    description: 'ITARO 203',
+    stock: 9,
+    stockLocation: 'W3',
+    cashPrice: 299,
+    creditPrice: 313.95,
+    imagePath: 'uploads/products/product.jpg',
+  };
+
+  const caption = formatProductPhotoCaption(product);
+  assert.doesNotMatch(caption, /Local:/);
+  assert.doesNotMatch(caption, /venda/i);
 });
 
 test('foto informa quando o produto não possui imagem', async () => {

@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import path from 'node:path';
 
 // Load environment variables from .env file
 dotenv.config({ quiet: true });
@@ -20,6 +21,8 @@ export interface EnvConfig {
   ownerPhone: string;
   dailyReportTime: string;
   allowPrivateTestMode: boolean;
+  inventoryLocationsEnabled: boolean;
+  backupRoot: string;
   backupRetention: number;
   logMaxBytes: number;
   logRetentionDays: number;
@@ -93,6 +96,7 @@ export function validateEnvironment(source: NodeJS.ProcessEnv): string[] {
     'WHATSAPP_DEBUG',
     'WHATSAPP_HEADLESS',
     'ALLOW_PRIVATE_TEST_MODE',
+    'INVENTORY_LOCATIONS_ENABLED',
     'LOG_TO_CONSOLE',
   ] as const) {
     const value = source[booleanVariable]?.trim().toLowerCase();
@@ -103,6 +107,11 @@ export function validateEnvironment(source: NodeJS.ProcessEnv): string[] {
 
   if (source.DATABASE_URL?.trim() && !source.DATABASE_URL.trim().startsWith('file:')) {
     errors.push('DATABASE_URL: esta instalação requer uma URL SQLite iniciada por file:');
+  }
+
+  const backupRoot = source.BACKUP_ROOT?.trim() || '';
+  if (backupRoot && nodeEnv === 'production' && !path.isAbsolute(backupRoot)) {
+    errors.push('BACKUP_ROOT: em production use caminho absoluto, exemplo C:\\backups\\tireflowmtrback');
   }
 
   for (const integerVariable of [
@@ -155,6 +164,8 @@ export const env: EnvConfig = {
   ownerPhone: process.env.OWNER_PHONE || '',
   dailyReportTime: process.env.DAILY_REPORT_TIME || '',
   allowPrivateTestMode: process.env.ALLOW_PRIVATE_TEST_MODE === 'true',
+  inventoryLocationsEnabled: process.env.INVENTORY_LOCATIONS_ENABLED === 'true',
+  backupRoot: process.env.BACKUP_ROOT?.trim() || '',
   backupRetention: parsePositiveInteger(process.env.BACKUP_RETENTION, 14),
   logMaxBytes: parsePositiveInteger(process.env.LOG_MAX_BYTES, 10 * 1024 * 1024),
   logRetentionDays: parsePositiveInteger(process.env.LOG_RETENTION_DAYS, 30),

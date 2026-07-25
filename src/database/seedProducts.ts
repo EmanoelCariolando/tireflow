@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import { Prisma } from '@prisma/client';
 import { disconnectPrisma } from './prisma.js';
 import { productRepository } from '../repositories/productRepository.js';
@@ -10,6 +11,7 @@ interface CsvRow {
   cash_price: string;
   credit_price: string;
   stock: string;
+  location: string;
 }
 
 interface ValidProduct {
@@ -19,6 +21,7 @@ interface ValidProduct {
   cashPrice: string;
   creditPrice: string;
   stock: number;
+  stockLocation: string | null;
 }
 
 interface InvalidRow {
@@ -34,7 +37,10 @@ interface SeedReport {
 }
 
 const REQUIRED_HEADERS = ['reference', 'description', 'cash_price', 'credit_price', 'stock'];
-const CSV_PATH = PRODUCT_SEED_CSV_PATH;
+const CSV_PATH = process.argv[2]
+  ? path.resolve(process.argv[2])
+  : PRODUCT_SEED_CSV_PATH;
+const STOCK_LOCATION_PATTERN = /^[A-Z0-9][A-Z0-9_+-]{0,19}$/;
 
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
@@ -100,6 +106,7 @@ function buildCsvRow(headers: string[], values: string[]): CsvRow {
     cash_price: row.cash_price,
     credit_price: row.credit_price,
     stock: row.stock,
+    location: row.location || '',
   };
 }
 
@@ -109,6 +116,7 @@ function validateRow(line: number, row: CsvRow): ValidProduct | InvalidRow {
   const cashPrice = parseMoney(row.cash_price);
   const creditPrice = parseMoney(row.credit_price);
   const stock = parseStock(row.stock);
+  const stockLocation = row.location.trim().toUpperCase();
 
   if (!reference) {
     return { line, reason: 'reference vazio' };
@@ -130,6 +138,10 @@ function validateRow(line: number, row: CsvRow): ValidProduct | InvalidRow {
     return { line, reason: 'stock inválido' };
   }
 
+  if (stockLocation && !STOCK_LOCATION_PATTERN.test(stockLocation)) {
+    return { line, reason: 'location inválido' };
+  }
+
   return {
     line,
     reference,
@@ -137,6 +149,7 @@ function validateRow(line: number, row: CsvRow): ValidProduct | InvalidRow {
     cashPrice,
     creditPrice,
     stock,
+    stockLocation: stockLocation || null,
   };
 }
 
@@ -218,6 +231,7 @@ async function seedProducts(): Promise<SeedReport> {
       cashPrice: product.cashPrice,
       creditPrice: product.creditPrice,
       stock: product.stock,
+      stockLocation: product.stockLocation,
     });
 
     created++;

@@ -25,6 +25,44 @@ ALLOW_PRIVATE_TEST_MODE=false
 
 Em Monteiro, use `BRANCH_NAME="ATC PNEUS MONTEIRO"`, sessão `tireflow-monteiro` e autenticação em `C:\TireFlow\Monteiro\data\wwebjs_auth`. Grupo e números privados também devem pertencer à filial correta.
 
+Somente em Monteiro, habilite a localização física dos pneus:
+
+```env
+INVENTORY_LOCATIONS_ENABLED=true
+BACKUP_ROOT="C:\backups\tireflowmtr_snapshots"
+```
+
+No Congo, mantenha `INVENTORY_LOCATIONS_ENABLED=false`. O CSV de Monteiro pode incluir a coluna
+opcional `location` com códigos como `CG`, `W3` e `PMAIS`; no CSV do Congo essa coluna pode ser
+omitida.
+
+```csv
+reference,description,cash_price,credit_price,stock,location
+175/75 R17,PNEU EXEMPLO,499.00,523.95,4,W3
+```
+
+O arquivo extraído de Monteiro fica em `data/seed/monteiro_products.csv`. Para importá-lo sem
+substituir o CSV padrão:
+
+```powershell
+npm run seed:products -- data/seed/monteiro_products.csv
+```
+
+Se o banco de Monteiro já possui os produtos e movimentações, não execute o seed novamente.
+Sincronize somente as localizações, primeiro em modo de conferência:
+
+```powershell
+npm run sync:locations -- data/seed/monteiro_products.csv
+```
+
+Se todos os produtos forem encontrados, aplique:
+
+```powershell
+npm run sync:locations -- data/seed/monteiro_products.csv --apply
+```
+
+Esse comando é bloqueado fora da filial Monteiro e não altera estoque, preços, fotos ou histórico.
+
 ## 3. Banco, build e autenticação
 
 Execute na pasta de cada filial:
@@ -46,7 +84,9 @@ Inicie uma vez de modo interativo com o caminho absoluto do Node e de `dist\inde
 npm run backup
 ```
 
-O backup cria uma pasta datada em `backups`, com snapshot consistente do SQLite, uploads e manifesto. Guarde o `.env` separadamente e copie os backups para outro disco protegido.
+Por padrão, o backup cria uma pasta datada em `backups`, com snapshot consistente do SQLite,
+uploads e manifesto. Quando `BACKUP_ROOT` estiver configurado, a pasta datada será criada nesse
+diretório externo. Guarde o `.env` separadamente.
 
 ## 5. Restauração
 
@@ -63,20 +103,23 @@ Banco e uploads são restaurados juntos. Troque o nome do serviço para Monteiro
 
 ## 6. Atualização
 
+Pare o serviço antes do backup e não execute seed durante uma atualização normal:
+
 ```powershell
-npm run backup
 & 'C:\Tools\nssm\win64\nssm.exe' stop TireFlow-Congo
 git pull
 npm install
 npx prisma generate
+npm run backup
 npx prisma migrate deploy
-npm run seed:products
 npm run check
 npm run check:runtime
 & 'C:\Tools\nssm\win64\nssm.exe' start TireFlow-Congo
 ```
 
-Não reinicie se build, testes, diagnóstico ou migration falharem.
+O seed é exclusivo para a primeira carga de um banco novo. Não reinicie se backup, build, testes,
+diagnóstico ou migration falharem. Para atualizar Monteiro com localizações em um banco existente,
+siga [MONTEIRO_UPDATE.md](MONTEIRO_UPDATE.md).
 
 ## 7. Checklist por filial
 

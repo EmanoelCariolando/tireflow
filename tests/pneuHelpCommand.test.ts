@@ -37,6 +37,7 @@ test('shows the camera only beside products whose photo file exists', () => {
         reference: '175/70 R14',
         description: 'APOLO AMAZER 84T',
         stock: 1,
+        stockLocation: 'CG',
         cashPrice: 349.5,
         creditPrice: 366,
         hasPhoto: true,
@@ -51,10 +52,28 @@ test('shows the camera only beside products whose photo file exists', () => {
         hasPhoto: false,
       },
     ],
-    '175/70 R14'
+    '175/70 R14',
+    true
   );
 
+  assert.match(text, /Estoque: 1\n📍 Local: CG/);
   assert.match(text, /APOLO AMAZER 84T[\s\S]*A prazo: R\$366,00\n📷/);
   assert.doesNotMatch(text, /DYNAMO STREET-H MH01 84T[\s\S]*A prazo: R\$334,95\n📷/);
   assert.equal((text.match(/📷/g) ?? []).length, 1);
+  assert.doesNotMatch(
+    formatProductList(
+      [{
+        id: 'congo',
+        reference: '175/70 R14',
+        description: 'PNEU CONGO',
+        stock: 2,
+        stockLocation: 'CG',
+        cashPrice: 300,
+        creditPrice: 320,
+      }],
+      '175/70 R14',
+      false
+    ),
+    /Local:/
+  );
 });

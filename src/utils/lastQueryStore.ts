@@ -11,6 +11,7 @@ export interface QueriedProduct {
   reference: string;
   description: string;
   stock: number;
+  stockLocation?: string | null;
   cashPrice: number;
   creditPrice: number;
   hasPhoto?: boolean;

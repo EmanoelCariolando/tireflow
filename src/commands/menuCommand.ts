@@ -3,6 +3,7 @@ import { handleBestSellersCommand } from './bestSellersCommand.js';
 import { handleTodayReportCommand } from './todayReportCommand.js';
 import { findActiveProductsByReference } from '../services/productService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
+import { formatStockLocationLine } from '../utils/stockLocation.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { saveLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
@@ -110,6 +111,8 @@ function formatZeroStockProductList(products: QueriedProduct[], normalized: stri
   products.forEach((product, index) => {
     text += `${index + 1}️⃣ ${product.description}\n`;
     text += `📦 Estoque: ${product.stock}\n`;
+    const stockLocationLine = formatStockLocationLine(product.stockLocation);
+    if (stockLocationLine) text += `${stockLocationLine}\n`;
     text += `💰 À vista: ${formatCurrency(product.cashPrice)}\n`;
     text += `💳 A prazo: ${formatCurrency(product.creditPrice)}\n`;
 

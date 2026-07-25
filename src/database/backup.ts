@@ -60,7 +60,7 @@ async function pruneBackups(backupRoot: string, retention: number): Promise<void
 }
 
 export async function createBackup(options: CreateBackupOptions = {}): Promise<string> {
-  const backupRoot = path.resolve(options.backupRoot || BACKUP_DIRECTORY);
+  const backupRoot = path.resolve(options.backupRoot || env.backupRoot || BACKUP_DIRECTORY);
   const retention = options.retention || env.backupRetention;
   const now = options.now || new Date();
   const backupPath = path.join(backupRoot, formatBackupDirectoryName(now));

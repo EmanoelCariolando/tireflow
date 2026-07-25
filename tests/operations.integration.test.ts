@@ -30,7 +30,7 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
     const product = await prisma.product.create({
       data: {
         reference: '175/70/14', description: 'PNEU TESTE', stock: 3,
-        minStock: 1, cashPrice: 100, creditPrice: 110,
+        stockLocation: 'PMAIS', minStock: 1, cashPrice: 100, creditPrice: 110,
       },
     });
     const saleInput = (sellerPhone: string) => ({
@@ -71,7 +71,9 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
     assert.equal(Number(updatedProduct.creditPrice), 130);
     assert.equal(updatedProduct.stock, 2);
     assert.equal(await prisma.movement.count(), 4);
-    assert.equal((await findAvailableProductsByReference('175/70/14')).length, 1);
+    const availableProducts = await findAvailableProductsByReference('175/70/14');
+    assert.equal(availableProducts.length, 1);
+    assert.equal(availableProducts[0]?.stockLocation, 'PMAIS');
 
     assert.equal(
       await runPostCommitTask('simulated private notification', async () => {

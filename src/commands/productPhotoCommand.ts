@@ -285,7 +285,7 @@ export function formatProductPhotoCaption(product: PhotoProduct): string {
     '',
     `📦 Estoque: ${product.stock}`,
     `💰 À vista: ${formatCurrency(Number(product.cashPrice))}`,
-    `💳 A prazo: ${formatCurrency(Number(product.creditPrice))}`
+    `💳 A prazo: ${formatCurrency(Number(product.creditPrice))}`,
   ].join('\n');
 }
 
