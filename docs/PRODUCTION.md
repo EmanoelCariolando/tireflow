@@ -63,6 +63,24 @@ npm run sync:locations -- data/seed/monteiro_products.csv --apply
 
 Esse comando é bloqueado fora da filial Monteiro e não altera estoque, preços, fotos ou histórico.
 
+Para atualizar somente os estoques de Congo a partir do CSV, primeiro confira:
+
+```powershell
+npm run sync:stocks -- data/seed/initial_products.csv
+```
+
+O comando é bloqueado fora da filial Congo. Com backup concluído, zero produtos não encontrados e
+a lista de diferenças conferida, aplique:
+
+```powershell
+npm run sync:stocks -- data/seed/initial_products.csv --apply
+```
+
+O único dado operacional alterado é o estoque; o metadado `updatedAt` também é atualizado
+automaticamente. Preços, descrições, fotos, localizações, vendas e demais dados são preservados.
+Para executar Congo e Monteiro no mesmo servidor, siga
+[CONGO_ON_MONTEIRO_SERVER.md](CONGO_ON_MONTEIRO_SERVER.md).
+
 ## 3. Banco, build e autenticação
 
 Execute na pasta de cada filial:
@@ -87,6 +105,9 @@ npm run backup
 Por padrão, o backup cria uma pasta datada em `backups`, com snapshot consistente do SQLite,
 uploads e manifesto. Quando `BACKUP_ROOT` estiver configurado, a pasta datada será criada nesse
 diretório externo. Guarde o `.env` separadamente.
+
+Para instalar backups diários separados, com retenção de 7 cópias, validação da filial e sem
+interromper o serviço, siga [DAILY_BACKUPS.md](DAILY_BACKUPS.md).
 
 ## 5. Restauração
 

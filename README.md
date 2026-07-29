@@ -215,7 +215,8 @@ BRANCH_NAME="ATC PNEUS CONGO"
 `ALLOW_PRIVATE_TEST_MODE` pode ser `true` ou `false` em produção. Com `true`, os comandos também podem ser testados em conversa privada.
 
 O guia completo para Congo e Monteiro está em [docs/PRODUCTION.md](docs/PRODUCTION.md),
-com a instalação do serviço do Windows em [docs/NSSM.md](docs/NSSM.md).
+com a instalação do serviço do Windows em [docs/NSSM.md](docs/NSSM.md) e os backups automáticos em
+[docs/DAILY_BACKUPS.md](docs/DAILY_BACKUPS.md).
 
 ---
 

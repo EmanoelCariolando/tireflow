@@ -23,6 +23,27 @@ interface ProductSalesSummary {
 }
 
 const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
+type PaymentTotals = Record<(typeof PAYMENT_METHODS)[number], number>;
+
+interface TodayReportMovementCounts {
+  sale: number;
+  entry: number;
+  adjustment: number;
+  priceChange: number;
+}
+
+export interface TodayReportFormatInput {
+  referenceDate: Date;
+  hasMovements: boolean;
+  paymentTotals: PaymentTotals;
+  totalRevenue: number;
+  movementCounts: TodayReportMovementCounts;
+  bestSeller?: {
+    reference: string;
+    description: string;
+    quantity: number;
+  };
+}
 
 export async function buildLowStockReport(limit?: number): Promise<string> {
   const lowStockProducts = await getLowStockProducts(limit);
@@ -105,35 +126,50 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
   const bestSeller = summarizeSalesByProduct(sales)[0];
   const movementCounts = getMovementCounts(movements);
 
+  return formatTodayReport({
+    referenceDate,
+    hasMovements: movements.length > 0,
+    paymentTotals,
+    totalRevenue,
+    movementCounts,
+    bestSeller: bestSeller
+      ? {
+          reference: bestSeller.product.reference,
+          description: bestSeller.product.description,
+          quantity: bestSeller.quantity,
+        }
+      : undefined,
+  });
+}
+
+export function formatTodayReport(input: TodayReportFormatInput): string {
   const lines = [
-    '📊 Relatório de hoje',
-    '',
-    `Data: ${formatDate(referenceDate)}`,
+    '📊 *RELATÓRIO DO DIA*',
+    formatDate(input.referenceDate),
     '',
   ];
 
-  if (movements.length === 0) {
-    lines.push('Não houve movimentações hoje.', '');
+  if (!input.hasMovements) {
+    lines.push('Sem movimentações registradas.', '');
   }
 
   lines.push(
-    'Vendas por pagamento:',
-    `Dinheiro: ${formatCurrency(paymentTotals.Dinheiro)}`,
-    `PIX: ${formatCurrency(paymentTotals.PIX)}`,
-    `Cartão: ${formatCurrency(paymentTotals.Cartão)}`,
-    `Nota: ${formatCurrency(paymentTotals.Nota)}`,
+    `💰 *FATURAMENTO: ${formatCurrency(input.totalRevenue)}*`,
     '',
-    `Faturamento total do dia: ${formatCurrency(totalRevenue)}`,
+    '*PAGAMENTOS*',
+    `Dinheiro: *${formatCurrency(input.paymentTotals.Dinheiro)}*`,
+    `PIX: *${formatCurrency(input.paymentTotals.PIX)}*`,
+    `Cartão: *${formatCurrency(input.paymentTotals.Cartão)}*`,
+    `Nota: *${formatCurrency(input.paymentTotals.Nota)}*`,
     '',
-    'Movimentações:',
-    `Vendas: ${movementCounts.sale}`,
-    `Entradas: ${movementCounts.entry}`,
-    `Ajustes: ${movementCounts.adjustment}`,
-    `Alterações de preço: ${movementCounts.priceChange}`,
+    '*MOVIMENTAÇÕES*',
+    `Vendas: *${input.movementCounts.sale}* | Entradas: *${input.movementCounts.entry}*`,
+    `Ajustes: *${input.movementCounts.adjustment}* | Preços: *${input.movementCounts.priceChange}*`,
     '',
-    `Produto mais vendido do dia: ${formatBestSeller(bestSeller)}`,
+    '*MAIS VENDIDO*',
+    formatBestSeller(input.bestSeller),
     '',
-    'TireFlow - Relatório automático'
+    '_TireFlow • Relatório automático_'
   );
 
   return lines.join('\n');
@@ -156,7 +192,7 @@ function getDayRange(date: Date): DateRange {
   return { start, end };
 }
 
-function getPaymentTotals(sales: MovementWithRelations[]): Record<(typeof PAYMENT_METHODS)[number], number> {
+function getPaymentTotals(sales: MovementWithRelations[]): PaymentTotals {
   const totals = {
     Dinheiro: 0,
     PIX: 0,
@@ -175,7 +211,7 @@ function getPaymentTotals(sales: MovementWithRelations[]): Record<(typeof PAYMEN
   return totals;
 }
 
-function getMovementCounts(movements: MovementWithRelations[]) {
+function getMovementCounts(movements: MovementWithRelations[]): TodayReportMovementCounts {
   return {
     sale: movements.filter((movement) => movement.type === MovementType.SALE).length,
     entry: movements.filter((movement) => movement.type === MovementType.ENTRY).length,
@@ -214,12 +250,15 @@ function summarizeSalesByProduct(sales: MovementWithRelations[]): ProductSalesSu
   });
 }
 
-function formatBestSeller(bestSeller: ProductSalesSummary | undefined): string {
+function formatBestSeller(bestSeller: TodayReportFormatInput['bestSeller']): string {
   if (!bestSeller || bestSeller.quantity <= 0) {
     return 'Nenhum produto vendido hoje.';
   }
 
-  return `${bestSeller.product.reference} - ${bestSeller.product.description} (${bestSeller.quantity} un.)`;
+  return [
+    `*${bestSeller.reference}* — *${bestSeller.description}*`,
+    `Quantidade: *${bestSeller.quantity} unidades*`,
+  ].join('\n');
 }
 
 function formatDate(date: Date): string {

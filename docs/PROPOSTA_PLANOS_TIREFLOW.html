@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proposta de Planos TireFlow</title>
+  <style>
+    :root {
+      --ink: #16222c;
+      --muted: #5d6973;
+      --line: #c9d2d8;
+      --soft: #f3f6f5;
+      --green: #175b49;
+      --green-dark: #0e4436;
+      --green-light: #e8f2ee;
+      --gold: #d7a93e;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 14mm 15mm 16mm;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10pt;
+      line-height: 1.38;
+    }
+
+    .page {
+      min-height: 263mm;
+      position: relative;
+    }
+
+    .page + .page {
+      break-before: page;
+    }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 7mm;
+      padding-bottom: 5mm;
+      border-bottom: 2px solid var(--green);
+    }
+
+    .brand {
+      color: var(--green);
+      font-size: 22pt;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .header-note {
+      color: var(--muted);
+      font-size: 8.5pt;
+      line-height: 1.45;
+      text-align: right;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    h1 {
+      margin: 0 0 2mm;
+      font-size: 20pt;
+      line-height: 1.15;
+      text-align: center;
+    }
+
+    .lead {
+      max-width: 155mm;
+      margin: 0 auto 7mm;
+      color: var(--muted);
+      font-size: 10pt;
+      text-align: center;
+    }
+
+    .scope {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 5mm;
+      margin-bottom: 7mm;
+      padding: 4mm 5mm;
+      border: 1px solid var(--line);
+      border-radius: 2mm;
+      background: var(--soft);
+    }
+
+    .scope strong {
+      color: var(--green);
+    }
+
+    .scope-price {
+      color: var(--muted);
+      font-size: 8.5pt;
+      text-align: right;
+      text-transform: uppercase;
+    }
+
+    .plans {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      align-items: stretch;
+      gap: 4mm;
+    }
+
+    .plan {
+      min-height: 152mm;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      padding: 5mm 4.5mm;
+      border: 1px solid var(--line);
+      border-radius: 3mm;
+      background: #fff;
+    }
+
+    .plan.professional {
+      border: 1.5px solid #70a897;
+      background: var(--green-light);
+    }
+
+    .plan.assisted {
+      color: #fff;
+      border: 2px solid var(--green-dark);
+      background: var(--green);
+      box-shadow: 0 2mm 6mm rgb(14 68 54 / 18%);
+    }
+
+    .badge {
+      min-height: 6mm;
+      margin: -1mm 0 3mm;
+      color: var(--muted);
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .professional .badge {
+      color: var(--green-dark);
+    }
+
+    .assisted .badge {
+      margin: -8mm -1mm 4mm;
+      padding: 2mm 1mm;
+      color: var(--green-dark);
+      border-radius: 2mm;
+      background: var(--gold);
+    }
+
+    .plan-name {
+      margin: 0;
+      font-size: 14pt;
+      font-weight: 800;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .plan-purpose {
+      min-height: 12mm;
+      margin: 1mm 0 3mm;
+      color: var(--muted);
+      font-size: 8.5pt;
+      text-align: center;
+    }
+
+    .assisted .plan-purpose {
+      color: #dcebe6;
+    }
+
+    .price {
+      margin-bottom: 4mm;
+      text-align: center;
+    }
+
+    .currency {
+      font-size: 9pt;
+      vertical-align: 7px;
+    }
+
+    .amount {
+      font-size: 27pt;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+    }
+
+    .period {
+      color: var(--muted);
+      font-size: 8pt;
+    }
+
+    .assisted .period {
+      color: #dcebe6;
+    }
+
+    .plan ul {
+      flex: 1;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .plan li {
+      position: relative;
+      margin-bottom: 2.1mm;
+      padding-left: 5mm;
+      font-size: 8.8pt;
+    }
+
+    .plan li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .assisted li::before {
+      color: #fff;
+    }
+
+    .plan-footer {
+      min-height: 16mm;
+      margin-top: 3mm;
+      padding-top: 3mm;
+      border-top: 1px solid var(--line);
+      font-size: 8.3pt;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .assisted .plan-footer {
+      border-color: rgb(255 255 255 / 35%);
+    }
+
+    .upgrade-value {
+      margin: 7mm 0 0;
+      padding: 4mm 5mm;
+      color: var(--green-dark);
+      border-left: 4px solid var(--gold);
+      background: #fbf7ea;
+      font-size: 9.5pt;
+      text-align: center;
+    }
+
+    .upgrade-value strong {
+      display: block;
+      margin-bottom: 1mm;
+      font-size: 11pt;
+    }
+
+    .footer {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      padding-top: 3mm;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: 8pt;
+      text-align: center;
+    }
+
+    h2 {
+      margin: 0 0 4mm;
+      color: var(--green);
+      font-size: 15pt;
+      text-transform: uppercase;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 8.8pt;
+    }
+
+    th,
+    td {
+      padding: 2.2mm 2.5mm;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+      text-align: center;
+    }
+
+    th:first-child,
+    td:first-child {
+      width: 34%;
+      text-align: left;
+    }
+
+    thead th {
+      color: #fff;
+      background: var(--green);
+    }
+
+    thead th:first-child {
+      background: var(--green-dark);
+    }
+
+    tbody tr:nth-child(even) {
+      background: var(--soft);
+    }
+
+    .premium-column {
+      color: var(--green-dark);
+      font-weight: 700;
+      background: #eef6f2;
+    }
+
+    .check {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .conditions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+      margin-top: 7mm;
+    }
+
+    .condition-box {
+      padding: 4mm;
+      border: 1px solid var(--line);
+      border-radius: 2mm;
+      background: var(--soft);
+    }
+
+    .condition-box h3 {
+      margin: 0 0 2mm;
+      color: var(--green);
+      font-size: 10pt;
+      text-transform: uppercase;
+    }
+
+    .condition-box ul {
+      margin: 0;
+      padding-left: 4.5mm;
+      font-size: 8.5pt;
+    }
+
+    .condition-box li {
+      margin-bottom: 1.2mm;
+    }
+
+    .choice {
+      margin-top: 7mm;
+      padding: 5mm;
+      border: 2px solid var(--green);
+      border-radius: 2mm;
+    }
+
+    .choice-title {
+      margin-bottom: 3mm;
+      color: var(--green);
+      font-size: 11pt;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .choice-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4mm;
+      margin-bottom: 6mm;
+    }
+
+    .choice-option {
+      padding: 2.5mm;
+      border: 1px solid var(--line);
+      border-radius: 1.5mm;
+      font-size: 9pt;
+      text-align: center;
+    }
+
+    .box {
+      display: inline-block;
+      width: 4mm;
+      height: 4mm;
+      margin-right: 2mm;
+      border: 1px solid var(--ink);
+      vertical-align: -0.7mm;
+    }
+
+    .signature-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10mm;
+      margin-top: 12mm;
+    }
+
+    .signature {
+      padding-top: 2mm;
+      border-top: 1px solid var(--ink);
+      font-size: 8.5pt;
+      text-align: center;
+    }
+
+    .small-note {
+      margin-top: 4mm;
+      color: var(--muted);
+      font-size: 8pt;
+      text-align: center;
+    }
+
+    @media screen {
+      body {
+        padding: 12mm;
+        background: #e7ebee;
+      }
+
+      .page {
+        width: 210mm;
+        margin: 0 auto 12mm;
+        padding: 14mm 15mm 16mm;
+        background: #fff;
+        box-shadow: 0 3mm 10mm rgb(23 33 43 / 12%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <section class="page">
+    <header class="header">
+      <div class="brand">TireFlow</div>
+      <div class="header-note">Proposta comercial<br>ATC Pneus Congo + Monteiro</div>
+    </header>
+
+    <h1>Escolha o nível de acompanhamento ideal</h1>
+    <p class="lead">O mesmo sistema seguro nas duas unidades, com planos que se adaptam ao nível de
+      suporte, prioridade e tranquilidade que a operação deseja.</p>
+
+    <div class="scope">
+      <div><strong>Todos os planos atendem as duas unidades</strong><br>
+        Estoque, vendas, preços, fotos, relatórios, backups e correções essenciais.</div>
+      <div class="scope-price">Um único valor mensal<br>para Congo e Monteiro</div>
+    </div>
+
+    <div class="plans">
+      <article class="plan essential">
+        <div class="badge">Operação essencial</div>
+        <h3 class="plan-name">Essencial</h3>
+        <p class="plan-purpose">Para manter a operação organizada com assistência corretiva.</p>
+        <div class="price">
+          <span class="currency">R$</span>
+          <span class="amount">450</span>
+          <span class="period">/mês</span>
+        </div>
+        <ul>
+          <li>Sistema completo nas 2 unidades</li>
+          <li>Backups automáticos com 7 cópias</li>
+          <li>Correções de bugs do TireFlow</li>
+          <li>Atualizações essenciais</li>
+          <li>Suporte corretivo em horário comercial</li>
+          <li>Resposta inicial em até 2 dias úteis</li>
+          <li>Um responsável técnico</li>
+        </ul>
+        <div class="plan-footer">Alterações e restaurações são avaliadas separadamente.</div>
+      </article>
+
+      <article class="plan professional">
+        <div class="badge">Mais acompanhamento</div>
+        <h3 class="plan-name">Profissional</h3>
+        <p class="plan-purpose">Para quem deseja agilidade e acompanhamento mensal.</p>
+        <div class="price">
+          <span class="currency">R$</span>
+          <span class="amount">600</span>
+          <span class="period">/mês</span>
+        </div>
+        <ul>
+          <li>Tudo do plano Essencial</li>
+          <li><strong>Equipe de 2 pessoas</strong>: responsável técnico + apoio</li>
+          <li>Até 2 horas de assistência por mês</li>
+          <li>Resposta inicial em até 1 dia útil</li>
+          <li>Conferência mensal dos backups</li>
+          <li>Uma alteração simples por mês</li>
+          <li>Apoio em restauração emergencial</li>
+        </ul>
+        <div class="plan-footer">Equilíbrio entre economia, suporte e acompanhamento.</div>
+      </article>
+
+      <article class="plan assisted">
+        <div class="badge">Recomendado • Maior tranquilidade</div>
+        <h3 class="plan-name">Assistido</h3>
+        <p class="plan-purpose">Para manter as duas unidades acompanhadas com prioridade.</p>
+        <div class="price">
+          <span class="currency">R$</span>
+          <span class="amount">800</span>
+          <span class="period">/mês</span>
+        </div>
+        <ul>
+          <li>Tudo do plano Profissional</li>
+          <li><strong>Equipe de 2 pessoas com atendimento prioritário</strong></li>
+          <li>Até 4 horas de assistência por mês</li>
+          <li>Urgência: resposta inicial em até 4 horas úteis</li>
+          <li>Acompanhamento preventivo mensal</li>
+          <li>Restauração de backup incluída</li>
+          <li>Pequenos ajustes dentro das horas</li>
+          <li>Revisão periódica do uso do sistema</li>
+        </ul>
+        <div class="plan-footer">Mais prevenção, agilidade e segurança para a operação.</div>
+      </article>
+    </div>
+
+    <div class="upgrade-value">
+      <strong>Por R$ 200 a mais que o Profissional</strong>
+      O plano Assistido dobra as horas de acompanhamento, oferece prioridade em urgências,
+      restauração incluída e atuação preventiva nas duas unidades.
+    </div>
+
+    <div class="footer">TireFlow — Proposta de planos — Página 1 de 2</div>
+  </section>
+
+  <section class="page">
+    <header class="header">
+      <div class="brand">TireFlow</div>
+      <div class="header-note">Comparativo completo<br>duas unidades</div>
+    </header>
+
+    <h2>Compare os planos</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Serviço</th>
+          <th>Essencial<br>R$ 450</th>
+          <th>Profissional<br>R$ 600</th>
+          <th>Assistido<br>R$ 800</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Congo e Monteiro</td>
+          <td><span class="check">Incluso</span></td>
+          <td><span class="check">Incluso</span></td>
+          <td class="premium-column">Incluso</td>
+        </tr>
+        <tr>
+          <td>Estoque, vendas e preços</td>
+          <td><span class="check">Incluso</span></td>
+          <td><span class="check">Incluso</span></td>
+          <td class="premium-column">Incluso</td>
+        </tr>
+        <tr>
+          <td>Fotos e relatórios</td>
+          <td><span class="check">Incluso</span></td>
+          <td><span class="check">Incluso</span></td>
+          <td class="premium-column">Incluso</td>
+        </tr>
+        <tr>
+          <td>Backups automáticos</td>
+          <td>7 cópias</td>
+          <td>7 cópias + conferência</td>
+          <td class="premium-column">7 cópias + prevenção</td>
+        </tr>
+        <tr>
+          <td>Equipe de atendimento</td>
+          <td>1 pessoa</td>
+          <td>2 pessoas</td>
+          <td class="premium-column">2 pessoas prioritárias</td>
+        </tr>
+        <tr>
+          <td>Assistência mensal</td>
+          <td>Corretiva</td>
+          <td>Até 2 horas</td>
+          <td class="premium-column">Até 4 horas</td>
+        </tr>
+        <tr>
+          <td>Resposta inicial</td>
+          <td>Até 2 dias úteis</td>
+          <td>Até 1 dia útil</td>
+          <td class="premium-column">Até 4h úteis em urgência</td>
+        </tr>
+        <tr>
+          <td>Pequenas alterações</td>
+          <td>Orçamento separado</td>
+          <td>1 simples por mês</td>
+          <td class="premium-column">Dentro das horas</td>
+        </tr>
+        <tr>
+          <td>Restauração de backup</td>
+          <td>Orçamento separado</td>
+          <td>Apoio emergencial</td>
+          <td class="premium-column">Execução incluída</td>
+        </tr>
+        <tr>
+          <td>Acompanhamento preventivo</td>
+          <td>—</td>
+          <td>Conferência mensal</td>
+          <td class="premium-column">Prioritário e mensal</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="conditions">
+      <div class="condition-box">
+        <h3>Incluído em todos</h3>
+        <ul>
+          <li>correção de falhas próprias do TireFlow;</li>
+          <li>segurança e backups essenciais;</li>
+          <li>atendimento remoto em horário comercial;</li>
+          <li>uma única base de sistema, estável e atualizada.</li>
+        </ul>
+      </div>
+      <div class="condition-box">
+        <h3>Condições transparentes</h3>
+        <ul>
+          <li>horas não utilizadas não são acumuladas;</li>
+          <li>novas funcionalidades recebem orçamento separado;</li>
+          <li>internet, computador e WhatsApp são dependências externas;</li>
+          <li>atendimento presencial não está incluído.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="choice">
+      <div class="choice-title">Plano escolhido</div>
+      <div class="choice-options">
+        <div class="choice-option"><span class="box"></span> Essencial — R$ 450/mês</div>
+        <div class="choice-option"><span class="box"></span> Profissional — R$ 600/mês</div>
+        <div class="choice-option"><span class="box"></span> Assistido — R$ 800/mês</div>
+      </div>
+
+      <div class="signature-row">
+        <div class="signature">Responsável pelo TireFlow</div>
+        <div class="signature">Responsável pelo cliente</div>
+      </div>
+
+      <p class="small-note">Local e data: ________________________________________________</p>
+    </div>
+
+    <p class="small-note">Os valores apresentados correspondem ao atendimento conjunto das unidades
+      ATC Pneus Congo e ATC Pneus Monteiro.</p>
+
+    <div class="footer">TireFlow — Proposta de planos — Página 2 de 2</div>
+  </section>
+</body>
+</html>

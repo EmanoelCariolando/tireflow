@@ -457,64 +457,62 @@ function applyPaymentToSession(session: SaleSession, paymentMethod: PaymentMetho
   };
 }
 
-function formatSaleConfirmation(session: SaleSession): string {
+export function formatSaleConfirmation(session: SaleSession): string {
   return [
-    '⚠️ Confirmar venda?',
+    '⚠️ *CONFIRMAR VENDA?*',
     '',
-    `Produto: ${session.reference}`,
-    `Descrição: ${session.description}`,
-    `Quantidade: ${session.quantity}`,
-    `Valor unitário: ${formatCurrency(session.unitPrice ?? 0)}`,
-    `Total da venda: ${formatCurrency(session.totalValue ?? 0)}`,
+    `*${session.reference}* — *${session.description}*`,
+    `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
     `Pagamento: ${session.paymentMethod}`,
-    ...(session.receiptMessageId ? ['Foto da nota/comprovante: recebida'] : []),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
+    '',
+    `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',
     'Digite: confirmar ou cancelar',
   ].join('\n');
 }
 
-function formatRegisteredSale(
+export function formatRegisteredSale(
   session: SaleSession,
   movementCode: string,
   sellerName: string,
   currentStock: number
 ): string {
   return [
-    '✅ Venda registrada',
+    '✅ *VENDA REGISTRADA*',
     '',
-    `Movimentação: ${movementCode}`,
-    `Produto: ${session.reference}`,
-    `Descrição: ${session.description}`,
-    `Quantidade: ${session.quantity}`,
-    `Valor unitário: ${formatCurrency(session.unitPrice ?? 0)}`,
-    `Total da venda: ${formatCurrency(session.totalValue ?? 0)}`,
+    `*${session.reference}* — *${session.description}*`,
+    `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
     `Pagamento: ${session.paymentMethod}`,
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
-    `Vendedor: ${sellerName}`,
     '',
-    `Estoque atual: ${currentStock}`,
+    `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
+    '',
+    `📦 Estoque: ${currentStock}`,
+    `Movimentação: ${movementCode}`,
+    `Vendedor: ${sellerName}`,
   ].join('\n');
 }
 
-function formatBossSaleNotification(
+export function formatBossSaleNotification(
   session: SaleSession,
   movementCode: string,
   sellerName: string,
   currentStock: number
 ): string {
   return [
-    '🔔 Nova venda',
+    '🔔 *NOVA VENDA*',
     '',
-    `Movimentação: ${movementCode}`,
-    `${sellerName} vendeu ${session.quantity} pneus`,
-    `${session.reference} ${session.description}`,
-    '',
-    `Valor unitário: ${formatCurrency(session.unitPrice ?? 0)}`,
-    `Total da venda: ${formatCurrency(session.totalValue ?? 0)}`,
+    `*${session.reference}* — *${session.description}*`,
+    `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
     `Pagamento: ${session.paymentMethod}`,
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
-    `Estoque atual: ${currentStock}`,
+    '',
+    `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
+    '',
+    `📦 Estoque: ${currentStock}`,
+    `Movimentação: ${movementCode}`,
+    `Vendedor: ${sellerName}`,
   ].join('\n');
 }
 

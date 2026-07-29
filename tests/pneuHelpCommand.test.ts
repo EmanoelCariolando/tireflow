@@ -3,6 +3,7 @@ import test from 'node:test';
 import { Message } from 'whatsapp-web.js';
 import {
   formatProductList,
+  handlePneuCommand,
   handlePneuHelpCommand,
   isPneuHelpCommand,
 } from '../src/commands/pneuCommand.js';
@@ -27,6 +28,32 @@ test('explains foto and addfoto in the tire command help', async () => {
   assert.match(replyText, /addfoto <número>\n↳ Adiciona uma foto ou substitui a foto atual/);
   assert.match(replyText, /Depois do comando, envie a imagem solicitada/);
   assert.match(replyText, /O número é a posição do produto na última consulta/);
+});
+
+test('lists every supported common format when the tire size is invalid', async () => {
+  let replyText = '';
+  const message = {
+    from: 'invalid-size-chat',
+    author: 'invalid-size-user',
+    reply: async (text: string) => {
+      replyText = text;
+    },
+  } as unknown as Message;
+
+  await handlePneuCommand(message, '175.70.14');
+
+  assert.equal(
+    replyText,
+    [
+      'Medida inválida.',
+      '',
+      'Formas aceitas:',
+      '• pneu 175/70 R14',
+      '• pneu 175/70/14',
+      '• pneu 175 70 14',
+      '• pneu 175-70-14',
+    ].join('\n')
+  );
 });
 
 test('shows the camera only beside products whose photo file exists', () => {

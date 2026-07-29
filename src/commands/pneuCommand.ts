@@ -110,7 +110,17 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
     const normalized = normalizeTireSize(rawMeasure);
 
     if (!normalized) {
-      await message.reply('Medida inválida. Exemplo: pneu 175/70 R14');
+      await message.reply(
+        [
+          'Medida inválida.',
+          '',
+          'Formas aceitas:',
+          '• pneu 175/70 R14',
+          '• pneu 175/70/14',
+          '• pneu 175 70 14',
+          '• pneu 175-70-14',
+        ].join('\n')
+      );
       return;
     }
 

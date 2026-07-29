@@ -166,7 +166,7 @@ export const env: EnvConfig = {
   allowPrivateTestMode: process.env.ALLOW_PRIVATE_TEST_MODE === 'true',
   inventoryLocationsEnabled: process.env.INVENTORY_LOCATIONS_ENABLED === 'true',
   backupRoot: process.env.BACKUP_ROOT?.trim() || '',
-  backupRetention: parsePositiveInteger(process.env.BACKUP_RETENTION, 14),
+  backupRetention: parsePositiveInteger(process.env.BACKUP_RETENTION, 7),
   logMaxBytes: parsePositiveInteger(process.env.LOG_MAX_BYTES, 10 * 1024 * 1024),
   logRetentionDays: parsePositiveInteger(process.env.LOG_RETENTION_DAYS, 30),
   logToConsole: process.env.LOG_TO_CONSOLE !== 'false',

@@ -21,7 +21,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed:products": "tsx src/database/seedProducts.ts",
-    "sync:locations": "tsx src/database/syncProductLocations.ts"
+    "sync:locations": "tsx src/database/syncProductLocations.ts",
+    "sync:stocks": "tsx src/database/syncProductStocks.ts"
   },
   "keywords": [
     "whatsapp",
