@@ -3,6 +3,7 @@ import type { Message } from 'whatsapp-web.js';
 export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
 export type ReceiptPaymentMethod = 'PIX' | 'Cartão' | 'Nota';
 export type PaymentMethod = MixedPaymentMethod | 'Nota' | 'Misto';
+export type SalePriceType = 'À vista' | 'A prazo';
 
 export interface PaymentBreakdownPart {
   method: MixedPaymentMethod;
@@ -17,6 +18,8 @@ export interface SaleReceipt {
 
 export type SaleSessionStep =
   | 'awaiting_payment'
+  | 'awaiting_price_type'
+  | 'awaiting_discount_confirmation'
   | 'awaiting_mixed_methods'
   | 'awaiting_mixed_amount'
   | 'awaiting_photo'
@@ -36,6 +39,9 @@ export interface SaleSession {
   creditPrice: number;
   unitPrice?: number;
   totalValue?: number;
+  priceType?: SalePriceType;
+  discountPercent?: number;
+  originalTotalValue?: number;
   paymentMethod?: PaymentMethod;
   mixedPaymentMethods?: MixedPaymentMethod[];
   mixedAmountMethod?: MixedPaymentMethod;

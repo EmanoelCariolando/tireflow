@@ -83,3 +83,30 @@ test('shows both mixed payment amounts in the confirmation', () => {
   );
   assert.match(message, /💰 Total: \*R\$600,00\*/);
 });
+
+test('shows the discount and chosen price clearly to the seller and owner', () => {
+  const discountedSession: SaleSession = {
+    ...session,
+    priceType: 'À vista',
+    unitPrice: 291,
+    originalTotalValue: 600,
+    totalValue: 582,
+    discountPercent: 3,
+  };
+
+  const confirmation = formatSaleConfirmation(discountedSession);
+  const ownerNotification = formatBossSaleNotification(
+    discountedSession,
+    'VEN-002',
+    'Vendedor',
+    6
+  );
+
+  assert.match(confirmation, /Pagamento: \*PIX\* \| Valor: \*À vista\*/);
+  assert.match(confirmation, /Valor original: R\$600,00/);
+  assert.match(confirmation, /Desconto: \*3% \(-R\$18,00\)\*/);
+  assert.match(confirmation, /💰 Total: \*R\$582,00\*/);
+  assert.match(ownerNotification, /Pagamento: PIX \| Valor: À vista/);
+  assert.match(ownerNotification, /Desconto: 3% \(-R\$18,00\)/);
+  assert.match(ownerNotification, /💰 \*TOTAL: R\$582,00\*/);
+});

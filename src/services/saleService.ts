@@ -6,7 +6,6 @@ import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { serializePaymentBreakdown } from '../utils/salePayment.js';
 import type {
-  MixedPaymentMethod,
   PaymentBreakdownPart,
   PaymentMethod,
 } from '../utils/saleSessionStore.js';
@@ -49,24 +48,6 @@ interface RegisteredSale {
   movementCode: string;
   currentStock: number;
   previousStock: number;
-}
-
-export function getUnitPriceForPayment(
-  paymentMethod: Exclude<PaymentMethod, 'Misto'>,
-  cashPrice: number,
-  creditPrice: number
-): number {
-  return paymentMethod === 'Dinheiro' || paymentMethod === 'PIX'
-    ? cashPrice
-    : creditPrice;
-}
-
-export function getUnitPriceForMixedPayment(
-  paymentMethods: MixedPaymentMethod[],
-  cashPrice: number,
-  creditPrice: number
-): number {
-  return paymentMethods.includes('Cartão') ? creditPrice : cashPrice;
 }
 
 export function calculateSaleTotal(quantity: number, unitPrice: number): number {

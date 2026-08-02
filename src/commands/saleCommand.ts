@@ -5,8 +5,6 @@ import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
   calculateSaleTotal,
   getCurrentProductStock,
-  getUnitPriceForPayment,
-  getUnitPriceForMixedPayment,
   InsufficientStockError,
   registerSale,
   SaleProductNotFoundError,
@@ -22,6 +20,7 @@ import {
   MixedPaymentMethod,
   PaymentMethod,
   ReceiptPaymentMethod,
+  SalePriceType,
   SaleSession,
   saveSaleSession,
 } from '../utils/saleSessionStore.js';
@@ -35,15 +34,7 @@ import {
 } from '../utils/salePayment.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
-const PAYMENT_MENU = [
-  'Forma de pagamento?',
-  '',
-  '1️⃣ *Dinheiro*',
-  '2️⃣ *PIX*',
-  '3️⃣ *Cartão*',
-  '4️⃣ *Nota*',
-  '5️⃣ *Pagamento misto*',
-].join('\n');
+const DISCOUNT_PERCENT = 3;
 const MIXED_PAYMENT_MENU = [
   'Quais foram as duas formas de pagamento usadas?',
   '',
@@ -111,10 +102,10 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     return;
   }
 
-  saveSaleSession({
+  const saleSession: SaleSession = {
     userId,
     chatId,
-    step: 'awaiting_payment',
+    step: 'awaiting_price_type',
     productId: product.id,
     reference: product.reference || lastQuery.normalizedMeasure,
     description: product.description,
@@ -122,9 +113,10 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     cashPrice: product.cashPrice,
     creditPrice: product.creditPrice,
     updatedAt: Date.now(),
-  });
+  };
+  saveSaleSession(saleSession);
 
-  await message.reply(PAYMENT_MENU);
+  await message.reply(formatPriceTypeQuestion(saleSession));
 }
 
 export async function handleSaleConversation(message: Message, body: string): Promise<boolean> {
@@ -161,6 +153,16 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   if (session.step === 'awaiting_payment') {
     await handlePaymentStep(message, session, normalizedBody);
+    return true;
+  }
+
+  if (session.step === 'awaiting_price_type') {
+    await handlePriceTypeStep(message, session, normalizedBody);
+    return true;
+  }
+
+  if (session.step === 'awaiting_discount_confirmation') {
+    await handleDiscountConfirmationStep(message, session, normalizedBody);
     return true;
   }
 
@@ -202,10 +204,46 @@ async function handlePaymentStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
+  if (isDiscountSelection(normalizedBody)) {
+    if (session.discountPercent) {
+      await message.reply(
+        `O desconto de ${session.discountPercent}% já foi aplicado.\n\n${formatPaymentMenu(session)}`
+      );
+      return;
+    }
+
+    if (
+      !session.priceType ||
+      session.unitPrice === undefined ||
+      session.totalValue === undefined
+    ) {
+      clearSaleSession(session.userId, session.chatId);
+      await message.reply('Ocorreu um erro na sessão da venda. Faça a consulta novamente.');
+      return;
+    }
+
+    const originalTotalInCents = Math.round(session.totalValue * 100);
+    const discountInCents = Math.round(originalTotalInCents * DISCOUNT_PERCENT / 100);
+    const totalValue = (originalTotalInCents - discountInCents) / 100;
+    const discountedSession: SaleSession = {
+      ...session,
+      step: 'awaiting_discount_confirmation',
+      paymentMethod: undefined,
+      unitPrice: totalValue / session.quantity,
+      totalValue,
+      originalTotalValue: originalTotalInCents / 100,
+      discountPercent: DISCOUNT_PERCENT,
+      updatedAt: Date.now(),
+    };
+    saveSaleSession(discountedSession);
+    await message.reply(formatDiscountPreview(discountedSession));
+    return;
+  }
+
   const paymentMethod = parsePaymentMethod(normalizedBody);
 
   if (!paymentMethod) {
-    await message.reply(`Forma de pagamento inválida.\n\n${PAYMENT_MENU}`);
+    await message.reply(`Forma de pagamento inválida.\n\n${formatPaymentMenu(session)}`);
     return;
   }
 
@@ -220,11 +258,22 @@ async function handlePaymentStep(
     return;
   }
 
-  const pricedSession = applyPaymentToSession(session, paymentMethod);
+  await continueDirectPayment(message, { ...session, paymentMethod }, paymentMethod);
+}
+
+async function continueDirectPayment(
+  message: Message,
+  pricedSession: SaleSession,
+  paymentMethod: Exclude<PaymentMethod, 'Misto'>
+): Promise<void> {
+  const cleanSession: SaleSession = {
+    ...pricedSession,
+    paymentMethod,
+  };
 
   if (paymentMethod === 'Dinheiro') {
     const nextSession: SaleSession = {
-      ...pricedSession,
+      ...cleanSession,
       step: 'awaiting_confirmation',
       updatedAt: Date.now(),
     };
@@ -234,7 +283,7 @@ async function handlePaymentStep(
   }
 
   const nextSession: SaleSession = {
-    ...pricedSession,
+    ...cleanSession,
     step: 'awaiting_photo',
     pendingReceiptMethods: [paymentMethod],
     receipts: [],
@@ -248,6 +297,48 @@ async function handlePaymentStep(
   }
 
   await message.reply('Envie a foto do comprovante.');
+}
+
+async function handlePriceTypeStep(
+  message: Message,
+  session: SaleSession,
+  normalizedBody: string
+): Promise<void> {
+  const priceType = parsePriceType(normalizedBody);
+
+  if (!priceType) {
+    await message.reply(`Opção inválida.\n\n${formatPriceTypeQuestion(session)}`);
+    return;
+  }
+
+  const nextSession: SaleSession = {
+    ...applyPriceTypeToSession(session, priceType),
+    step: 'awaiting_payment',
+    paymentMethod: undefined,
+    updatedAt: Date.now(),
+  };
+
+  saveSaleSession(nextSession);
+  await message.reply(formatPaymentMenu(nextSession));
+}
+
+async function handleDiscountConfirmationStep(
+  message: Message,
+  session: SaleSession,
+  normalizedBody: string
+): Promise<void> {
+  if (normalizedBody !== 'confirmar') {
+    await message.reply('Digite: confirmar ou cancelar');
+    return;
+  }
+
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_payment',
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply(`✅ Desconto confirmado.\n\n${formatPaymentMenu(nextSession)}`);
 }
 
 async function handleMixedMethodsStep(
@@ -271,12 +362,27 @@ async function handleMixedMethodsStep(
     return;
   }
 
-  const unitPrice = getUnitPriceForMixedPayment(
+  const mixedSession: SaleSession = {
+    ...session,
+    paymentMethod: 'Misto',
     mixedPaymentMethods,
-    session.cashPrice,
-    session.creditPrice
-  );
-  const totalValue = calculateSaleTotal(session.quantity, unitPrice);
+    mixedAmountMethod,
+    updatedAt: Date.now(),
+  };
+  await startMixedAmountStep(message, mixedSession);
+}
+
+async function startMixedAmountStep(
+  message: Message,
+  session: SaleSession
+): Promise<void> {
+  const totalValue = session.totalValue;
+
+  if (session.unitPrice === undefined || totalValue === undefined) {
+    clearSaleSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão da venda. Faça a consulta novamente.');
+    return;
+  }
 
   if (Math.round(totalValue * 100) < 2) {
     saveSaleSession({
@@ -286,7 +392,7 @@ async function handleMixedMethodsStep(
       updatedAt: Date.now(),
     });
     await message.reply(
-      `Não é possível dividir ${formatCurrency(totalValue)} entre duas formas.\n\n${PAYMENT_MENU}`
+      `Não é possível dividir ${formatCurrency(totalValue)} entre duas formas.\n\n${formatPaymentMenu(session)}`
     );
     return;
   }
@@ -294,15 +400,10 @@ async function handleMixedMethodsStep(
   saveSaleSession({
     ...session,
     step: 'awaiting_mixed_amount',
-    paymentMethod: 'Misto',
-    mixedPaymentMethods,
-    mixedAmountMethod,
-    unitPrice,
-    totalValue,
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatMixedAmountQuestion(totalValue, mixedAmountMethod));
+  await message.reply(formatMixedAmountQuestion(totalValue, session.mixedAmountMethod!));
 }
 
 async function handleMixedAmountStep(
@@ -646,22 +747,89 @@ function parsePaymentMethod(value: string): PaymentMethod | null {
   return null;
 }
 
+function isDiscountSelection(value: string): boolean {
+  const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return normalized === '6' || normalized === 'desconto';
+}
+
+function parsePriceType(value: string): SalePriceType | null {
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (normalized === '1' || normalized === 'avista' || normalized === 'a vista') {
+    return 'À vista';
+  }
+  if (normalized === '2' || normalized === 'prazo' || normalized === 'a prazo') {
+    return 'A prazo';
+  }
+  return null;
+}
+
 function isNewOperationCommand(normalizedBody: string): boolean {
   return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
 }
 
-function applyPaymentToSession(
+function applyPriceTypeToSession(
   session: SaleSession,
-  paymentMethod: Exclude<PaymentMethod, 'Misto'>
+  priceType: SalePriceType
 ): SaleSession {
-  const unitPrice = getUnitPriceForPayment(paymentMethod, session.cashPrice, session.creditPrice);
+  const unitPrice = priceType === 'À vista' ? session.cashPrice : session.creditPrice;
 
   return {
     ...session,
-    paymentMethod,
+    priceType,
     unitPrice,
     totalValue: calculateSaleTotal(session.quantity, unitPrice),
   };
+}
+
+function formatPaymentMenu(session?: SaleSession): string {
+  const discountApplied = Boolean(session?.discountPercent && session.totalValue !== undefined);
+  const selectedPrice = Boolean(session?.priceType && session.totalValue !== undefined);
+  return [
+    ...(selectedPrice
+      ? [
+          `Valor selecionado: *${session!.priceType}*`,
+          `💰 ${discountApplied ? 'Total com desconto' : 'Total'}: *${formatCurrency(session!.totalValue!)}*`,
+          '',
+        ]
+      : []),
+    'Forma de pagamento?',
+    '',
+    '1️⃣ *Dinheiro*',
+    '2️⃣ *PIX*',
+    '3️⃣ *Cartão*',
+    '4️⃣ *Nota*',
+    '5️⃣ *Pagamento misto*',
+    `6️⃣ *Desconto de ${DISCOUNT_PERCENT}%*${discountApplied ? ' — já aplicado' : ''}`,
+  ].join('\n');
+}
+
+function formatPriceTypeQuestion(session: SaleSession): string {
+  return [
+    'Usar valor à vista ou a prazo?',
+    '',
+    `1️⃣ *À vista* — ${formatCurrency(calculateSaleTotal(session.quantity, session.cashPrice))}`,
+    `2️⃣ *A prazo* — ${formatCurrency(calculateSaleTotal(session.quantity, session.creditPrice))}`,
+  ].join('\n');
+}
+
+function formatDiscountPreview(session: SaleSession): string {
+  const originalTotal = session.originalTotalValue ?? 0;
+  const discountValue = originalTotal - (session.totalValue ?? 0);
+  return [
+    '🏷️ *APLICAR DESCONTO?*',
+    '',
+    `Valor ${session.priceType?.toLowerCase()}: ${formatCurrency(originalTotal)}`,
+    `Desconto de ${session.discountPercent}%: -${formatCurrency(discountValue)}`,
+    '',
+    `💰 Novo total: *${formatCurrency(session.totalValue ?? 0)}*`,
+    '',
+    'Digite: confirmar ou cancelar',
+  ].join('\n');
 }
 
 export function formatSaleConfirmation(session: SaleSession): string {
@@ -669,8 +837,9 @@ export function formatSaleConfirmation(session: SaleSession): string {
     '⚠️ *CONFIRMAR VENDA?*',
     '',
     `*${session.reference}* — *${session.description}*`,
-    `*${session.quantity} un.* × ${formatCurrency(session.unitPrice ?? 0)}`,
+    formatSaleItemLine(session, false),
     ...formatConfirmationPaymentLines(session),
+    ...formatDiscountLines(session, true),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     '',
     `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
@@ -689,8 +858,9 @@ export function formatRegisteredSale(
     '✅ *VENDA REGISTRADA*',
     '',
     `*${session.reference}* — *${session.description}*`,
-    `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
+    formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
+    ...formatDiscountLines(session, false),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
@@ -711,8 +881,9 @@ export function formatBossSaleNotification(
     '🔔 *NOVA VENDA*',
     '',
     `*${session.reference}* — *${session.description}*`,
-    `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
+    formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
+    ...formatDiscountLines(session, false),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
@@ -768,11 +939,13 @@ function formatMethodForSentence(paymentMethod: ReceiptPaymentMethod): string {
 
 function formatPaymentLines(session: SaleSession): string[] {
   if (session.paymentMethod !== 'Misto') {
-    return [`Pagamento: ${session.paymentMethod}`];
+    return [
+      `Pagamento: ${session.paymentMethod}${formatPriceTypeSuffix(session, false)}`,
+    ];
   }
 
   return [
-    'Pagamento: Misto',
+    `Pagamento: Misto${formatPriceTypeSuffix(session, false)}`,
     ...(session.paymentBreakdown ?? []).map(
       (part) => `${part.method}: ${formatCurrency(part.amount)}`
     ),
@@ -781,13 +954,62 @@ function formatPaymentLines(session: SaleSession): string[] {
 
 function formatConfirmationPaymentLines(session: SaleSession): string[] {
   if (session.paymentMethod !== 'Misto') {
-    return [`Pagamento: *${session.paymentMethod}*`];
+    return [
+      `Pagamento: *${session.paymentMethod}*${formatPriceTypeSuffix(session, true)}`,
+    ];
   }
 
   return [
-    'Pagamento: *Misto*',
+    `Pagamento: *Misto*${formatPriceTypeSuffix(session, true)}`,
     (session.paymentBreakdown ?? [])
       .map((part) => `${part.method}: *${formatCurrency(part.amount)}*`)
       .join(' | '),
   ].filter(Boolean);
+}
+
+function formatSaleItemLine(session: SaleSession, registered: boolean): string {
+  const quantityLabel = registered ? 'unidades' : 'un.';
+  if (session.discountPercent) {
+    return `*${session.quantity} ${quantityLabel}*`;
+  }
+  return `*${session.quantity} ${quantityLabel}* × ${formatCurrency(session.unitPrice ?? 0)}`;
+}
+
+function formatPriceTypeSuffix(session: SaleSession, bold: boolean): string {
+  if (!shouldShowPriceType(session)) {
+    return '';
+  }
+  return bold
+    ? ` | Valor: *${session.priceType}*`
+    : ` | Valor: ${session.priceType}`;
+}
+
+function shouldShowPriceType(session: SaleSession): boolean {
+  return Boolean(
+    session.priceType &&
+    (
+      session.discountPercent ||
+      session.paymentMethod === 'Cartão' ||
+      session.paymentMethod === 'Nota' ||
+      (session.paymentMethod === 'Misto' && session.mixedPaymentMethods?.includes('Cartão'))
+    )
+  );
+}
+
+function formatDiscountLines(session: SaleSession, bold: boolean): string[] {
+  if (
+    !session.discountPercent ||
+    session.originalTotalValue === undefined ||
+    session.totalValue === undefined
+  ) {
+    return [];
+  }
+
+  const discountValue = session.originalTotalValue - session.totalValue;
+  return [
+    `Valor original: ${formatCurrency(session.originalTotalValue)}`,
+    bold
+      ? `Desconto: *${session.discountPercent}% (-${formatCurrency(discountValue)})*`
+      : `Desconto: ${session.discountPercent}% (-${formatCurrency(discountValue)})`,
+  ];
 }

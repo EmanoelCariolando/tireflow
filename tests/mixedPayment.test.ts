@@ -2,10 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Message } from 'whatsapp-web.js';
 import { handleSaleConversation } from '../src/commands/saleCommand.js';
-import {
-  calculateSaleTotal,
-  getUnitPriceForMixedPayment,
-} from '../src/services/saleService.js';
 import { calculatePaymentTotals } from '../src/services/reportService.js';
 import {
   buildPaymentBreakdown,
@@ -36,6 +32,9 @@ function startSale(suffix: string): { userId: string; chatId: string } {
     quantity: 2,
     cashPrice: 250,
     creditPrice: 275,
+    priceType: 'À vista',
+    unitPrice: 250,
+    totalValue: 500,
     updatedAt: Date.now(),
   });
   return ids;
@@ -83,13 +82,6 @@ test('parses Brazilian currency without allowing ambiguous or malformed cents', 
   assert.equal(parseCurrencyToCents('100,999'), null);
   assert.equal(parseCurrencyToCents('-10'), null);
   assert.equal(parseCurrencyToCents('R$ cem'), null);
-});
-
-test('uses cash price for Dinheiro + PIX and credit price for every card split', () => {
-  assert.equal(getUnitPriceForMixedPayment(['Dinheiro', 'PIX'], 250, 275), 250);
-  assert.equal(getUnitPriceForMixedPayment(['Dinheiro', 'Cartão'], 250, 275), 275);
-  assert.equal(getUnitPriceForMixedPayment(['PIX', 'Cartão'], 250, 275), 275);
-  assert.equal(calculateSaleTotal(2, 275), 550);
 });
 
 test('builds an exact two-part split and rejects zero, total or excess values', () => {
@@ -157,7 +149,8 @@ test('requires PIX and card receipts in sequence for PIX + Cartão', async () =>
 
   await handleSaleConversation(createMessage(ids, replies), '5');
   await handleSaleConversation(createMessage(ids, replies), '2 e 3');
-  assert.equal(getSaleSession(ids.userId, ids.chatId)?.totalValue, 550);
+  assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_mixed_amount');
+  assert.equal(getSaleSession(ids.userId, ids.chatId)?.totalValue, 500);
 
   await handleSaleConversation(createMessage(ids, replies), '200');
   assert.deepEqual(
@@ -178,7 +171,7 @@ test('requires PIX and card receipts in sequence for PIX + Cartão', async () =>
   assert.equal(confirmationSession?.receipts?.length, 2);
   assert.match(
     replies.at(-1) ?? '',
-    /PIX: \*R\$200,00\* \| Cartão: \*R\$350,00\*/
+    /PIX: \*R\$200,00\* \| Cartão: \*R\$300,00\*/
   );
 
   clearSaleSession(ids.userId, ids.chatId);
@@ -193,10 +186,10 @@ test('requires only the card receipt for Dinheiro + Cartão', async () => {
   await handleSaleConversation(createMessage(ids, replies), '150,00');
 
   const receiptSession = getSaleSession(ids.userId, ids.chatId);
-  assert.equal(receiptSession?.totalValue, 550);
+  assert.equal(receiptSession?.totalValue, 500);
   assert.deepEqual(receiptSession?.paymentBreakdown, [
     { method: 'Cartão', amount: 150 },
-    { method: 'Dinheiro', amount: 400 },
+    { method: 'Dinheiro', amount: 350 },
   ]);
   assert.deepEqual(receiptSession?.pendingReceiptMethods, ['Cartão']);
   assert.match(replies.at(-1) ?? '', /comprovante do cartão/);
