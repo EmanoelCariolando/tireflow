@@ -87,3 +87,22 @@ export function clearLastQuery(userId: string, chatId?: string): void {
     if (query.userId === userId) lastQueries.delete(key);
   }
 }
+
+export function updateLastQueryProductLocation(
+  userId: string,
+  chatId: string,
+  productId: string,
+  stockLocation: string
+): void {
+  const key = buildKey(userId, chatId);
+  const stored = lastQueries.get(key);
+
+  if (!stored || Date.now() - stored.timestamp > TTL_MS) {
+    lastQueries.delete(key);
+    return;
+  }
+
+  stored.products = stored.products.map((product) =>
+    product.id === productId ? { ...product, stockLocation } : product
+  );
+}

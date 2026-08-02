@@ -253,7 +253,7 @@ function parsePriceValue(value: string): number | null {
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|preco)\b/i.test(normalizedBody);
+  return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
 }
 
 function formatPriceConfirmation(session: PriceSession): string {

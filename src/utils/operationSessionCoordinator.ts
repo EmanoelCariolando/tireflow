@@ -11,6 +11,11 @@ import {
   getAddPhotoSession,
   hasExpiredAddPhotoSession,
 } from './addPhotoSessionStore.js';
+import {
+  clearLocationSession,
+  getLocationSession,
+  hasExpiredLocationSession,
+} from './locationSessionStore.js';
 
 export function hasActiveOperationSession(userId: string, chatId: string): boolean {
   return Boolean(
@@ -18,7 +23,8 @@ export function hasActiveOperationSession(userId: string, chatId: string): boole
       getEntrySession(userId, chatId) ||
       getAdjustmentSession(userId, chatId) ||
       getPriceSession(userId, chatId) ||
-      getAddPhotoSession(userId, chatId)
+      getAddPhotoSession(userId, chatId) ||
+      getLocationSession(userId, chatId)
   );
 }
 
@@ -28,6 +34,7 @@ export function clearAllOperationSessions(userId: string, chatId: string): void 
   clearAdjustmentSession(userId, chatId);
   clearPriceSession(userId, chatId);
   clearAddPhotoSession(userId, chatId);
+  clearLocationSession(userId, chatId);
 }
 
 export function clearExpiredOperationSessions(userId: string, chatId: string): boolean {
@@ -37,12 +44,13 @@ export function clearExpiredOperationSessions(userId: string, chatId: string): b
     hasExpiredAdjustmentSession(userId, chatId),
     hasExpiredPriceSession(userId, chatId),
     hasExpiredAddPhotoSession(userId, chatId),
+    hasExpiredLocationSession(userId, chatId),
   ];
   return expired.some(Boolean);
 }
 
 export function isOperationStartCommand(body: string): boolean {
-  return /^(venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|preco\s+\d+|addfoto\s+\d+)$/i.test(
+  return /^(venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|preco\s+\d+|addfoto\s+\d+|local\s+\d+)$/i.test(
     body.trim()
   );
 }

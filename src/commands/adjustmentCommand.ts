@@ -251,7 +251,7 @@ async function handleConfirmationStep(
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|preco)\b/i.test(normalizedBody);
+  return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
 }
 
 function formatAdjustmentConfirmation(session: AdjustmentSession): string {

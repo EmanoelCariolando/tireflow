@@ -4,6 +4,7 @@ import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
+import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
 import { formatStockLocationLine } from '../utils/stockLocation.js';
 
 type MovementWithRelations = Movement & {
@@ -24,6 +25,12 @@ interface ProductSalesSummary {
 
 const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
 type PaymentTotals = Record<(typeof PAYMENT_METHODS)[number], number>;
+
+interface PaymentTotalSource {
+  paymentMethod: string | null;
+  paymentDetails: string | null;
+  totalValue: unknown;
+}
 
 interface TodayReportMovementCounts {
   sale: number;
@@ -121,8 +128,11 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
   const range = getDayRange(referenceDate);
   const movements = await movementRepository.findByDateRange(range.start, range.end);
   const sales = movements.filter((movement) => movement.type === MovementType.SALE);
-  const paymentTotals = getPaymentTotals(sales);
-  const totalRevenue = PAYMENT_METHODS.reduce((sum, method) => sum + paymentTotals[method], 0);
+  const paymentTotals = calculatePaymentTotals(sales);
+  const totalRevenue = sales.reduce(
+    (sum, sale) => sum + toNumber(sale.totalValue),
+    0
+  );
   const bestSeller = summarizeSalesByProduct(sales)[0];
   const movementCounts = getMovementCounts(movements);
 
@@ -192,7 +202,9 @@ function getDayRange(date: Date): DateRange {
   return { start, end };
 }
 
-function getPaymentTotals(sales: MovementWithRelations[]): PaymentTotals {
+export function calculatePaymentTotals(
+  sales: PaymentTotalSource[]
+): PaymentTotals {
   const totals = {
     Dinheiro: 0,
     PIX: 0,
@@ -201,6 +213,13 @@ function getPaymentTotals(sales: MovementWithRelations[]): PaymentTotals {
   };
 
   for (const sale of sales) {
+    if (sale.paymentMethod === 'Misto') {
+      for (const part of parseStoredPaymentBreakdown(sale.paymentDetails)) {
+        totals[part.method] += part.amount;
+      }
+      continue;
+    }
+
     const method = PAYMENT_METHODS.find((paymentMethod) => paymentMethod === sale.paymentMethod);
 
     if (method) {

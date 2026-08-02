@@ -23,6 +23,10 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
   const { registerEntry } = await import('../src/services/entryService.js');
   const { registerAdjustment } = await import('../src/services/adjustmentService.js');
   const { registerPriceChange } = await import('../src/services/priceService.js');
+  const {
+    ProductLocationChangedError,
+    registerProductLocation,
+  } = await import('../src/services/productLocationService.js');
   const { findAvailableProductsByReference } = await import('../src/services/productService.js');
   const { runPostCommitTask } = await import('../src/services/postCommitTask.js');
 
@@ -82,6 +86,60 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
       false
     );
     assert.equal(await prisma.movement.count(), 4);
+
+    const mixedProduct = await prisma.product.create({
+      data: {
+        reference: '205/70/15', description: 'PNEU MISTO', stock: 2,
+        minStock: 0, cashPrice: 250, creditPrice: 275,
+      },
+    });
+    await registerSale({
+      productId: mixedProduct.id,
+      sellerPhone: 'mixed-seller',
+      sellerName: 'Mixed Seller',
+      quantity: 2,
+      unitPrice: 275,
+      totalValue: 550,
+      paymentMethod: 'Misto',
+      paymentBreakdown: [
+        { method: 'PIX', amount: 200 },
+        { method: 'Cartão', amount: 350 },
+      ],
+    });
+    const mixedMovement = await prisma.movement.findFirstOrThrow({
+      where: { productId: mixedProduct.id, type: 'SALE' },
+    });
+    assert.equal(mixedMovement.paymentMethod, 'Misto');
+    assert.deepEqual(JSON.parse(mixedMovement.paymentDetails ?? ''), [
+      { method: 'PIX', amount: 200 },
+      { method: 'Cartão', amount: 350 },
+    ]);
+    assert.equal(
+      (await prisma.product.findUniqueOrThrow({ where: { id: mixedProduct.id } })).stock,
+      0
+    );
+
+    const registeredLocation = await registerProductLocation({
+      productId: mixedProduct.id,
+      expectedLocation: null,
+      newLocation: 'w3',
+    });
+    assert.deepEqual(registeredLocation, {
+      previousLocation: null,
+      currentLocation: 'W3',
+    });
+    assert.equal(
+      (await prisma.product.findUniqueOrThrow({ where: { id: mixedProduct.id } })).stockLocation,
+      'W3'
+    );
+    await assert.rejects(
+      registerProductLocation({
+        productId: mixedProduct.id,
+        expectedLocation: null,
+        newLocation: 'CG',
+      }),
+      ProductLocationChangedError
+    );
   } finally {
     await prisma.$disconnect();
     await rm(temporaryRoot, { recursive: true, force: true });

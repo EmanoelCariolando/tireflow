@@ -64,6 +64,7 @@ model Movement {
   unitPrice     Decimal?
   totalValue    Decimal?
   paymentMethod String?
+  paymentDetails String?
   invoiceName   String?
   observation   String?
   supplier      String?

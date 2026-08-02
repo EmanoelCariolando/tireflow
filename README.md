@@ -270,6 +270,18 @@ ajuste 1
 
 ---
 
+## Localização física (Monteiro)
+
+Após pesquisar o pneu:
+
+```text
+local 1
+```
+
+Disponível somente com `INVENTORY_LOCATIONS_ENABLED=true`.
+
+---
+
 ## Alteração de preço
 
 ```text

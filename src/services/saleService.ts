@@ -4,7 +4,12 @@ import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
-import { PaymentMethod } from '../utils/saleSessionStore.js';
+import { serializePaymentBreakdown } from '../utils/salePayment.js';
+import type {
+  MixedPaymentMethod,
+  PaymentBreakdownPart,
+  PaymentMethod,
+} from '../utils/saleSessionStore.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
 
 export class SaleProductNotFoundError extends Error {
@@ -22,6 +27,12 @@ export class InsufficientStockError extends Error {
   }
 }
 
+export class InvalidPaymentBreakdownError extends Error {
+  constructor() {
+    super('Mixed payment breakdown is invalid.');
+  }
+}
+
 interface RegisterSaleInput {
   productId: string;
   sellerPhone: string;
@@ -30,6 +41,7 @@ interface RegisterSaleInput {
   unitPrice: number;
   totalValue: number;
   paymentMethod: PaymentMethod;
+  paymentBreakdown?: PaymentBreakdownPart[];
   invoiceName?: string;
 }
 
@@ -40,13 +52,21 @@ interface RegisteredSale {
 }
 
 export function getUnitPriceForPayment(
-  paymentMethod: PaymentMethod,
+  paymentMethod: Exclude<PaymentMethod, 'Misto'>,
   cashPrice: number,
   creditPrice: number
 ): number {
   return paymentMethod === 'Dinheiro' || paymentMethod === 'PIX'
     ? cashPrice
     : creditPrice;
+}
+
+export function getUnitPriceForMixedPayment(
+  paymentMethods: MixedPaymentMethod[],
+  cashPrice: number,
+  creditPrice: number
+): number {
+  return paymentMethods.includes('Cartão') ? creditPrice : cashPrice;
 }
 
 export function calculateSaleTotal(quantity: number, unitPrice: number): number {
@@ -64,6 +84,10 @@ export async function getCurrentProductStock(productId: string): Promise<number 
 }
 
 export async function registerSale(input: RegisterSaleInput): Promise<RegisteredSale> {
+  if (!hasValidPaymentBreakdown(input)) {
+    throw new InvalidPaymentBreakdownError();
+  }
+
   return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
     const product = await productRepository.findById(input.productId, tx);
 
@@ -114,6 +138,9 @@ export async function registerSale(input: RegisterSaleInput): Promise<Registered
         unitPrice: input.unitPrice,
         totalValue: input.totalValue,
         paymentMethod: input.paymentMethod,
+        paymentDetails: input.paymentMethod === 'Misto'
+          ? serializePaymentBreakdown(input.paymentBreakdown)
+          : undefined,
         invoiceName: input.paymentMethod === 'Nota' ? input.invoiceName : undefined,
       },
       tx
@@ -125,4 +152,33 @@ export async function registerSale(input: RegisterSaleInput): Promise<Registered
       previousStock,
     };
   }));
+}
+
+function hasValidPaymentBreakdown(input: RegisterSaleInput): boolean {
+  if (input.paymentMethod !== 'Misto') {
+    return input.paymentBreakdown === undefined;
+  }
+
+  const parts = input.paymentBreakdown;
+
+  if (
+    !parts ||
+    parts.length !== 2 ||
+    new Set(parts.map((part) => part.method)).size !== 2 ||
+    parts.some(
+      (part) =>
+        !['Dinheiro', 'PIX', 'Cartão'].includes(part.method) ||
+        !Number.isFinite(part.amount) ||
+        part.amount <= 0 ||
+        Math.abs(part.amount * 100 - Math.round(part.amount * 100)) > 0.000001
+    )
+  ) {
+    return false;
+  }
+
+  const partsTotalInCents = parts.reduce(
+    (total, part) => total + Math.round(part.amount * 100),
+    0
+  );
+  return partsTotalInCents === Math.round(input.totalValue * 100);
 }

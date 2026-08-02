@@ -105,10 +105,13 @@ No WhatsApp, teste:
 ```text
 saude
 pneu 165 70 13
+local 1
 ```
 
 A resposta do pneu em estoque deve continuar mostrando estoque e preços e, quando cadastrado,
-também `📍 Local: CG`, `W3` ou `PMAIS`.
+também `📍 Local: CG`, `W3` ou `PMAIS`. Quando o produto estiver sem localização, a consulta
+mostra `📍 Local: não cadastrado`; use `local <número>` para informar o local e confirme a
+alteração. A mesma opção aparece na lista de produtos com estoque zero.
 
 ## 8. Em caso de falha
 

@@ -30,6 +30,11 @@ import { isGroupMessage } from '../utils/messageContext.js';
 import { markMessageForProcessing } from '../utils/messageDeduplication.js';
 import { anonymizeIdentifier } from '../services/logger.js';
 import { handleStatusCommand, isStatusCommand } from '../commands/statusCommand.js';
+import {
+  handleLocationCommand,
+  handleLocationConversation,
+  isLocationCommand,
+} from '../commands/locationCommand.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
   clearAllOperationSessions,
@@ -109,6 +114,10 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
+  if (await handleLocationConversation(message, body)) {
+    return;
+  }
+
   if (await handlePriceConversation(message, body)) {
     return;
   }
@@ -175,6 +184,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isAddPhotoCommand(body)) {
     await handleAddPhotoCommand(message, body);
+    return;
+  }
+
+  if (isLocationCommand(body)) {
+    await handleLocationCommand(message, body);
     return;
   }
 

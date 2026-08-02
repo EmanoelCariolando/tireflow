@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { saveSaleSession } from '../src/utils/saleSessionStore.js';
 import { savePriceSession } from '../src/utils/priceSessionStore.js';
+import { saveLocationSession } from '../src/utils/locationSessionStore.js';
 import {
   clearAllOperationSessions,
   hasActiveOperationSession,
@@ -18,6 +19,10 @@ test('clears every incompatible operation for the same user and group', () => {
   savePriceSession({
     userId, chatId, step: 'awaiting_cash_price', productId: 'p1', reference: '175/70/14',
     description: 'Pneu 1', stock: 5, oldCashPrice: 100, oldCreditPrice: 110, updatedAt: Date.now(),
+  });
+  saveLocationSession({
+    userId, chatId, step: 'awaiting_location', productId: 'p1', reference: '175/70/14',
+    description: 'Pneu 1', previousLocation: null, updatedAt: Date.now(),
   });
   assert.equal(hasActiveOperationSession(userId, chatId), true);
   clearAllOperationSessions(userId, chatId);

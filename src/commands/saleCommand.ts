@@ -6,6 +6,7 @@ import {
   calculateSaleTotal,
   getCurrentProductStock,
   getUnitPriceForPayment,
+  getUnitPriceForMixedPayment,
   InsufficientStockError,
   registerSale,
   SaleProductNotFoundError,
@@ -18,14 +19,40 @@ import {
   clearSaleSession,
   getSaleSession,
   hasExpiredSaleSession,
+  MixedPaymentMethod,
   PaymentMethod,
+  ReceiptPaymentMethod,
   SaleSession,
   saveSaleSession,
 } from '../utils/saleSessionStore.js';
 import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
 import { runPostCommitTask } from '../services/postCommitTask.js';
+import {
+  buildPaymentBreakdown,
+  chooseMixedAmountMethod,
+  parseCurrencyToCents,
+  parseMixedPaymentMethods,
+} from '../utils/salePayment.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
+const PAYMENT_MENU = [
+  'Forma de pagamento?',
+  '',
+  '1️⃣ *Dinheiro*',
+  '2️⃣ *PIX*',
+  '3️⃣ *Cartão*',
+  '4️⃣ *Nota*',
+  '5️⃣ *Pagamento misto*',
+].join('\n');
+const MIXED_PAYMENT_MENU = [
+  'Quais foram as duas formas de pagamento usadas?',
+  '',
+  '1️⃣ Dinheiro',
+  '2️⃣ PIX',
+  '3️⃣ Cartão',
+  '',
+  'Exemplo: 1 e 2',
+].join('\n');
 
 export function isSaleCommand(body: string): boolean {
   return SALE_COMMAND_REGEX.test(body.trim());
@@ -97,9 +124,7 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     updatedAt: Date.now(),
   });
 
-  await message.reply(
-    'Forma de pagamento?\n\n1️⃣ Dinheiro\n2️⃣ PIX\n3️⃣ Cartão\n4️⃣ Nota'
-  );
+  await message.reply(PAYMENT_MENU);
 }
 
 export async function handleSaleConversation(message: Message, body: string): Promise<boolean> {
@@ -139,6 +164,16 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (session.step === 'awaiting_mixed_methods') {
+    await handleMixedMethodsStep(message, session, body);
+    return true;
+  }
+
+  if (session.step === 'awaiting_mixed_amount') {
+    await handleMixedAmountStep(message, session, body);
+    return true;
+  }
+
   if (session.step === 'awaiting_photo') {
     await handlePhotoStep(message, session);
     return true;
@@ -170,7 +205,18 @@ async function handlePaymentStep(
   const paymentMethod = parsePaymentMethod(normalizedBody);
 
   if (!paymentMethod) {
-    await message.reply('Forma de pagamento inválida.\n\n1️⃣ Dinheiro\n2️⃣ PIX\n3️⃣ Cartão\n4️⃣ Nota');
+    await message.reply(`Forma de pagamento inválida.\n\n${PAYMENT_MENU}`);
+    return;
+  }
+
+  if (paymentMethod === 'Misto') {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_mixed_methods',
+      paymentMethod,
+      updatedAt: Date.now(),
+    });
+    await message.reply(MIXED_PAYMENT_MENU);
     return;
   }
 
@@ -190,6 +236,8 @@ async function handlePaymentStep(
   const nextSession: SaleSession = {
     ...pricedSession,
     step: 'awaiting_photo',
+    pendingReceiptMethods: [paymentMethod],
+    receipts: [],
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
@@ -202,9 +250,129 @@ async function handlePaymentStep(
   await message.reply('Envie a foto do comprovante.');
 }
 
+async function handleMixedMethodsStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  const mixedPaymentMethods = parseMixedPaymentMethods(body);
+
+  if (!mixedPaymentMethods) {
+    await message.reply(
+      `Escolha exatamente duas formas diferentes.\n\n${MIXED_PAYMENT_MENU}`
+    );
+    return;
+  }
+
+  const mixedAmountMethod = chooseMixedAmountMethod(mixedPaymentMethods);
+
+  if (!mixedAmountMethod) {
+    await message.reply(`Não consegui identificar a divisão.\n\n${MIXED_PAYMENT_MENU}`);
+    return;
+  }
+
+  const unitPrice = getUnitPriceForMixedPayment(
+    mixedPaymentMethods,
+    session.cashPrice,
+    session.creditPrice
+  );
+  const totalValue = calculateSaleTotal(session.quantity, unitPrice);
+
+  if (Math.round(totalValue * 100) < 2) {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_payment',
+      paymentMethod: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply(
+      `Não é possível dividir ${formatCurrency(totalValue)} entre duas formas.\n\n${PAYMENT_MENU}`
+    );
+    return;
+  }
+
+  saveSaleSession({
+    ...session,
+    step: 'awaiting_mixed_amount',
+    paymentMethod: 'Misto',
+    mixedPaymentMethods,
+    mixedAmountMethod,
+    unitPrice,
+    totalValue,
+    updatedAt: Date.now(),
+  });
+
+  await message.reply(formatMixedAmountQuestion(totalValue, mixedAmountMethod));
+}
+
+async function handleMixedAmountStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  if (
+    !session.mixedPaymentMethods ||
+    !session.mixedAmountMethod ||
+    session.totalValue === undefined
+  ) {
+    clearSaleSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão da venda. Faça a consulta novamente.');
+    return;
+  }
+
+  const amountInCents = parseCurrencyToCents(body);
+  const totalInCents = Math.round(session.totalValue * 100);
+  const paymentBreakdown = amountInCents === null
+    ? null
+    : buildPaymentBreakdown(
+        session.mixedPaymentMethods,
+        session.mixedAmountMethod,
+        amountInCents,
+        totalInCents
+      );
+
+  if (!paymentBreakdown) {
+    await message.reply(
+      [
+        `Informe quanto foi pago em ${session.mixedAmountMethod}.`,
+        `O valor deve ser maior que R$0,00 e menor que ${formatCurrency(session.totalValue)}.`,
+        '',
+        'Exemplo: 100,00',
+      ].join('\n')
+    );
+    return;
+  }
+
+  const pendingReceiptMethods = paymentBreakdown
+    .map((part) => part.method)
+    .filter((method): method is 'PIX' | 'Cartão' => method === 'PIX' || method === 'Cartão');
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_photo',
+    paymentBreakdown,
+    pendingReceiptMethods,
+    receipts: [],
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply(formatReceiptRequest(pendingReceiptMethods[0], true));
+}
+
 async function handlePhotoStep(message: Message, session: SaleSession): Promise<void> {
+  const receiptMethod = session.pendingReceiptMethods?.[0];
+
+  if (!receiptMethod) {
+    clearSaleSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão da venda. Faça a consulta novamente.');
+    return;
+  }
+
   if (!isReceiptImageMessage(message)) {
-    await message.reply('Envie a imagem da nota/comprovante para continuar.');
+    await message.reply(
+      session.paymentMethod === 'Misto'
+        ? `Envie a imagem do comprovante do ${formatMethodForSentence(receiptMethod)} para continuar.`
+        : 'Envie a imagem da nota/comprovante para continuar.'
+    );
     return;
   }
 
@@ -223,27 +391,60 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
     author: message.author,
   });
 
-  if (session.paymentMethod === 'Nota') {
+  const receipts = [
+    ...(session.receipts ?? []),
+    {
+      paymentMethod: receiptMethod,
+      messageId: receiptMessageId,
+      message,
+    },
+  ];
+  const pendingReceiptMethods = session.pendingReceiptMethods?.slice(1) ?? [];
+
+  if (receiptMethod === 'Nota') {
     saveSaleSession({
       ...session,
       step: 'awaiting_invoice_name',
-      receiptMessageId,
-      receiptMessage: message,
+      receipts,
+      pendingReceiptMethods,
       updatedAt: Date.now(),
     });
     await message.reply('✅ Comprovante recebido.\n\nNome da nota?\n\nExemplo:\nPrefeitura de Congo');
     return;
   }
 
+  const nextReceiptMethod = pendingReceiptMethods[0];
+
+  if (nextReceiptMethod) {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_photo',
+      receipts,
+      pendingReceiptMethods,
+      updatedAt: Date.now(),
+    });
+    await message.reply(
+      [
+        `✅ Comprovante do ${formatMethodForSentence(receiptMethod)} recebido.`,
+        '',
+        formatReceiptRequest(nextReceiptMethod, true),
+      ].join('\n')
+    );
+    return;
+  }
+
   const nextSession: SaleSession = {
     ...session,
     step: 'awaiting_confirmation',
-    receiptMessageId,
-    receiptMessage: message,
+    receipts,
+    pendingReceiptMethods,
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
-  await message.reply(`✅ Comprovante recebido.\n\n${formatSaleConfirmation(nextSession)}`);
+  const receiptConfirmation = session.paymentMethod === 'Misto'
+    ? `✅ Comprovante do ${formatMethodForSentence(receiptMethod)} recebido.`
+    : '✅ Comprovante recebido.';
+  await message.reply(`${receiptConfirmation}\n\n${formatSaleConfirmation(nextSession)}`);
 }
 
 async function handleInvoiceNameStep(
@@ -303,6 +504,7 @@ async function handleConfirmationStep(
       unitPrice: session.unitPrice,
       totalValue: session.totalValue,
       paymentMethod: session.paymentMethod,
+      paymentBreakdown: session.paymentBreakdown,
       invoiceName: session.invoiceName,
     });
   } catch (error) {
@@ -343,29 +545,25 @@ async function handleConfirmationStep(
     runPostCommitTask('sale private owner notification', () => sendBossTextNotification(bossMessage)),
   ]);
 
-  if (session.receiptMessageId) {
-    await forwardSaleReceiptToBoss(session.receiptMessageId, session.receiptMessage);
-  }
+  await forwardSaleReceiptsToBoss(session);
 
   clearSaleSession(session.userId, session.chatId);
 }
 
-async function forwardSaleReceiptToBoss(
-  receiptMessageId: string,
-  receiptMessage: SaleSession['receiptMessage']
-): Promise<void> {
-  if (!receiptMessageId) {
-    return;
-  }
-
-  try {
-    console.log('[SALE] Forwarding receipt image to boss.');
-    await forwardMessageToBoss(receiptMessageId, receiptMessage);
-  } catch (error) {
-    console.error('[SALE] Error forwarding receipt image to boss:', {
-      receiptMessageId,
-      error,
-    });
+async function forwardSaleReceiptsToBoss(session: SaleSession): Promise<void> {
+  for (const receipt of session.receipts ?? []) {
+    try {
+      console.log('[SALE] Forwarding receipt image to boss.', {
+        paymentMethod: receipt.paymentMethod,
+      });
+      await forwardMessageToBoss(receipt.messageId, receipt.message);
+    } catch (error) {
+      console.error('[SALE] Error forwarding receipt image to boss:', {
+        receiptMessageId: receipt.messageId,
+        paymentMethod: receipt.paymentMethod,
+        error,
+      });
+    }
   }
 }
 
@@ -374,7 +572,10 @@ function isReceiptImageMessage(message: Message): boolean {
 }
 
 function isDuplicateReceiptMessage(message: Message, session: SaleSession): boolean {
-  return Boolean(session.receiptMessageId && getReceiptMessageId(message) === session.receiptMessageId);
+  const messageId = getReceiptMessageId(message);
+  return Boolean(
+    messageId && session.receipts?.some((receipt) => receipt.messageId === messageId)
+  );
 }
 
 interface MessageIdLike {
@@ -438,15 +639,21 @@ function parsePaymentMethod(value: string): PaymentMethod | null {
   if (normalized === '2' || normalized === 'pix') return 'PIX';
   if (normalized === '3' || normalized === 'cartao') return 'Cartão';
   if (normalized === '4' || normalized === 'nota') return 'Nota';
+  if (normalized === '5' || normalized === 'misto' || normalized === 'pagamento misto') {
+    return 'Misto';
+  }
 
   return null;
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|preco)\b/i.test(normalizedBody);
+  return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
 }
 
-function applyPaymentToSession(session: SaleSession, paymentMethod: PaymentMethod): SaleSession {
+function applyPaymentToSession(
+  session: SaleSession,
+  paymentMethod: Exclude<PaymentMethod, 'Misto'>
+): SaleSession {
   const unitPrice = getUnitPriceForPayment(paymentMethod, session.cashPrice, session.creditPrice);
 
   return {
@@ -462,11 +669,11 @@ export function formatSaleConfirmation(session: SaleSession): string {
     '⚠️ *CONFIRMAR VENDA?*',
     '',
     `*${session.reference}* — *${session.description}*`,
-    `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
-    `Pagamento: ${session.paymentMethod}`,
+    `*${session.quantity} un.* × ${formatCurrency(session.unitPrice ?? 0)}`,
+    ...formatConfirmationPaymentLines(session),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     '',
-    `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
+    `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
     'Digite: confirmar ou cancelar',
   ].join('\n');
@@ -483,7 +690,7 @@ export function formatRegisteredSale(
     '',
     `*${session.reference}* — *${session.description}*`,
     `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
-    `Pagamento: ${session.paymentMethod}`,
+    ...formatPaymentLines(session),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
@@ -505,7 +712,7 @@ export function formatBossSaleNotification(
     '',
     `*${session.reference}* — *${session.description}*`,
     `*${session.quantity} unidades* × ${formatCurrency(session.unitPrice ?? 0)}`,
-    `Pagamento: ${session.paymentMethod}`,
+    ...formatPaymentLines(session),
     ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
@@ -523,4 +730,64 @@ async function getSellerName(message: Message, fallback: string): Promise<string
   } catch {
     return fallback;
   }
+}
+
+function formatMixedAmountQuestion(
+  totalValue: number,
+  paymentMethod: MixedPaymentMethod
+): string {
+  return [
+    `Valor total da venda: *${formatCurrency(totalValue)}*`,
+    '',
+    `Quanto foi pago em ${paymentMethod}?`,
+    '',
+    'Exemplo: 100,00',
+  ].join('\n');
+}
+
+function formatReceiptRequest(
+  paymentMethod: ReceiptPaymentMethod | undefined,
+  identifyPaymentMethod: boolean
+): string {
+  if (!paymentMethod) {
+    return 'Ocorreu um erro na sessão da venda. Faça a consulta novamente.';
+  }
+
+  if (paymentMethod === 'Nota') {
+    return 'Envie a foto da nota/pedido.';
+  }
+
+  return identifyPaymentMethod
+    ? `Envie a foto do comprovante do ${formatMethodForSentence(paymentMethod)}.`
+    : 'Envie a foto do comprovante.';
+}
+
+function formatMethodForSentence(paymentMethod: ReceiptPaymentMethod): string {
+  return paymentMethod === 'PIX' ? 'PIX' : paymentMethod.toLowerCase();
+}
+
+function formatPaymentLines(session: SaleSession): string[] {
+  if (session.paymentMethod !== 'Misto') {
+    return [`Pagamento: ${session.paymentMethod}`];
+  }
+
+  return [
+    'Pagamento: Misto',
+    ...(session.paymentBreakdown ?? []).map(
+      (part) => `${part.method}: ${formatCurrency(part.amount)}`
+    ),
+  ];
+}
+
+function formatConfirmationPaymentLines(session: SaleSession): string[] {
+  if (session.paymentMethod !== 'Misto') {
+    return [`Pagamento: *${session.paymentMethod}*`];
+  }
+
+  return [
+    'Pagamento: *Misto*',
+    (session.paymentBreakdown ?? [])
+      .map((part) => `${part.method}: *${formatCurrency(part.amount)}*`)
+      .join(' | '),
+  ].filter(Boolean);
 }

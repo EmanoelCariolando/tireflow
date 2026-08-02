@@ -3,7 +3,7 @@ import { handleBestSellersCommand } from './bestSellersCommand.js';
 import { handleTodayReportCommand } from './todayReportCommand.js';
 import { findActiveProductsByReference } from '../services/productService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
-import { formatStockLocationLine } from '../utils/stockLocation.js';
+import { formatStockLocationLine, normalizeStockLocation } from '../utils/stockLocation.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { saveLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
@@ -13,6 +13,7 @@ import {
   getMenuSession,
   saveMenuSession,
 } from '../utils/menuSessionStore.js';
+import env from '../config/env.js';
 
 const MENU_TEXT = [
   '🤖 TireFlow',
@@ -105,14 +106,21 @@ async function handleLowStockMeasureStep(
   await message.reply(formatZeroStockProductList(zeroStockProducts, normalized));
 }
 
-function formatZeroStockProductList(products: QueriedProduct[], normalized: string): string {
+export function formatZeroStockProductList(
+  products: QueriedProduct[],
+  normalized: string,
+  inventoryLocationsEnabled = env.inventoryLocationsEnabled
+): string {
   let text = `🛞 ${normalized} - estoque 0\n\n`;
 
   products.forEach((product, index) => {
     text += `${index + 1}️⃣ ${product.description}\n`;
     text += `📦 Estoque: ${product.stock}\n`;
-    const stockLocationLine = formatStockLocationLine(product.stockLocation);
-    if (stockLocationLine) text += `${stockLocationLine}\n`;
+    if (inventoryLocationsEnabled) {
+      const stockLocationLine =
+        formatStockLocationLine(product.stockLocation, true) ?? '📍 Local: não cadastrado';
+      text += `${stockLocationLine}\n`;
+    }
     text += `💰 À vista: ${formatCurrency(product.cashPrice)}\n`;
     text += `💳 A prazo: ${formatCurrency(product.creditPrice)}\n`;
 
@@ -122,6 +130,13 @@ function formatZeroStockProductList(products: QueriedProduct[], normalized: stri
   });
 
   text += '\nPara repor estoque:\nentrada 1';
+
+  if (
+    inventoryLocationsEnabled &&
+    products.some((product) => !normalizeStockLocation(product.stockLocation))
+  ) {
+    text += '\n\n📍 Para cadastrar o local:\nlocal <número>\nExemplo: local 1';
+  }
 
   return text;
 }

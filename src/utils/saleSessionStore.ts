@@ -1,9 +1,24 @@
 import type { Message } from 'whatsapp-web.js';
 
-export type PaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão' | 'Nota';
+export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
+export type ReceiptPaymentMethod = 'PIX' | 'Cartão' | 'Nota';
+export type PaymentMethod = MixedPaymentMethod | 'Nota' | 'Misto';
+
+export interface PaymentBreakdownPart {
+  method: MixedPaymentMethod;
+  amount: number;
+}
+
+export interface SaleReceipt {
+  paymentMethod: ReceiptPaymentMethod;
+  messageId: string;
+  message?: Message;
+}
 
 export type SaleSessionStep =
   | 'awaiting_payment'
+  | 'awaiting_mixed_methods'
+  | 'awaiting_mixed_amount'
   | 'awaiting_photo'
   | 'awaiting_invoice_name'
   | 'awaiting_confirmation'
@@ -22,9 +37,12 @@ export interface SaleSession {
   unitPrice?: number;
   totalValue?: number;
   paymentMethod?: PaymentMethod;
+  mixedPaymentMethods?: MixedPaymentMethod[];
+  mixedAmountMethod?: MixedPaymentMethod;
+  paymentBreakdown?: PaymentBreakdownPart[];
+  pendingReceiptMethods?: ReceiptPaymentMethod[];
+  receipts?: SaleReceipt[];
   invoiceName?: string;
-  receiptMessageId?: string;
-  receiptMessage?: Message;
   updatedAt: number;
 }
 

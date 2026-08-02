@@ -20,7 +20,6 @@ const session: SaleSession = {
   unitPrice: 300,
   totalValue: 600,
   paymentMethod: 'PIX',
-  receiptMessageId: 'receipt-id',
   updatedAt: Date.now(),
 };
 
@@ -30,7 +29,7 @@ test('highlights and separates the total before sale confirmation', () => {
   assert.match(message, /^⚠️ \*CONFIRMAR VENDA\?\*/);
   assert.match(
     message,
-    /\*175\/70 R14\* — \*PNEU TESTE\*\n\*2 unidades\* × R\$300,00\nPagamento: PIX\n\n💰 \*TOTAL: R\$600,00\*\n\nDigite: confirmar ou cancelar$/
+    /\*175\/70 R14\* — \*PNEU TESTE\*\n\*2 un\.\* × R\$300,00\nPagamento: \*PIX\*\n\n💰 Total: \*R\$600,00\*\n\nDigite: confirmar ou cancelar$/
   );
   assert.doesNotMatch(message, /Foto da nota\/comprovante: recebida/);
   assert.doesNotMatch(message, /━/);
@@ -66,4 +65,21 @@ test('uses the same compact emphasis in the private boss notification', () => {
       'Vendedor: Vendedor',
     ].join('\n')
   );
+});
+
+test('shows both mixed payment amounts in the confirmation', () => {
+  const message = formatSaleConfirmation({
+    ...session,
+    paymentMethod: 'Misto',
+    paymentBreakdown: [
+      { method: 'PIX', amount: 300 },
+      { method: 'Dinheiro', amount: 300 },
+    ],
+  });
+
+  assert.match(
+    message,
+    /Pagamento: \*Misto\*\nPIX: \*R\$300,00\* \| Dinheiro: \*R\$300,00\*/
+  );
+  assert.match(message, /💰 Total: \*R\$600,00\*/);
 });

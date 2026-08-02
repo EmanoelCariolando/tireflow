@@ -4,11 +4,12 @@ import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
-import { formatStockLocationLine } from '../utils/stockLocation.js';
+import { formatStockLocationLine, normalizeStockLocation } from '../utils/stockLocation.js';
 import {
   findActiveProductsByReference,
   findAvailableProductsByReference,
 } from '../services/productService.js';
+import env from '../config/env.js';
 
 /**
  * Pneu Command - Fase 6 (Consulta real no banco)
@@ -29,13 +30,17 @@ export function formatProductList(
   showStockLocation?: boolean
 ): string {
   let text = `🛞 ${normalized}\n\n`;
+  const locationsEnabled = showStockLocation ?? env.inventoryLocationsEnabled;
 
   products.forEach((product, index) => {
     const num = index + 1;
     text += `${num}️⃣ ${product.description}\n`;
     text += `📦 Estoque: ${product.stock}\n`;
-    const stockLocationLine = formatStockLocationLine(product.stockLocation, showStockLocation);
-    if (stockLocationLine) text += `${stockLocationLine}\n`;
+    if (locationsEnabled) {
+      const stockLocationLine =
+        formatStockLocationLine(product.stockLocation, true) ?? '📍 Local: não cadastrado';
+      text += `${stockLocationLine}\n`;
+    }
     text += `💰 À vista: ${formatCurrency(product.cashPrice)}\n`;
     text += `💳 A prazo: ${formatCurrency(product.creditPrice)}\n`;
     if (product.hasPhoto) text += '📷\n';
@@ -44,7 +49,14 @@ export function formatProductList(
       text += '\n';
     }
   });
-  
+
+  if (
+    locationsEnabled &&
+    products.some((product) => !normalizeStockLocation(product.stockLocation))
+  ) {
+    text += '\n\n📍 Para cadastrar o local:\nlocal <número>\nExemplo: local 1';
+  }
+
   return text;
 }
 
@@ -58,45 +70,57 @@ export function isPneuCommand(body: string): boolean {
 }
 
 export async function handlePneuHelpCommand(message: Message): Promise<void> {
-  await message.reply(
-    [
-      '🛞 COMANDOS DE PNEUS',
-      '',
-      'Primeiro, consulte uma medida:',
-      'pneu <medida>',
-      '↳ Pesquisa os pneus disponíveis dessa medida.',
-      'Exemplo: pneu 175/70 R14',
-      '',
-      'Depois da consulta, use o número do produto mostrado na lista:',
-      '',
-      'venda <número> <quantidade>',
-      '↳ Inicia a venda do produto e da quantidade informados.',
-      'Exemplo: venda 1 2',
-      '',
-      'entrada <número>',
-      '↳ Registra a chegada de novas unidades ao estoque.',
-      'Exemplo: entrada 1',
-      '',
-      'ajuste <número>',
-      '↳ Corrige manualmente o estoque atual do produto.',
-      'Exemplo: ajuste 1',
-      '',
-      'preco <número>',
-      '↳ Altera os preços à vista e a prazo do produto.',
-      'Exemplo: preco 1',
-      '',
-      'foto <número>',
-      '↳ Mostra a foto cadastrada do produto escolhido.',
-      'Exemplo: foto 1',
-      '',
-      'addfoto <número>',
-      '↳ Adiciona uma foto ou substitui a foto atual do produto.',
-      'Depois do comando, envie a imagem solicitada.',
-      'Exemplo: addfoto 1',
-      '',
-      'ℹ️ O número é a posição do produto na última consulta.',
-    ].join('\n')
-  );
+  await message.reply(formatPneuHelp());
+}
+
+export function formatPneuHelp(
+  inventoryLocationsEnabled = env.inventoryLocationsEnabled
+): string {
+  return [
+    '🛞 COMANDOS DE PNEUS',
+    '',
+    'Primeiro, consulte uma medida:',
+    'pneu <medida>',
+    '↳ Pesquisa os pneus disponíveis dessa medida.',
+    'Exemplo: pneu 175/70 R14',
+    '',
+    'Depois da consulta, use o número do produto mostrado na lista:',
+    '',
+    'venda <número> <quantidade>',
+    '↳ Inicia a venda do produto e da quantidade informados.',
+    'Exemplo: venda 1 2',
+    '',
+    'entrada <número>',
+    '↳ Registra a chegada de novas unidades ao estoque.',
+    'Exemplo: entrada 1',
+    '',
+    'ajuste <número>',
+    '↳ Corrige manualmente o estoque atual do produto.',
+    'Exemplo: ajuste 1',
+    ...(inventoryLocationsEnabled
+      ? [
+          '',
+          'local <número>',
+          '↳ Adiciona ou altera o local físico do produto.',
+          'Exemplo: local 1',
+        ]
+      : []),
+    '',
+    'preco <número>',
+    '↳ Altera os preços à vista e a prazo do produto.',
+    'Exemplo: preco 1',
+    '',
+    'foto <número>',
+    '↳ Mostra a foto cadastrada do produto escolhido.',
+    'Exemplo: foto 1',
+    '',
+    'addfoto <número>',
+    '↳ Adiciona uma foto ou substitui a foto atual do produto.',
+    'Depois do comando, envie a imagem solicitada.',
+    'Exemplo: addfoto 1',
+    '',
+    'ℹ️ O número é a posição do produto na última consulta.',
+  ].join('\n');
 }
 
 export async function handlePneuCommand(message: Message, rawMeasure: string): Promise<void> {

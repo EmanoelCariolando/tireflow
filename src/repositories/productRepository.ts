@@ -107,6 +107,22 @@ export const productRepository = {
     });
   },
 
+  updateStockLocationIfActive(
+    id: string,
+    stockLocation: string,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.updateMany({
+      where: {
+        id,
+        isActive: true,
+      },
+      data: {
+        stockLocation,
+      },
+    });
+  },
+
   decreaseStockIfAvailable(
     id: string,
     quantity: number,
