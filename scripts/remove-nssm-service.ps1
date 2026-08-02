@@ -11,6 +11,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Test-IsFullyQualifiedWindowsPath {
+  param([string]$PathValue)
+
+  if ([string]::IsNullOrWhiteSpace($PathValue)) {
+    return $false
+  }
+
+  $pathUri = $null
+  return [Uri]::TryCreate($PathValue, [UriKind]::Absolute, [ref]$pathUri) -and
+    $pathUri.IsFile -and [IO.Path]::IsPathRooted($PathValue)
+}
+
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -20,7 +32,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 if (-not $ConfirmRemoval) {
   throw 'A remoção exige -ConfirmRemoval. Nenhum arquivo, banco, upload ou sessão será apagado.'
 }
-if (-not [IO.Path]::IsPathFullyQualified($NssmPath) -or -not (Test-Path -LiteralPath $NssmPath -PathType Leaf)) {
+if (-not (Test-IsFullyQualifiedWindowsPath $NssmPath) -or -not (Test-Path -LiteralPath $NssmPath -PathType Leaf)) {
   throw "nssm.exe não encontrado no caminho absoluto: $NssmPath"
 }
 
@@ -44,4 +56,3 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "Serviço removido: $ServiceName"
 Write-Host 'A pasta do projeto, o .env, o banco, os uploads, os logs e a sessão do WhatsApp foram preservados.'
-

@@ -33,6 +33,18 @@ function Write-ScheduledBackupLog {
   }
 }
 
+function Test-IsFullyQualifiedWindowsPath {
+  param([string]$PathValue)
+
+  if ([string]::IsNullOrWhiteSpace($PathValue)) {
+    return $false
+  }
+
+  $pathUri = $null
+  return [Uri]::TryCreate($PathValue, [UriKind]::Absolute, [ref]$pathUri) -and
+    $pathUri.IsFile -and [IO.Path]::IsPathRooted($PathValue)
+}
+
 function Resolve-RequiredFile {
   param(
     [Parameter(Mandatory = $true)]
@@ -42,7 +54,7 @@ function Resolve-RequiredFile {
     [string]$Description
   )
 
-  if (-not [IO.Path]::IsPathFullyQualified($PathValue)) {
+  if (-not (Test-IsFullyQualifiedWindowsPath $PathValue)) {
     throw "$Description deve usar caminho absoluto: $PathValue"
   }
   if (-not (Test-Path -LiteralPath $PathValue -PathType Leaf)) {
@@ -96,7 +108,7 @@ function Test-IsPathInside {
     $candidatePath.StartsWith("$parentPath\", [StringComparison]::OrdinalIgnoreCase)
 }
 
-if (-not [IO.Path]::IsPathFullyQualified($ProjectDirectory)) {
+if (-not (Test-IsFullyQualifiedWindowsPath $ProjectDirectory)) {
   throw "ProjectDirectory deve usar caminho absoluto: $ProjectDirectory"
 }
 if (-not (Test-Path -LiteralPath $ProjectDirectory -PathType Container)) {
@@ -125,7 +137,7 @@ if ($configuredNodeEnvironment -cne 'production') {
 }
 
 $configuredBackupRoot = Get-DotEnvValue $environmentFile 'BACKUP_ROOT'
-if (-not $configuredBackupRoot -or -not [IO.Path]::IsPathFullyQualified($configuredBackupRoot)) {
+if (-not $configuredBackupRoot -or -not (Test-IsFullyQualifiedWindowsPath $configuredBackupRoot)) {
   throw 'BACKUP_ROOT deve estar preenchido com um caminho absoluto fora do projeto.'
 }
 if (Test-IsPathInside $configuredBackupRoot $projectRoot) {

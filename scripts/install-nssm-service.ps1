@@ -21,8 +21,20 @@ function Assert-Administrator {
   }
 }
 
+function Test-IsFullyQualifiedWindowsPath {
+  param([string]$PathValue)
+
+  if ([string]::IsNullOrWhiteSpace($PathValue)) {
+    return $false
+  }
+
+  $pathUri = $null
+  return [Uri]::TryCreate($PathValue, [UriKind]::Absolute, [ref]$pathUri) -and
+    $pathUri.IsFile -and [IO.Path]::IsPathRooted($PathValue)
+}
+
 function Resolve-RequiredFile([string]$PathValue, [string]$Description) {
-  if (-not [IO.Path]::IsPathFullyQualified($PathValue)) {
+  if (-not (Test-IsFullyQualifiedWindowsPath $PathValue)) {
     throw "$Description deve usar caminho absoluto: $PathValue"
   }
   if (-not (Test-Path -LiteralPath $PathValue -PathType Leaf)) {
@@ -40,7 +52,7 @@ function Invoke-Nssm([string[]]$Arguments) {
 
 Assert-Administrator
 
-if (-not [IO.Path]::IsPathFullyQualified($ProjectDirectory)) {
+if (-not (Test-IsFullyQualifiedWindowsPath $ProjectDirectory)) {
   throw "ProjectDirectory deve usar caminho absoluto: $ProjectDirectory"
 }
 if (-not (Test-Path -LiteralPath $ProjectDirectory -PathType Container)) {
@@ -116,4 +128,3 @@ Write-Host "stdout: $stdoutPath"
 Write-Host "stderr: $stderrPath"
 Write-Host "logs rotativos da aplicação: $logDirectory\tireflow-AAAA-MM-DD.log"
 Write-Host "Inicie com: & '$script:NssmExecutable' start '$ServiceName'"
-

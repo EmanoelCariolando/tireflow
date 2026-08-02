@@ -34,6 +34,18 @@ function Assert-Administrator {
   }
 }
 
+function Test-IsFullyQualifiedWindowsPath {
+  param([string]$PathValue)
+
+  if ([string]::IsNullOrWhiteSpace($PathValue)) {
+    return $false
+  }
+
+  $pathUri = $null
+  return [Uri]::TryCreate($PathValue, [UriKind]::Absolute, [ref]$pathUri) -and
+    $pathUri.IsFile -and [IO.Path]::IsPathRooted($PathValue)
+}
+
 function Resolve-RequiredFile {
   param(
     [Parameter(Mandatory = $true)]
@@ -43,7 +55,7 @@ function Resolve-RequiredFile {
     [string]$Description
   )
 
-  if (-not [IO.Path]::IsPathFullyQualified($PathValue)) {
+  if (-not (Test-IsFullyQualifiedWindowsPath $PathValue)) {
     throw "$Description deve usar caminho absoluto: $PathValue"
   }
   if (-not (Test-Path -LiteralPath $PathValue -PathType Leaf)) {
@@ -54,7 +66,7 @@ function Resolve-RequiredFile {
 
 Assert-Administrator
 
-if (-not [IO.Path]::IsPathFullyQualified($ProjectDirectory)) {
+if (-not (Test-IsFullyQualifiedWindowsPath $ProjectDirectory)) {
   throw "ProjectDirectory deve usar caminho absoluto: $ProjectDirectory"
 }
 if (-not (Test-Path -LiteralPath $ProjectDirectory -PathType Container)) {

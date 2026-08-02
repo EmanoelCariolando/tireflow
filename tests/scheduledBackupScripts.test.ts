@@ -49,6 +49,14 @@ test('task installer runs daily as SYSTEM and rejects accidental replacement', (
   assert.match(installer, /ExecutionTimeLimit \(New-TimeSpan -Minutes 30\)/);
 });
 
+test('scheduled backup scripts support Windows PowerShell 5.1 path validation', () => {
+  for (const script of [runner, installer]) {
+    assert.match(script, /Test-IsFullyQualifiedWindowsPath/);
+    assert.doesNotMatch(script, /IsPathFullyQualified/);
+  }
+  assert.doesNotMatch(remover, /IsPathFullyQualified/);
+});
+
 test('task removal is explicit and preserves all operational files', () => {
   assert.match(remover, /ConfirmRemoval/);
   assert.match(remover, /Unregister-ScheduledTask/);

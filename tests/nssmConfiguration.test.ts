@@ -7,6 +7,10 @@ const installer = readFileSync(
   path.join(process.cwd(), 'scripts', 'install-nssm-service.ps1'),
   'utf8'
 );
+const remover = readFileSync(
+  path.join(process.cwd(), 'scripts', 'remove-nssm-service.ps1'),
+  'utf8'
+);
 
 test('NSSM executes the compiled application directly through Node.js', () => {
   assert.match(installer, /node\.exe/);
@@ -30,3 +34,9 @@ test('NSSM has isolated output, production environment and recovery settings', (
   assert.match(installer, /AppKillProcessTree', '1/);
 });
 
+test('NSSM scripts support Windows PowerShell 5.1 path validation', () => {
+  for (const script of [installer, remover]) {
+    assert.match(script, /Test-IsFullyQualifiedWindowsPath/);
+    assert.doesNotMatch(script, /IsPathFullyQualified/);
+  }
+});
