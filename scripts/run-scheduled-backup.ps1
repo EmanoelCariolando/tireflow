@@ -170,7 +170,7 @@ try {
 
   $backupPath = ''
   foreach ($outputLine in $backupOutput) {
-    if ([string]$outputLine -match '^\[BACKUP\] Backup concluído e verificado:\s*(.+)$') {
+    if ([string]$outputLine -match '^\[BACKUP_PATH\]\s+(.+)$') {
       $backupPath = $Matches[1].Trim()
     }
   }

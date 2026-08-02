@@ -32,7 +32,7 @@ test('scheduled backup validates branch and external destination without control
 test('scheduled backup uses the live database snapshot and verifies its result', () => {
   assert.match(runner, /dist\\database\\backup\.js/);
   assert.match(runner, /backup ao vivo/);
-  assert.match(runner, /Backup concluído e verificado/);
+  assert.match(runner, /\^\\\[BACKUP_PATH\\\]\\s\+/);
   assert.match(runner, /backup-manifest\.json/);
   assert.match(runner, /manifest\.branchName/);
   assert.match(runner, /exit 1/);

@@ -107,6 +107,9 @@ export async function createBackup(options: CreateBackupOptions = {}): Promise<s
 
 async function main(): Promise<void> {
   const backupPath = await createBackup();
+  // Stable ASCII marker consumed by Windows PowerShell 5.1. Accented console
+  // output can be decoded with the legacy code page when the task runs as SYSTEM.
+  console.log(`[BACKUP_PATH] ${backupPath}`);
   console.log(`[BACKUP] Backup concluído e verificado: ${backupPath}`);
 }
 
