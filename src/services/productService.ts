@@ -33,7 +33,7 @@ function addCandidate(candidates: Set<string>, reference: string): void {
   if (value) candidates.add(value);
 }
 
-function buildReferenceCandidates(reference: string): string[] {
+export function buildReferenceCandidates(reference: string): string[] {
   const candidates = new Set<string>();
   addCandidate(candidates, reference);
 

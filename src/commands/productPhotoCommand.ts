@@ -21,6 +21,7 @@ import {
 } from '../services/productPhotoStorage.js';
 import { downloadMessageMediaResilient } from '../services/whatsappMediaDownloadService.js';
 import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import { isCancellationResponse } from '../utils/operationResponse.js';
 
 const { MessageMedia: WhatsAppMessageMedia } = whatsappWeb;
 const PHOTO_COMMAND_REGEX = /^foto\s+(\d+)$/i;
@@ -204,7 +205,7 @@ export async function handleAddPhotoConversation(
   }
 
   const normalizedBody = body.trim().toLowerCase();
-  if (normalizedBody === 'cancelar') {
+  if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;

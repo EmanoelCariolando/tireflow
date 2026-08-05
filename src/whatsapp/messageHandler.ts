@@ -42,6 +42,12 @@ import {
   hasActiveOperationSession,
   isOperationStartCommand,
 } from '../utils/operationSessionCoordinator.js';
+import {
+  handleProductRegistrationConversation,
+  handleProductRegistrationStart,
+  isProductRegistrationCommand,
+} from '../commands/productRegistrationCommand.js';
+import { isCancellationResponse } from '../utils/operationResponse.js';
 
 /**
  * Message Handler (Fase 3)
@@ -92,7 +98,7 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
-  if (body.toLowerCase() === 'cancelar' && hasActiveOperationSession(userId, chatId)) {
+  if (isCancellationResponse(body) && hasActiveOperationSession(userId, chatId)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return;
@@ -107,6 +113,10 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isOperationStartCommand(body) && hasActiveOperationSession(userId, chatId)) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    return;
+  }
+
+  if (await handleProductRegistrationConversation(message, body)) {
     return;
   }
 
@@ -169,6 +179,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isPriceCommand(body)) {
     await handlePriceCommand(message, body);
+    return;
+  }
+
+  if (isProductRegistrationCommand(body)) {
+    await handleProductRegistrationStart(message);
     return;
   }
 

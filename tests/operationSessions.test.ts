@@ -4,8 +4,13 @@ import { saveSaleSession } from '../src/utils/saleSessionStore.js';
 import { savePriceSession } from '../src/utils/priceSessionStore.js';
 import { saveLocationSession } from '../src/utils/locationSessionStore.js';
 import {
+  getProductRegistrationSession,
+  saveProductRegistrationSession,
+} from '../src/utils/productRegistrationSessionStore.js';
+import {
   clearAllOperationSessions,
   hasActiveOperationSession,
+  isOperationStartCommand,
 } from '../src/utils/operationSessionCoordinator.js';
 import { clearLastQuery, getLastQuery, saveLastQuery } from '../src/utils/lastQueryStore.js';
 
@@ -24,9 +29,13 @@ test('clears every incompatible operation for the same user and group', () => {
     userId, chatId, step: 'awaiting_location', productId: 'p1', reference: '175/70/14',
     description: 'Pneu 1', previousLocation: null, updatedAt: Date.now(),
   });
+  saveProductRegistrationSession({
+    userId, chatId, step: 'awaiting_measure', updatedAt: Date.now(),
+  });
   assert.equal(hasActiveOperationSession(userId, chatId), true);
   clearAllOperationSessions(userId, chatId);
   assert.equal(hasActiveOperationSession(userId, chatId), false);
+  assert.equal(getProductRegistrationSession(userId, chatId), null);
 });
 
 test('keeps the last query isolated by both user and chat', () => {
@@ -38,4 +47,9 @@ test('keeps the last query isolated by both user and chat', () => {
   assert.ok(getLastQuery('same-user', 'group-a@g.us'));
   assert.equal(getLastQuery('same-user', 'group-b@g.us'), null);
   clearLastQuery('same-user');
+});
+
+test('recognizes both accented and unaccented price operation commands', () => {
+  assert.equal(isOperationStartCommand('preco 1'), true);
+  assert.equal(isOperationStartCommand('preço 1'), true);
 });

@@ -78,6 +78,24 @@ export const productRepository = {
     });
   },
 
+  findByReferencesAndDescription(
+    references: string[],
+    description: string,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.findFirst({
+      where: {
+        reference: {
+          in: references,
+        },
+        description,
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+  },
+
   create(data: Prisma.ProductCreateInput, client: PrismaClientOrTransaction = prisma) {
     return client.product.create({
       data,

@@ -5,6 +5,7 @@ import { productRepository } from '../repositories/productRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
+import { calculateCreditPrice } from '../utils/productPricing.js';
 
 export class PriceProductNotFoundError extends Error {
   constructor() {
@@ -19,7 +20,6 @@ interface RegisterPriceChangeInput {
   oldCashPrice: number;
   oldCreditPrice: number;
   newCashPrice: number;
-  newCreditPrice: number;
 }
 
 interface RegisteredPriceChange {
@@ -27,12 +27,15 @@ interface RegisteredPriceChange {
   currentStock: number;
 }
 
-function buildPriceChangeObservation(input: RegisterPriceChangeInput): string {
+function buildPriceChangeObservation(
+  input: RegisterPriceChangeInput,
+  newCreditPrice: number
+): string {
   return JSON.stringify({
     oldCashPrice: input.oldCashPrice,
     newCashPrice: input.newCashPrice,
     oldCreditPrice: input.oldCreditPrice,
-    newCreditPrice: input.newCreditPrice,
+    newCreditPrice,
   });
 }
 
@@ -46,10 +49,12 @@ export async function registerPriceChange(
       throw new PriceProductNotFoundError();
     }
 
+    const newCreditPrice = calculateCreditPrice(input.newCashPrice);
+
     const priceUpdate = await productRepository.updatePricesIfActive(
       input.productId,
       input.newCashPrice,
-      input.newCreditPrice,
+      newCreditPrice,
       tx
     );
 
@@ -76,8 +81,8 @@ export async function registerPriceChange(
           connect: { id: responsible.id },
         },
         unitPrice: input.newCashPrice,
-        totalValue: input.newCreditPrice,
-        observation: buildPriceChangeObservation(input),
+        totalValue: newCreditPrice,
+        observation: buildPriceChangeObservation(input, newCreditPrice),
         reason: 'Alteração de preço',
       },
       tx

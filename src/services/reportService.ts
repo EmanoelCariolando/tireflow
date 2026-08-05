@@ -12,6 +12,12 @@ type MovementWithRelations = Movement & {
   user: User;
 };
 
+export interface DailyZeroStockSummary {
+  reference: string;
+  description: string;
+  stockLocation: string | null;
+}
+
 interface DateRange {
   start: Date;
   end: Date;
@@ -50,6 +56,7 @@ export interface TodayReportFormatInput {
     description: string;
     quantity: number;
   };
+  zeroStockProducts: DailyZeroStockSummary[];
 }
 
 export async function buildLowStockReport(limit?: number): Promise<string> {
@@ -135,6 +142,7 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
   );
   const bestSeller = summarizeSalesByProduct(sales)[0];
   const movementCounts = getMovementCounts(movements);
+  const zeroStockProducts = summarizeDailyZeroStock(movements);
 
   return formatTodayReport({
     referenceDate,
@@ -142,6 +150,7 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
     paymentTotals,
     totalRevenue,
     movementCounts,
+    zeroStockProducts,
     bestSeller: bestSeller
       ? {
           reference: bestSeller.product.reference,
@@ -178,6 +187,9 @@ export function formatTodayReport(input: TodayReportFormatInput): string {
     '',
     '*MAIS VENDIDO*',
     formatBestSeller(input.bestSeller),
+    '',
+    '⚠️ *ESTOQUE ZERADO NO DIA*',
+    ...formatDailyZeroStock(input.zeroStockProducts),
     '',
     '_TireFlow • Relatório automático_'
   );
@@ -269,6 +281,44 @@ function summarizeSalesByProduct(sales: MovementWithRelations[]): ProductSalesSu
   });
 }
 
+export function summarizeDailyZeroStock(
+  movements: MovementWithRelations[]
+): DailyZeroStockSummary[] {
+  const stockMovementsByProduct = new Map<string, MovementWithRelations[]>();
+
+  for (const movement of movements) {
+    if (movement.previousStock === null || movement.newStock === null) {
+      continue;
+    }
+
+    const productMovements = stockMovementsByProduct.get(movement.productId) ?? [];
+    productMovements.push(movement);
+    stockMovementsByProduct.set(movement.productId, productMovements);
+  }
+
+  const result: DailyZeroStockSummary[] = [];
+  for (const productMovements of stockMovementsByProduct.values()) {
+    const orderedMovements = [...productMovements].sort(
+      (left, right) => left.createdAt.getTime() - right.createdAt.getTime()
+    );
+    const zeroEvent = orderedMovements.find(
+      (movement) => (movement.previousStock ?? 0) > 0 && movement.newStock === 0
+    );
+
+    if (!zeroEvent) {
+      continue;
+    }
+
+    result.push({
+      reference: zeroEvent.product.reference,
+      description: zeroEvent.product.description,
+      stockLocation: zeroEvent.product.stockLocation,
+    });
+  }
+
+  return result.sort((left, right) => left.reference.localeCompare(right.reference, 'pt-BR'));
+}
+
 function formatBestSeller(bestSeller: TodayReportFormatInput['bestSeller']): string {
   if (!bestSeller || bestSeller.quantity <= 0) {
     return 'Nenhum produto vendido hoje.';
@@ -278,6 +328,20 @@ function formatBestSeller(bestSeller: TodayReportFormatInput['bestSeller']): str
     `*${bestSeller.reference}* — *${bestSeller.description}*`,
     `Quantidade: *${bestSeller.quantity} unidades*`,
   ].join('\n');
+}
+
+function formatDailyZeroStock(products: DailyZeroStockSummary[]): string[] {
+  if (products.length === 0) {
+    return ['Nenhum pneu ficou com estoque 0.'];
+  }
+
+  return products.flatMap((product) => {
+    const locationLine = formatStockLocationLine(product.stockLocation);
+    return [
+      `🔴 *${product.reference}* — *${product.description}*`,
+      ...(locationLine ? [locationLine] : []),
+    ];
+  });
 }
 
 function formatDate(date: Date): string {

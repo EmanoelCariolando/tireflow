@@ -282,8 +282,8 @@ test('sessão addfoto expira após cinco minutos', async () => {
 test('cancelar encerra o fluxo addfoto', async () => {
   const userId = 'cancel-upload';
   savePendingSession(userId);
-  const { message, replies } = fakeMessage({ userId, body: 'cancelar' });
-  await handleAddPhotoConversation(message, 'cancelar', dependencies());
+  const { message, replies } = fakeMessage({ userId, body: 'cancela' });
+  await handleAddPhotoConversation(message, 'cancela', dependencies());
   assert.equal(replies[0]?.[0], '❌ Operação cancelada.');
   assert.equal(getAddPhotoSession(userId, 'official-group@g.us'), null);
 });

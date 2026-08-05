@@ -1,6 +1,5 @@
 export type PriceSessionStep =
   | 'awaiting_cash_price'
-  | 'awaiting_credit_price'
   | 'awaiting_confirmation'
   | 'processing';
 

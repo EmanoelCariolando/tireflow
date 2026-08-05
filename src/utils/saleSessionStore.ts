@@ -1,7 +1,7 @@
 import type { Message } from 'whatsapp-web.js';
 
 export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
-export type ReceiptPaymentMethod = 'PIX' | 'Cartão' | 'Nota';
+export type ReceiptPaymentMethod = MixedPaymentMethod | 'Nota';
 export type PaymentMethod = MixedPaymentMethod | 'Nota' | 'Misto';
 export type SalePriceType = 'À vista' | 'A prazo';
 

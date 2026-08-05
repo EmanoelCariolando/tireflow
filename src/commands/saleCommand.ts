@@ -32,6 +32,7 @@ import {
   parseCurrencyToCents,
   parseMixedPaymentMethods,
 } from '../utils/salePayment.js';
+import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 const DISCOUNT_PERCENT = 3;
@@ -135,7 +136,7 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   const normalizedBody = body.trim().toLowerCase();
 
-  if (normalizedBody === 'cancelar') {
+  if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
@@ -271,17 +272,6 @@ async function continueDirectPayment(
     paymentMethod,
   };
 
-  if (paymentMethod === 'Dinheiro') {
-    const nextSession: SaleSession = {
-      ...cleanSession,
-      step: 'awaiting_confirmation',
-      updatedAt: Date.now(),
-    };
-    saveSaleSession(nextSession);
-    await message.reply(formatSaleConfirmation(nextSession));
-    return;
-  }
-
   const nextSession: SaleSession = {
     ...cleanSession,
     step: 'awaiting_photo',
@@ -293,6 +283,11 @@ async function continueDirectPayment(
 
   if (paymentMethod === 'Nota') {
     await message.reply('Envie a foto da nota/pedido.');
+    return;
+  }
+
+  if (paymentMethod === 'Dinheiro') {
+    await message.reply('Envie a foto do depósito/dinheiro.');
     return;
   }
 
@@ -327,7 +322,7 @@ async function handleDiscountConfirmationStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
-  if (normalizedBody !== 'confirmar') {
+  if (!isConfirmationResponse(normalizedBody)) {
     await message.reply('Digite: confirmar ou cancelar');
     return;
   }
@@ -446,7 +441,9 @@ async function handleMixedAmountStep(
 
   const pendingReceiptMethods = paymentBreakdown
     .map((part) => part.method)
-    .filter((method): method is 'PIX' | 'Cartão' => method === 'PIX' || method === 'Cartão');
+    .filter((method): method is MixedPaymentMethod =>
+      method === 'Dinheiro' || method === 'PIX' || method === 'Cartão'
+    );
   const nextSession: SaleSession = {
     ...session,
     step: 'awaiting_photo',
@@ -470,9 +467,11 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
 
   if (!isReceiptImageMessage(message)) {
     await message.reply(
-      session.paymentMethod === 'Misto'
+      receiptMethod === 'Dinheiro'
+        ? formatMissingReceiptMessage(receiptMethod)
+        : session.paymentMethod === 'Misto'
         ? `Envie a imagem do comprovante do ${formatMethodForSentence(receiptMethod)} para continuar.`
-        : 'Envie a imagem da nota/comprovante para continuar.'
+        : formatMissingReceiptMessage(receiptMethod)
     );
     return;
   }
@@ -575,7 +574,7 @@ async function handleConfirmationStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
-  if (normalizedBody !== 'confirmar') {
+  if (!isConfirmationResponse(normalizedBody)) {
     await message.reply('Digite: confirmar ou cancelar');
     return;
   }
@@ -769,7 +768,7 @@ function parsePriceType(value: string): SalePriceType | null {
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
+  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
 function applyPriceTypeToSession(
@@ -928,6 +927,10 @@ function formatReceiptRequest(
     return 'Envie a foto da nota/pedido.';
   }
 
+  if (paymentMethod === 'Dinheiro') {
+    return 'Envie a foto do depósito/dinheiro.';
+  }
+
   return identifyPaymentMethod
     ? `Envie a foto do comprovante do ${formatMethodForSentence(paymentMethod)}.`
     : 'Envie a foto do comprovante.';
@@ -935,6 +938,13 @@ function formatReceiptRequest(
 
 function formatMethodForSentence(paymentMethod: ReceiptPaymentMethod): string {
   return paymentMethod === 'PIX' ? 'PIX' : paymentMethod.toLowerCase();
+}
+
+function formatMissingReceiptMessage(paymentMethod: ReceiptPaymentMethod): string {
+  if (paymentMethod === 'Dinheiro') {
+    return 'Envie a foto do depósito/dinheiro para continuar.';
+  }
+  return 'Envie a imagem da nota/comprovante para continuar.';
 }
 
 function formatPaymentLines(session: SaleSession): string[] {

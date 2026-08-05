@@ -28,6 +28,7 @@ prisma/*.db-*
 data/*.db
 data/*.db-*
 data/daily-report-state.json
+data/monthly-report-state.json
 
 # Runtime WhatsApp session stored under data
 data/wwebjs_auth/

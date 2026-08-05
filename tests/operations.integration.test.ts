@@ -68,11 +68,11 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
 
     await registerPriceChange({
       productId: product.id, responsiblePhone: 'price-user', responsibleName: 'Price User',
-      oldCashPrice: 100, oldCreditPrice: 110, newCashPrice: 120, newCreditPrice: 130,
+      oldCashPrice: 100, oldCreditPrice: 110, newCashPrice: 120,
     });
     const updatedProduct = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
     assert.equal(Number(updatedProduct.cashPrice), 120);
-    assert.equal(Number(updatedProduct.creditPrice), 130);
+    assert.equal(Number(updatedProduct.creditPrice), 126.96);
     assert.equal(updatedProduct.stock, 2);
     assert.equal(await prisma.movement.count(), 4);
     const availableProducts = await findAvailableProductsByReference('175/70/14');

@@ -13,8 +13,10 @@ import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/o
 import { runPostCommitTask } from '../services/postCommitTask.js';
 import { PriceProductNotFoundError, registerPriceChange } from '../services/priceService.js';
 import { sendBossNotification } from '../services/notificationService.js';
+import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import { calculateCreditPrice } from '../utils/productPricing.js';
 
-const PRICE_COMMAND_REGEX = /^preco\s+(\d+)$/i;
+const PRICE_COMMAND_REGEX = /^pre[cç]o\s+(\d+)$/i;
 
 export function isPriceCommand(body: string): boolean {
   return PRICE_COMMAND_REGEX.test(body.trim());
@@ -71,7 +73,9 @@ export async function handlePriceCommand(message: Message, body: string): Promis
     updatedAt: Date.now(),
   });
 
-  await message.reply('Novo preço à vista?\n\nDigite o valor. Exemplo: 335.50');
+  await message.reply(
+    'Novo preço à vista?\n\nDigite o valor. Exemplo: 335.50\n\nO preço a prazo será calculado automaticamente com acréscimo de 5,8%.'
+  );
 }
 
 export async function handlePriceConversation(message: Message, body: string): Promise<boolean> {
@@ -90,7 +94,7 @@ export async function handlePriceConversation(message: Message, body: string): P
 
   const normalizedBody = body.trim().toLowerCase();
 
-  if (normalizedBody === 'cancelar') {
+  if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
@@ -103,11 +107,6 @@ export async function handlePriceConversation(message: Message, body: string): P
 
   if (session.step === 'awaiting_cash_price') {
     await handleCashPriceStep(message, session, body);
-    return true;
-  }
-
-  if (session.step === 'awaiting_credit_price') {
-    await handleCreditPriceStep(message, session, body);
     return true;
   }
 
@@ -136,32 +135,11 @@ async function handleCashPriceStep(
     return;
   }
 
-  savePriceSession({
-    ...session,
-    step: 'awaiting_credit_price',
-    newCashPrice: cashPrice,
-    updatedAt: Date.now(),
-  });
-
-  await message.reply('Novo preço a prazo?\n\nDigite o valor. Exemplo: 365.00');
-}
-
-async function handleCreditPriceStep(
-  message: Message,
-  session: PriceSession,
-  body: string
-): Promise<void> {
-  const creditPrice = parsePriceValue(body);
-
-  if (creditPrice === null) {
-    await message.reply('Preço inválido.\n\nDigite um valor maior ou igual a zero. Exemplo: 365.00');
-    return;
-  }
-
   const nextSession: PriceSession = {
     ...session,
     step: 'awaiting_confirmation',
-    newCreditPrice: creditPrice,
+    newCashPrice: cashPrice,
+    newCreditPrice: calculateCreditPrice(cashPrice),
     updatedAt: Date.now(),
   };
 
@@ -174,7 +152,7 @@ async function handleConfirmationStep(
   session: PriceSession,
   normalizedBody: string
 ): Promise<void> {
-  if (normalizedBody !== 'confirmar') {
+  if (!isConfirmationResponse(normalizedBody)) {
     await message.reply('Digite: confirmar ou cancelar');
     return;
   }
@@ -203,7 +181,6 @@ async function handleConfirmationStep(
       oldCashPrice: session.oldCashPrice,
       oldCreditPrice: session.oldCreditPrice,
       newCashPrice: session.newCashPrice,
-      newCreditPrice: session.newCreditPrice,
     });
   } catch (error) {
     clearPriceSession(session.userId, session.chatId);
@@ -253,7 +230,7 @@ function parsePriceValue(value: string): number | null {
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
+  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
 function formatPriceConfirmation(session: PriceSession): string {
@@ -267,7 +244,7 @@ function formatPriceConfirmation(session: PriceSession): string {
     `Novo preço à vista: ${formatCurrency(session.newCashPrice ?? 0)}`,
     '',
     `Preço a prazo anterior: ${formatCurrency(session.oldCreditPrice)}`,
-    `Novo preço a prazo: ${formatCurrency(session.newCreditPrice ?? 0)}`,
+    `Novo preço a prazo (+5,8%): ${formatCurrency(session.newCreditPrice ?? 0)}`,
     '',
     'Digite: confirmar ou cancelar',
   ].join('\n');

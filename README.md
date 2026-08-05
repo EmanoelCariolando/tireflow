@@ -104,6 +104,8 @@ Disponíveis:
 - Produtos mais vendidos
 
 Também possui envio automático diário ao proprietário.
+Opcionalmente, envia no dia 1 um relatório do mês anterior somente para
+`BOSS_PRIVATE_NUMBER`, com totais, comissão por vendedor, top 3 e pneus que zeraram.
 
 ---
 
@@ -208,6 +210,8 @@ WHATSAPP_OFFICIAL_GROUP_ID=
 BOSS_PRIVATE_NUMBER=
 OWNER_PHONE=
 DAILY_REPORT_TIME=18:00
+MONTHLY_REPORT_TIME=08:00
+MONTHLY_COMMISSION_PERCENT=2
 ALLOW_PRIVATE_TEST_MODE=false
 BRANCH_NAME="ATC PNEUS CONGO"
 ```

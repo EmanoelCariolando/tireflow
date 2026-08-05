@@ -24,6 +24,7 @@ import {
   hasActiveOperationSession,
 } from '../utils/operationSessionCoordinator.js';
 import { normalizeStockLocation } from '../utils/stockLocation.js';
+import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
 
 const LOCATION_COMMAND_REGEX = /^local\s+(\d+)$/i;
 
@@ -117,7 +118,7 @@ export async function handleLocationConversation(
 
   const normalizedBody = body.trim().toLowerCase();
 
-  if (normalizedBody === 'cancelar') {
+  if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
@@ -186,7 +187,7 @@ async function handleConfirmationStep(
   session: LocationSession,
   normalizedBody: string
 ): Promise<void> {
-  if (normalizedBody !== 'confirmar') {
+  if (!isConfirmationResponse(normalizedBody)) {
     await message.reply('Digite: confirmar ou cancelar');
     return;
   }
@@ -323,7 +324,7 @@ function formatLocation(location: string | null): string {
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
+  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
 async function getResponsibleName(message: Message, fallback: string): Promise<string> {

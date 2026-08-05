@@ -12,6 +12,7 @@ import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/o
 import { runPostCommitTask } from '../services/postCommitTask.js';
 import { EntryProductNotFoundError, registerEntry } from '../services/entryService.js';
 import { sendBossNotification } from '../services/notificationService.js';
+import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
 
 const ENTRY_COMMAND_REGEX = /^entrada\s+(\d+)$/i;
 
@@ -86,7 +87,7 @@ export async function handleEntryConversation(message: Message, body: string): P
 
   const normalizedBody = body.trim().toLowerCase();
 
-  if (normalizedBody === 'cancelar') {
+  if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
     return true;
@@ -170,7 +171,7 @@ async function handleConfirmationStep(
   session: EntrySession,
   normalizedBody: string
 ): Promise<void> {
-  if (normalizedBody !== 'confirmar') {
+  if (!isConfirmationResponse(normalizedBody)) {
     await message.reply('Digite: confirmar ou cancelar');
     return;
   }
@@ -238,7 +239,7 @@ async function handleConfirmationStep(
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|preco|local)\b/i.test(normalizedBody);
+  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
 function formatEntryConfirmation(session: EntrySession): string {

@@ -14,6 +14,7 @@ import {
   saveMenuSession,
 } from '../utils/menuSessionStore.js';
 import env from '../config/env.js';
+import { handleProductRegistrationStart } from './productRegistrationCommand.js';
 
 const MENU_TEXT = [
   '🤖 TireFlow',
@@ -23,9 +24,10 @@ const MENU_TEXT = [
   '1️⃣ Relatório de hoje',
   '2️⃣ Baixo estoque',
   '3️⃣ Mais vendidos',
+  '4️⃣ Cadastrar pneu',
   '',
   'Responda com:',
-  '1, 2 ou 3',
+  '1, 2, 3 ou 4',
 ].join('\n');
 
 export function isMenuCommand(body: string): boolean {
@@ -52,7 +54,7 @@ export async function handleMenuSelection(message: Message, body: string): Promi
     return true;
   }
 
-  if (!['1', '2', '3'].includes(selection)) {
+  if (!['1', '2', '3', '4'].includes(selection)) {
     return false;
   }
 
@@ -65,6 +67,12 @@ export async function handleMenuSelection(message: Message, body: string): Promi
   if (selection === '2') {
     saveMenuSession(userId, chatId, 'awaiting_low_stock_measure');
     await message.reply('Digite a medida do pneu que está sem estoque.\n\nExemplo: 175 70 14');
+    return true;
+  }
+
+  if (selection === '4') {
+    clearMenuSession(userId, chatId);
+    await handleProductRegistrationStart(message);
     return true;
   }
 

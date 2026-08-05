@@ -52,12 +52,29 @@ test('rejects malformed values in production', () => {
   source.DAILY_REPORT_TIME = '25:90';
   source.LOG_TO_CONSOLE = 'talvez';
   source.INVENTORY_LOCATIONS_ENABLED = 'talvez';
+  source.MONTHLY_REPORT_TIME = '25:90';
+  source.MONTHLY_COMMISSION_PERCENT = 'cento e dez';
   const errors = validateEnvironment(source);
   assert.ok(errors.some((error) => error.startsWith('ALLOW_PRIVATE_TEST_MODE')));
   assert.ok(errors.some((error) => error.startsWith('WHATSAPP_OFFICIAL_GROUP_ID')));
   assert.ok(errors.some((error) => error.startsWith('DAILY_REPORT_TIME')));
   assert.ok(errors.some((error) => error.startsWith('LOG_TO_CONSOLE')));
   assert.ok(errors.some((error) => error.startsWith('INVENTORY_LOCATIONS_ENABLED')));
+  assert.ok(errors.some((error) => error.startsWith('MONTHLY_REPORT_TIME')));
+  assert.ok(errors.some((error) => error.startsWith('MONTHLY_COMMISSION_PERCENT')));
+});
+
+test('requires a valid commission percentage only when monthly reporting is enabled', () => {
+  const source = validEnvironment();
+  source.MONTHLY_REPORT_TIME = '08:00';
+  assert.ok(
+    validateEnvironment(source).some((error) =>
+      error.startsWith('MONTHLY_COMMISSION_PERCENT')
+    )
+  );
+
+  source.MONTHLY_COMMISSION_PERCENT = '2.5';
+  assert.deepEqual(validateEnvironment(source), []);
 });
 
 test('rejects relative backup root in production', () => {

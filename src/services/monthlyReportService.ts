@@ -1,0 +1,475 @@
+import { MovementType } from '@prisma/client';
+import type { Movement, Product, User } from '@prisma/client';
+import env from '../config/env.js';
+import { movementRepository } from '../repositories/movementRepository.js';
+import { formatCurrency } from '../utils/formatCurrency.js';
+import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
+import { formatStockLocationLine } from '../utils/stockLocation.js';
+
+export type MonthlyMovementWithRelations = Movement & {
+  product: Product;
+  user: User;
+};
+
+type PaymentTotals = Record<'Dinheiro' | 'PIX' | 'Cartão' | 'Nota', number>;
+
+interface MonthlyMovementCounts {
+  sale: number;
+  entry: number;
+  adjustment: number;
+  priceChange: number;
+}
+
+interface SellerSummary {
+  name: string;
+  saleCount: number;
+  quantity: number;
+  totalValue: number;
+  commission: number;
+}
+
+interface ProductSummary {
+  reference: string;
+  description: string;
+  quantity: number;
+  totalValue: number;
+}
+
+interface ZeroStockSummary {
+  reference: string;
+  description: string;
+  stockLocation: string | null;
+  soldQuantity: number;
+  zeroedAt: Date;
+  endedAtZero: boolean;
+  replenishedAt?: Date;
+}
+
+export interface MonthlyPeriod {
+  start: Date;
+  end: Date;
+  key: string;
+}
+
+export interface MonthlyReportFormatInput {
+  period: MonthlyPeriod;
+  commissionPercent: number;
+  paymentTotals: PaymentTotals;
+  totalRevenue: number;
+  previousMonthRevenue: number;
+  saleCount: number;
+  unitsSold: number;
+  previousMonthUnitsSold: number;
+  movementCounts: MonthlyMovementCounts;
+  sellers: SellerSummary[];
+  bestSellers: ProductSummary[];
+  zeroStockProducts: ZeroStockSummary[];
+  showStockLocations: boolean;
+}
+
+const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
+const ZERO_STOCK_ITEMS_PER_MESSAGE = 8;
+
+export async function buildMonthlyReport(
+  referenceDate = new Date(),
+  commissionPercent = env.monthlyCommissionPercent
+): Promise<string[]> {
+  const period = getPreviousMonthPeriod(referenceDate);
+  const previousPeriod = getPreviousMonthPeriod(period.start);
+  const [movements, previousMovements] = await Promise.all([
+    movementRepository.findByDateRange(period.start, period.end),
+    movementRepository.findByDateRange(previousPeriod.start, previousPeriod.end),
+  ]);
+
+  return formatMonthlyReport(
+    summarizeMonthlyReport(
+      period,
+      movements,
+      previousMovements,
+      commissionPercent,
+      env.inventoryLocationsEnabled
+    )
+  );
+}
+
+export function getPreviousMonthPeriod(referenceDate: Date): MonthlyPeriod {
+  const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
+  const start = new Date(end.getFullYear(), end.getMonth() - 1, 1);
+  const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+  return { start, end, key };
+}
+
+export function summarizeMonthlyReport(
+  period: MonthlyPeriod,
+  movements: MonthlyMovementWithRelations[],
+  previousMovements: MonthlyMovementWithRelations[],
+  commissionPercent: number,
+  showStockLocations: boolean
+): MonthlyReportFormatInput {
+  const sales = movements.filter((movement) => movement.type === MovementType.SALE);
+  const previousSales = previousMovements.filter(
+    (movement) => movement.type === MovementType.SALE
+  );
+  const totalRevenue = sumSalesValue(sales);
+
+  return {
+    period,
+    commissionPercent,
+    paymentTotals: calculateMonthlyPaymentTotals(sales),
+    totalRevenue,
+    previousMonthRevenue: sumSalesValue(previousSales),
+    saleCount: sales.length,
+    unitsSold: sumSaleQuantity(sales),
+    previousMonthUnitsSold: sumSaleQuantity(previousSales),
+    movementCounts: countMovements(movements),
+    sellers: summarizeSellers(sales, commissionPercent),
+    bestSellers: summarizeProducts(sales).slice(0, 3),
+    zeroStockProducts: summarizeZeroStock(movements, sales),
+    showStockLocations,
+  };
+}
+
+export function formatMonthlyReport(input: MonthlyReportFormatInput): string[] {
+  return [
+    formatFinancialSummary(input),
+    formatTeamAndProducts(input),
+    ...formatZeroStockMessages(input),
+  ];
+}
+
+function formatFinancialSummary(input: MonthlyReportFormatInput): string {
+  const ticketAverage = input.saleCount > 0 ? input.totalRevenue / input.saleCount : 0;
+  return [
+    `📊 *RELATÓRIO MENSAL — ${formatMonthLabel(input.period.start)}*`,
+    `Período: ${formatDate(input.period.start)} a ${formatDate(previousDay(input.period.end))}`,
+    '',
+    '💰 *RESULTADO DO MÊS*',
+    `Faturamento: *${formatCurrency(input.totalRevenue)}*`,
+    `Vendas realizadas: *${input.saleCount}*`,
+    `Pneus vendidos: *${input.unitsSold}*`,
+    `Ticket médio: *${formatCurrency(ticketAverage)}*`,
+    '',
+    '💳 *FORMAS DE PAGAMENTO*',
+    `Dinheiro: *${formatCurrency(input.paymentTotals.Dinheiro)}*`,
+    `PIX: *${formatCurrency(input.paymentTotals.PIX)}*`,
+    `Cartão: *${formatCurrency(input.paymentTotals.Cartão)}*`,
+    `Nota: *${formatCurrency(input.paymentTotals.Nota)}*`,
+    '',
+    '📦 *MOVIMENTAÇÕES*',
+    `Vendas: *${input.movementCounts.sale}* | Entradas: *${input.movementCounts.entry}*`,
+    `Ajustes: *${input.movementCounts.adjustment}* | Preços: *${input.movementCounts.priceChange}*`,
+    '',
+    '📈 *COMPARAÇÃO COM O MÊS ANTERIOR*',
+    formatRevenueComparison(input.totalRevenue, input.previousMonthRevenue),
+    formatUnitsComparison(input.unitsSold, input.previousMonthUnitsSold),
+    '',
+    '_TireFlow • Relatório mensal automático_',
+  ].join('\n');
+}
+
+function formatTeamAndProducts(input: MonthlyReportFormatInput): string {
+  const lines = [
+    `👥 *DESEMPENHO DA EQUIPE — ${formatMonthLabel(input.period.start)}*`,
+    '',
+  ];
+
+  if (input.sellers.length === 0) {
+    lines.push('Nenhum funcionário registrou vendas.', '');
+  } else {
+    for (const [index, seller] of input.sellers.entries()) {
+      lines.push(
+        `${index + 1}. *${seller.name}*`,
+        `Vendas: *${seller.saleCount}* | Pneus: *${seller.quantity}*`,
+        `Total vendido: *${formatCurrency(seller.totalValue)}*`,
+        `Comissão (${formatPercent(input.commissionPercent)}): *${formatCurrency(seller.commission)}*`,
+        ''
+      );
+    }
+    lines.push(
+      `Comissão total: *${formatCurrency(input.sellers.reduce((sum, seller) => sum + seller.commission, 0))}*`,
+      ''
+    );
+  }
+
+  lines.push('🏆 *PNEUS MAIS VENDIDOS*', '');
+  if (input.bestSellers.length === 0) {
+    lines.push('Nenhum pneu vendido no mês.');
+  } else {
+    const medals = ['🥇', '🥈', '🥉'];
+    for (const [index, product] of input.bestSellers.entries()) {
+      lines.push(
+        `${medals[index]} *${product.reference}* — *${product.description}*`,
+        `Vendidos: *${product.quantity}* | Faturamento: *${formatCurrency(product.totalValue)}*`,
+        ''
+      );
+    }
+    lines.pop();
+  }
+
+  return lines.join('\n');
+}
+
+function formatZeroStockMessages(input: MonthlyReportFormatInput): string[] {
+  const products = [...input.zeroStockProducts].sort((left, right) => {
+    if (left.endedAtZero !== right.endedAtZero) {
+      return left.endedAtZero ? -1 : 1;
+    }
+    return left.zeroedAt.getTime() - right.zeroedAt.getTime();
+  });
+
+  if (products.length === 0) {
+    return [
+      [
+        `⚠️ *PNEUS QUE ZERARAM — ${formatMonthLabel(input.period.start)}*`,
+        '',
+        'Nenhum pneu chegou a estoque zero no mês.',
+      ].join('\n'),
+    ];
+  }
+
+  const chunks: ZeroStockSummary[][] = [];
+  for (let index = 0; index < products.length; index += ZERO_STOCK_ITEMS_PER_MESSAGE) {
+    chunks.push(products.slice(index, index + ZERO_STOCK_ITEMS_PER_MESSAGE));
+  }
+
+  const continuingAtZero = products.filter((product) => product.endedAtZero).length;
+  return chunks.map((chunk, chunkIndex) => {
+    const lines = [
+      `⚠️ *PNEUS QUE ZERARAM — ${formatMonthLabel(input.period.start)}*`,
+      ...(chunks.length > 1 ? [`Parte ${chunkIndex + 1}/${chunks.length}`] : []),
+      '',
+    ];
+
+    for (const product of chunk) {
+      lines.push(
+        `${product.endedAtZero ? '🔴' : '🟡'} *${product.reference}* — *${product.description}*`,
+        `Vendidos: *${product.soldQuantity}* | Zerou: ${formatDate(product.zeroedAt)}`
+      );
+      const locationLine = formatStockLocationLine(
+        product.stockLocation,
+        input.showStockLocations
+      );
+      if (locationLine) {
+        lines.push(locationLine);
+      }
+      lines.push(
+        product.endedAtZero
+          ? 'Situação no fechamento: *Continua zerado*'
+          : `Reposto: *${product.replenishedAt ? formatDate(product.replenishedAt) : 'antes do fechamento'}*`,
+        ''
+      );
+    }
+
+    if (chunkIndex === chunks.length - 1) {
+      lines.push(
+        `Continuaram zerados: *${continuingAtZero}*`,
+        `Repostos no mês: *${products.length - continuingAtZero}*`
+      );
+    } else {
+      lines.pop();
+    }
+
+    return lines.join('\n');
+  });
+}
+
+function calculateMonthlyPaymentTotals(sales: MonthlyMovementWithRelations[]): PaymentTotals {
+  const totals: PaymentTotals = { Dinheiro: 0, PIX: 0, Cartão: 0, Nota: 0 };
+
+  for (const sale of sales) {
+    if (sale.paymentMethod === 'Misto') {
+      for (const part of parseStoredPaymentBreakdown(sale.paymentDetails)) {
+        totals[part.method] += part.amount;
+      }
+      continue;
+    }
+
+    const method = PAYMENT_METHODS.find((item) => item === sale.paymentMethod);
+    if (method) {
+      totals[method] += toNumber(sale.totalValue);
+    }
+  }
+
+  return totals;
+}
+
+function countMovements(movements: MonthlyMovementWithRelations[]): MonthlyMovementCounts {
+  return {
+    sale: movements.filter((movement) => movement.type === MovementType.SALE).length,
+    entry: movements.filter((movement) => movement.type === MovementType.ENTRY).length,
+    adjustment: movements.filter((movement) => movement.type === MovementType.ADJUSTMENT).length,
+    priceChange: movements.filter((movement) => movement.type === MovementType.PRICE_CHANGE).length,
+  };
+}
+
+function summarizeSellers(
+  sales: MonthlyMovementWithRelations[],
+  commissionPercent: number
+): SellerSummary[] {
+  const sellers = new Map<string, SellerSummary>();
+
+  for (const sale of sales) {
+    const current = sellers.get(sale.userId) ?? {
+      name: sale.user.name,
+      saleCount: 0,
+      quantity: 0,
+      totalValue: 0,
+      commission: 0,
+    };
+    current.saleCount += 1;
+    current.quantity += sale.quantity ?? 0;
+    current.totalValue += toNumber(sale.totalValue);
+    sellers.set(sale.userId, current);
+  }
+
+  return [...sellers.values()]
+    .map((seller) => ({
+      ...seller,
+      commission: roundCurrency(seller.totalValue * commissionPercent / 100),
+    }))
+    .sort((left, right) => right.totalValue - left.totalValue);
+}
+
+function summarizeProducts(sales: MonthlyMovementWithRelations[]): ProductSummary[] {
+  const products = new Map<string, ProductSummary>();
+
+  for (const sale of sales) {
+    const current = products.get(sale.productId) ?? {
+      reference: sale.product.reference,
+      description: sale.product.description,
+      quantity: 0,
+      totalValue: 0,
+    };
+    current.quantity += sale.quantity ?? 0;
+    current.totalValue += toNumber(sale.totalValue);
+    products.set(sale.productId, current);
+  }
+
+  return [...products.values()].sort((left, right) => {
+    if (right.quantity !== left.quantity) {
+      return right.quantity - left.quantity;
+    }
+    return right.totalValue - left.totalValue;
+  });
+}
+
+function summarizeZeroStock(
+  movements: MonthlyMovementWithRelations[],
+  sales: MonthlyMovementWithRelations[]
+): ZeroStockSummary[] {
+  const soldByProduct = new Map<string, number>();
+  for (const sale of sales) {
+    soldByProduct.set(
+      sale.productId,
+      (soldByProduct.get(sale.productId) ?? 0) + (sale.quantity ?? 0)
+    );
+  }
+
+  const stockMovementsByProduct = new Map<string, MonthlyMovementWithRelations[]>();
+  for (const movement of movements) {
+    if (movement.previousStock === null || movement.newStock === null) {
+      continue;
+    }
+    const productMovements = stockMovementsByProduct.get(movement.productId) ?? [];
+    productMovements.push(movement);
+    stockMovementsByProduct.set(movement.productId, productMovements);
+  }
+
+  const result: ZeroStockSummary[] = [];
+  for (const productMovements of stockMovementsByProduct.values()) {
+    const zeroEvents = productMovements.filter(
+      (movement) => (movement.previousStock ?? 0) > 0 && movement.newStock === 0
+    );
+    const lastZeroEvent = zeroEvents.at(-1);
+    if (!lastZeroEvent) {
+      continue;
+    }
+
+    const laterMovements = productMovements.filter(
+      (movement) => movement.createdAt.getTime() > lastZeroEvent.createdAt.getTime()
+    );
+    const replenishment = laterMovements.find((movement) => (movement.newStock ?? 0) > 0);
+    const lastStockMovement = productMovements.at(-1)!;
+
+    result.push({
+      reference: lastZeroEvent.product.reference,
+      description: lastZeroEvent.product.description,
+      stockLocation: lastZeroEvent.product.stockLocation,
+      soldQuantity: soldByProduct.get(lastZeroEvent.productId) ?? 0,
+      zeroedAt: lastZeroEvent.createdAt,
+      endedAtZero: lastStockMovement.newStock === 0,
+      replenishedAt: replenishment?.createdAt,
+    });
+  }
+
+  return result;
+}
+
+function sumSalesValue(sales: MonthlyMovementWithRelations[]): number {
+  return sales.reduce((sum, sale) => sum + toNumber(sale.totalValue), 0);
+}
+
+function sumSaleQuantity(sales: MonthlyMovementWithRelations[]): number {
+  return sales.reduce((sum, sale) => sum + (sale.quantity ?? 0), 0);
+}
+
+function formatRevenueComparison(current: number, previous: number): string {
+  if (previous === 0) {
+    return current === 0
+      ? 'Faturamento: *sem variação*'
+      : 'Faturamento: *sem base no mês anterior*';
+  }
+
+  const percentage = ((current - previous) / previous) * 100;
+  return `Faturamento: *${formatSignedPercentage(percentage)}*`;
+}
+
+function formatUnitsComparison(current: number, previous: number): string {
+  const difference = current - previous;
+  const sign = difference > 0 ? '+' : '';
+  return `Pneus vendidos: *${sign}${difference} unidades*`;
+}
+
+function formatSignedPercentage(value: number): string {
+  const sign = value > 0 ? '+' : '';
+  return `${sign}${value.toFixed(1).replace('.', ',')}%`;
+}
+
+function formatPercent(value: number): string {
+  return `${value.toFixed(2).replace(/\.00$/, '').replace('.', ',')}%`;
+}
+
+function formatMonthLabel(date: Date): string {
+  const month = new Intl.DateTimeFormat('pt-BR', {
+    month: 'long',
+  }).format(date).toUpperCase();
+  return `${month}/${date.getFullYear()}`;
+}
+
+function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+}
+
+function previousDay(date: Date): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() - 1);
+  return result;
+}
+
+function roundCurrency(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (value && typeof value === 'object' && 'toNumber' in value) {
+    return (value as { toNumber(): number }).toNumber();
+  }
+  return Number(value ?? 0);
+}

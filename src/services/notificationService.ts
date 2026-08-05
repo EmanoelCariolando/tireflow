@@ -142,6 +142,16 @@ export async function sendBossTextNotification(text: string): Promise<void> {
   await sendPrivateOwnerTextMessage(bossChatId, text, 'boss text notification');
 }
 
+export async function sendRequiredBossTextNotification(text: string): Promise<void> {
+  const bossChatId = await getBossChatId();
+
+  if (!bossChatId) {
+    throw new Error('BOSS_PRIVATE_NUMBER não pôde ser localizado no WhatsApp.');
+  }
+
+  await sendPrivateOwnerTextMessage(bossChatId, text, 'monthly boss report');
+}
+
 export async function sendBossMediaNotification(media: MessageMedia): Promise<void> {
   const bossChatId = await getBossChatId();
 

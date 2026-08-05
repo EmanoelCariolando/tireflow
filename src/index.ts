@@ -1,6 +1,7 @@
 import { whatsappClient, initializeWhatsAppClient, startWhatsAppClient, stopWhatsAppClient } from './whatsapp/client.js';
 import { handleIncomingMessage } from './whatsapp/messageHandler.js';
 import { startDailyReportScheduler, stopDailyReportScheduler } from './services/dailyReportScheduler.js';
+import { startMonthlyReportScheduler, stopMonthlyReportScheduler } from './services/monthlyReportScheduler.js';
 import { warmUpNotificationTargets } from './services/notificationService.js';
 import env from './config/env.js';
 import { disconnectPrisma } from './database/prisma.js';
@@ -59,6 +60,7 @@ async function main(): Promise<void> {
 
     // 6. Start daily report scheduler
     startDailyReportScheduler();
+    startMonthlyReportScheduler();
     startHealthMonitor();
 
     console.log('Bot is running. Press Ctrl+C to stop.\n');
@@ -78,6 +80,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
 
   try {
     stopDailyReportScheduler();
+    stopMonthlyReportScheduler();
     stopHealthMonitor();
     await stopWhatsAppClient();
   } catch (error) {

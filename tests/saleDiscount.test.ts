@@ -29,13 +29,15 @@ function startSale(suffix: string): { userId: string; chatId: string } {
 
 function createMessage(
   ids: { userId: string; chatId: string },
-  replies: string[]
+  replies: string[],
+  imageId?: string
 ): Message {
   return {
     author: ids.userId,
     from: ids.chatId,
-    hasMedia: false,
-    type: 'chat',
+    hasMedia: Boolean(imageId),
+    type: imageId ? 'image' : 'chat',
+    id: imageId ? { _serialized: imageId } : undefined,
     rawData: {},
     reply: async (text: string) => {
       replies.push(text);
@@ -63,7 +65,7 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
   assert.match(replies.at(-1) ?? '', /Desconto de 3%: -R\$30,00/);
   assert.match(replies.at(-1) ?? '', /Novo total: \*R\$970,00\*/);
 
-  await handleSaleConversation(message, 'confirmar');
+  await handleSaleConversation(message, 'confirma');
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_payment');
   assert.match(replies.at(-1) ?? '', /Total com desconto: \*R\$970,00\*/);
 
@@ -72,10 +74,21 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
   assert.match(replies.at(-1) ?? '', /já foi aplicado/);
 
   await handleSaleConversation(message, '1');
+  const receiptSession = getSaleSession(ids.userId, ids.chatId);
+  assert.equal(receiptSession?.step, 'awaiting_photo');
+  assert.deepEqual(receiptSession?.pendingReceiptMethods, ['Dinheiro']);
+  assert.match(replies.at(-1) ?? '', /foto do depósito\/dinheiro/);
+
+  await handleSaleConversation(message, 'confirmar');
+  assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_photo');
+  assert.match(replies.at(-1) ?? '', /foto do depósito\/dinheiro para continuar/);
+
+  await handleSaleConversation(createMessage(ids, replies, 'cash-receipt'), '');
   const confirmationSession = getSaleSession(ids.userId, ids.chatId);
   assert.equal(confirmationSession?.step, 'awaiting_confirmation');
   assert.equal(confirmationSession?.paymentMethod, 'Dinheiro');
   assert.equal(confirmationSession?.totalValue, 970);
+  assert.equal(confirmationSession?.receipts?.[0]?.paymentMethod, 'Dinheiro');
   assert.match(replies.at(-1) ?? '', /Desconto: \*3% \(-R\$30,00\)\*/);
   assert.match(replies.at(-1) ?? '', /Total: \*R\$970,00\*/);
 

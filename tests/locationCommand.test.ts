@@ -114,7 +114,7 @@ test('starts a clean location flow and validates the new location before confirm
       ].join('\n')
     );
 
-    await handleLocationConversation(createMessage(replies), 'cancelar');
+    await handleLocationConversation(createMessage(replies), 'cancela');
     assert.equal(getLocationSession(userId, chatId), null);
   } finally {
     env.inventoryLocationsEnabled = previousFlag;

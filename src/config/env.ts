@@ -20,6 +20,8 @@ export interface EnvConfig {
   bossPrivateNumber: string;
   ownerPhone: string;
   dailyReportTime: string;
+  monthlyReportTime: string;
+  monthlyCommissionPercent: number;
   allowPrivateTestMode: boolean;
   inventoryLocationsEnabled: boolean;
   backupRoot: string;
@@ -109,6 +111,24 @@ export function validateEnvironment(source: NodeJS.ProcessEnv): string[] {
     errors.push('DATABASE_URL: esta instalação requer uma URL SQLite iniciada por file:');
   }
 
+  const monthlyReportTime = source.MONTHLY_REPORT_TIME?.trim() || '';
+  if (monthlyReportTime && !isValidDailyTime(monthlyReportTime)) {
+    errors.push('MONTHLY_REPORT_TIME: horário inválido; use HH:mm');
+  }
+
+  const monthlyCommissionPercent = source.MONTHLY_COMMISSION_PERCENT?.trim() || '';
+  if (
+    monthlyCommissionPercent &&
+    (!Number.isFinite(Number(monthlyCommissionPercent)) ||
+      Number(monthlyCommissionPercent) <= 0 ||
+      Number(monthlyCommissionPercent) > 100)
+  ) {
+    errors.push('MONTHLY_COMMISSION_PERCENT: use um número maior que 0 e menor ou igual a 100');
+  }
+  if (monthlyReportTime && !monthlyCommissionPercent) {
+    errors.push('MONTHLY_COMMISSION_PERCENT: obrigatório quando MONTHLY_REPORT_TIME estiver configurado');
+  }
+
   const backupRoot = source.BACKUP_ROOT?.trim() || '';
   if (backupRoot && nodeEnv === 'production' && !path.isAbsolute(backupRoot)) {
     errors.push('BACKUP_ROOT: em production use caminho absoluto, exemplo C:\\backups\\tireflowmtrback');
@@ -163,6 +183,8 @@ export const env: EnvConfig = {
   bossPrivateNumber: process.env.BOSS_PRIVATE_NUMBER || '',
   ownerPhone: process.env.OWNER_PHONE || '',
   dailyReportTime: process.env.DAILY_REPORT_TIME || '',
+  monthlyReportTime: process.env.MONTHLY_REPORT_TIME || '',
+  monthlyCommissionPercent: Number(process.env.MONTHLY_COMMISSION_PERCENT || 0),
   allowPrivateTestMode: process.env.ALLOW_PRIVATE_TEST_MODE === 'true',
   inventoryLocationsEnabled: process.env.INVENTORY_LOCATIONS_ENABLED === 'true',
   backupRoot: process.env.BACKUP_ROOT?.trim() || '',
