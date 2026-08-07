@@ -19,7 +19,7 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
   process.env.DATABASE_URL = databaseUrl;
 
   const { prisma } = await import('../src/database/prisma.js');
-  const { registerSale, InsufficientStockError } = await import('../src/services/saleService.js');
+  const { registerSale, registerSaleItems, InsufficientStockError } = await import('../src/services/saleService.js');
   const { registerEntry } = await import('../src/services/entryService.js');
   const { registerAdjustment } = await import('../src/services/adjustmentService.js');
   const { registerPriceChange } = await import('../src/services/priceService.js');
@@ -117,6 +117,72 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
     assert.equal(
       (await prisma.product.findUniqueOrThrow({ where: { id: mixedProduct.id } })).stock,
       0
+    );
+
+    const cartProductOne = await prisma.product.create({
+      data: {
+        reference: '175/70/13', description: 'PNEU CARRINHO 1', stock: 3,
+        minStock: 0, cashPrice: 100, creditPrice: 110,
+      },
+    });
+    const cartProductTwo = await prisma.product.create({
+      data: {
+        reference: '275/80/22.5', description: 'PNEU CARRINHO 2', stock: 2,
+        minStock: 0, cashPrice: 250, creditPrice: 275,
+      },
+    });
+    const registeredCart = await registerSaleItems({
+      items: [
+        { productId: cartProductOne.id, quantity: 1, unitPrice: 100, totalValue: 100 },
+        { productId: cartProductTwo.id, quantity: 1, unitPrice: 250, totalValue: 250 },
+      ],
+      sellerPhone: 'cart-seller',
+      sellerName: 'Cart Seller',
+      totalValue: 350,
+      paymentMethod: 'Misto',
+      paymentBreakdown: [
+        { method: 'PIX', amount: 150 },
+        { method: 'Dinheiro', amount: 200 },
+      ],
+    });
+    assert.equal(registeredCart.items.length, 2);
+    assert.equal(registeredCart.saleGroupCode, registeredCart.items[0]?.movementCode);
+    const cartMovements = await prisma.movement.findMany({
+      where: { saleGroupCode: registeredCart.saleGroupCode },
+      orderBy: { createdAt: 'asc' },
+    });
+    assert.equal(cartMovements.length, 2);
+    assert.ok(cartMovements.every((movement) => movement.paymentMethod === 'Misto'));
+    assert.equal(
+      cartMovements.flatMap((movement) => JSON.parse(movement.paymentDetails ?? '[]'))
+        .reduce((total, part: { amount: number }) => total + part.amount, 0),
+      350
+    );
+    assert.equal(
+      (await prisma.product.findUniqueOrThrow({ where: { id: cartProductOne.id } })).stock,
+      2
+    );
+    assert.equal(
+      (await prisma.product.findUniqueOrThrow({ where: { id: cartProductTwo.id } })).stock,
+      1
+    );
+
+    await assert.rejects(
+      registerSaleItems({
+        items: [
+          { productId: cartProductOne.id, quantity: 1, unitPrice: 100, totalValue: 100 },
+          { productId: cartProductTwo.id, quantity: 2, unitPrice: 250, totalValue: 500 },
+        ],
+        sellerPhone: 'cart-seller',
+        sellerName: 'Cart Seller',
+        totalValue: 600,
+        paymentMethod: 'PIX',
+      }),
+      InsufficientStockError
+    );
+    assert.equal(
+      (await prisma.product.findUniqueOrThrow({ where: { id: cartProductOne.id } })).stock,
+      2
     );
 
     const registeredLocation = await registerProductLocation({

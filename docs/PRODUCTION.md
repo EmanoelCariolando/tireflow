@@ -23,16 +23,20 @@ ALLOW_PRIVATE_TEST_MODE=false
 
 `ALLOW_PRIVATE_TEST_MODE` aceita `true` ou `false` também em produção. Use `true` quando quiser testar os comandos em conversa privada; isso não impede a inicialização.
 
-Para enviar no dia 1 o relatório do mês anterior exclusivamente ao `BOSS_PRIVATE_NUMBER`, configure
-em cada instalação o horário e a comissão aplicada ao valor final vendido:
+Para enviar relatórios exclusivamente ao `BOSS_PRIVATE_NUMBER`, configure em cada instalação
+o horário e a comissão aplicada ao valor final vendido:
 
 ```env
 MONTHLY_REPORT_TIME=08:00
 MONTHLY_COMMISSION_PERCENT=2
 ```
 
-Deixe `MONTHLY_REPORT_TIME` vazio para manter o relatório mensal desativado. O envio é privado, não
-usa o grupo oficial e distribui pagamentos mistos entre suas formas reais.
+No dia 1, o bot envia o relatório operacional do mês anterior sem dados de funcionários ou
+comissões. No dia 20, envia separadamente o fechamento das comissões, calculado sobre as vendas
+do dia 20 do mês anterior até o fim do dia 19 atual. Notas de prefeitura ficam fora da comissão.
+
+Deixe `MONTHLY_REPORT_TIME` vazio para manter os dois envios desativados. Os envios são privados,
+não usam o grupo oficial e distribuem pagamentos mistos entre suas formas reais.
 
 Em Monteiro, use `BRANCH_NAME="ATC PNEUS MONTEIRO"`, sessão `tireflow-monteiro` e autenticação em `C:\TireFlow\Monteiro\data\wwebjs_auth`. Grupo e números privados também devem pertencer à filial correta.
 

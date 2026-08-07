@@ -55,6 +55,7 @@ model Product {
 model Movement {
   id            String       @id @default(cuid())
   code          String       @unique
+  saleGroupCode String?
   type          MovementType
   productId     String
   userId        String
@@ -66,6 +67,7 @@ model Movement {
   paymentMethod String?
   paymentDetails String?
   invoiceName   String?
+  isCityHallSale Boolean      @default(false)
   observation   String?
   supplier      String?
   reason        String?
@@ -78,6 +80,7 @@ model Movement {
   @@index([productId])
   @@index([userId])
   @@index([createdAt])
+  @@index([saleGroupCode])
   @@map("movements")
 }
 

@@ -4,12 +4,18 @@ import path from 'node:path';
 import test from 'node:test';
 import { MovementType, Prisma } from '@prisma/client';
 import {
+  formatCommissionReport,
   formatMonthlyReport,
+  getCommissionPeriod,
   getPreviousMonthPeriod,
+  summarizeCommissionReport,
   summarizeMonthlyReport,
   type MonthlyMovementWithRelations,
 } from '../src/services/monthlyReportService.js';
-import { isMonthlyReportDue } from '../src/services/monthlyReportScheduler.js';
+import {
+  isCommissionReportDue,
+  isMonthlyReportDue,
+} from '../src/services/monthlyReportScheduler.js';
 
 const joao = {
   id: 'user-joao',
@@ -54,6 +60,7 @@ function movement(
   return {
     id,
     code: `MOV-${id}`,
+    saleGroupCode: null,
     type: MovementType.SALE,
     productId: product.id,
     userId: user.id,
@@ -65,6 +72,7 @@ function movement(
     paymentMethod: null,
     paymentDetails: null,
     invoiceName: null,
+    isCityHallSale: false,
     observation: null,
     supplier: null,
     reason: null,
@@ -74,6 +82,34 @@ function movement(
     ...overrides,
   };
 }
+
+test('counts grouped item movements as one sale while preserving units and revenue', () => {
+  const period = getPreviousMonthPeriod(new Date(2026, 7, 1, 8, 0));
+  const groupedSales = [
+    movement('grouped-one', new Date(2026, 6, 5, 10, 0), {
+      saleGroupCode: '#V-000100',
+      quantity: 1,
+      totalValue: new Prisma.Decimal(100),
+      paymentMethod: 'PIX',
+    }),
+    movement('grouped-two', new Date(2026, 6, 5, 10, 0), {
+      saleGroupCode: '#V-000100',
+      product: productTwo,
+      productId: productTwo.id,
+      quantity: 1,
+      totalValue: new Prisma.Decimal(250),
+      paymentMethod: 'PIX',
+    }),
+  ];
+
+  const summary = summarizeMonthlyReport(period, groupedSales, [], 2, true);
+  assert.equal(summary.saleCount, 1);
+  assert.equal(summary.movementCounts.sale, 1);
+  assert.equal(summary.sellers[0]?.saleCount, 1);
+  assert.equal(summary.unitsSold, 2);
+  assert.equal(summary.totalRevenue, 350);
+  assert.equal(summary.paymentTotals.PIX, 350);
+});
 
 test('summarizes sellers, mixed payments, top tires and specific zero-stock events', () => {
   const period = getPreviousMonthPeriod(new Date(2026, 7, 1, 8, 0));
@@ -157,12 +193,44 @@ test('summarizes sellers, mixed payments, top tires and specific zero-stock even
   assert.match(reports[0]!, /RELATÓRIO MENSAL — JULHO\/2026/);
   assert.match(reports[0]!, /Faturamento: \*R\$900,00\*/);
   assert.match(reports[0]!, /Dinheiro: \*R\$200,00\*/);
-  assert.match(reports[1]!, /Comissão \(2%\): \*R\$12,00\*/);
   assert.match(reports[1]!, /🥇 \*175\/70 R14\* — \*DYNAMO 82T\*/);
+  assert.doesNotMatch(reports.join('\n'), /DESEMPENHO DA EQUIPE|Comissão|Comissões/);
+  assert.doesNotMatch(reports.join('\n'), /João|Maria/);
   assert.match(reports[2]!, /\*175\/70 R14\* — \*DYNAMO 82T\*/);
   assert.match(reports[2]!, /Situação no fechamento: \*Continua zerado\*/);
   assert.match(reports[2]!, /Reposto: \*15\/07\/2026\*/);
   assert.match(reports[2]!, /📍 Local: W3/);
+});
+
+test('excludes city hall invoices from commission without removing their revenue', () => {
+  const period = getCommissionPeriod(new Date(2026, 7, 20, 8, 0));
+  const sales = [
+    movement('city-hall-note', new Date(2026, 6, 25, 10, 0), {
+      quantity: 2,
+      totalValue: new Prisma.Decimal(600),
+      paymentMethod: 'Nota',
+      invoiceName: 'Prefeitura de Congo',
+      isCityHallSale: true,
+    }),
+    movement('customer-note', new Date(2026, 7, 10, 10, 0), {
+      quantity: 1,
+      totalValue: new Prisma.Decimal(400),
+      paymentMethod: 'Nota',
+      invoiceName: 'Cliente Teste',
+      isCityHallSale: false,
+    }),
+  ];
+
+  const summary = summarizeCommissionReport(period, sales, 2);
+
+  assert.equal(summary.sellers[0]?.totalValue, 1000);
+  assert.equal(summary.sellers[0]?.commissionBase, 400);
+  assert.equal(summary.sellers[0]?.commission, 8);
+  const report = formatCommissionReport(summary);
+  assert.match(report, /Período: 20\/07\/2026 a 19\/08\/2026/);
+  assert.match(report, /Total vendido: \*R\$1000,00\*/);
+  assert.match(report, /Comissão \(2%\): \*R\$8,00\*/);
+  assert.match(report, /Comissão total: \*R\$8,00\*/);
 });
 
 test('omits Monteiro stock locations when the installation disables them', () => {
@@ -194,6 +262,19 @@ test('uses the previous calendar month and catches up after the first-day time',
   assert.equal(isMonthlyReportDue(new Date(2026, 7, 1, 8, 0), '08:00'), true);
   assert.equal(isMonthlyReportDue(new Date(2026, 7, 3, 12, 0), '08:00'), true);
   assert.equal(isMonthlyReportDue(new Date(2026, 7, 1, 8, 0), '25:00'), false);
+});
+
+test('closes commissions from day 20 through day 19 and sends on day 20', () => {
+  const period = getCommissionPeriod(new Date(2026, 7, 20, 8, 0));
+  assert.equal(period.key, '2026-07-20_2026-08-19');
+  assert.equal(period.start.getTime(), new Date(2026, 6, 20).getTime());
+  assert.equal(period.end.getTime(), new Date(2026, 7, 20).getTime());
+
+  assert.equal(isCommissionReportDue(new Date(2026, 7, 20, 7, 59), '08:00'), false);
+  assert.equal(isCommissionReportDue(new Date(2026, 7, 20, 8, 0), '08:00'), true);
+  assert.equal(isCommissionReportDue(new Date(2026, 7, 19, 12, 0), '08:00'), false);
+  assert.equal(isCommissionReportDue(new Date(2026, 7, 25, 12, 0), '08:00'), true);
+  assert.equal(isCommissionReportDue(new Date(2026, 7, 20, 8, 0), '25:00'), false);
 });
 
 test('monthly scheduler sends only through the required private boss channel', () => {

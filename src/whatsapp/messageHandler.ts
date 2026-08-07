@@ -48,6 +48,7 @@ import {
   isProductRegistrationCommand,
 } from '../commands/productRegistrationCommand.js';
 import { isCancellationResponse } from '../utils/operationResponse.js';
+import { getSaleSession } from '../utils/saleSessionStore.js';
 
 /**
  * Message Handler (Fase 3)
@@ -101,6 +102,16 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   if (isCancellationResponse(body) && hasActiveOperationSession(userId, chatId)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
+    return;
+  }
+
+  const activeSale = getSaleSession(userId, chatId);
+  if (
+    activeSale &&
+    (activeSale.step === 'awaiting_additional_measure' ||
+      activeSale.step === 'awaiting_additional_item') &&
+    await handleSaleConversation(message, body)
+  ) {
     return;
   }
 

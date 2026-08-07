@@ -243,12 +243,17 @@ export function calculatePaymentTotals(
 }
 
 function getMovementCounts(movements: MovementWithRelations[]): TodayReportMovementCounts {
+  const sales = movements.filter((movement) => movement.type === MovementType.SALE);
   return {
-    sale: movements.filter((movement) => movement.type === MovementType.SALE).length,
+    sale: new Set(sales.map(getSaleGroupKey)).size,
     entry: movements.filter((movement) => movement.type === MovementType.ENTRY).length,
     adjustment: movements.filter((movement) => movement.type === MovementType.ADJUSTMENT).length,
     priceChange: movements.filter((movement) => movement.type === MovementType.PRICE_CHANGE).length,
   };
+}
+
+function getSaleGroupKey(sale: MovementWithRelations): string {
+  return sale.saleGroupCode || sale.code;
 }
 
 function summarizeSalesByProduct(sales: MovementWithRelations[]): ProductSalesSummary[] {

@@ -2,8 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   formatBossSaleNotification,
+  formatCityHallQuestion,
   formatRegisteredSale,
   formatSaleConfirmation,
+  parseCityHallResponse,
 } from '../src/commands/saleCommand.js';
 import type { SaleSession } from '../src/utils/saleSessionStore.js';
 
@@ -82,6 +84,31 @@ test('shows both mixed payment amounts in the confirmation', () => {
     /Pagamento: \*Misto\*\nPIX: \*R\$300,00\* \| Dinheiro: \*R\$300,00\*/
   );
   assert.match(message, /💰 Total: \*R\$600,00\*/);
+});
+
+test('accepts s or n for the city hall question and shows the commission rule', () => {
+  assert.equal(parseCityHallResponse('s'), true);
+  assert.equal(parseCityHallResponse('sim'), true);
+  assert.equal(parseCityHallResponse('n'), false);
+  assert.equal(parseCityHallResponse('não'), false);
+  assert.equal(parseCityHallResponse('talvez'), null);
+  assert.match(formatCityHallQuestion(), /prefeitura \(de Congo ou de outra cidade\)/);
+
+  const cityHallConfirmation = formatSaleConfirmation({
+    ...session,
+    paymentMethod: 'Nota',
+    invoiceName: 'Prefeitura de Congo',
+    isCityHallSale: true,
+  });
+  const customerConfirmation = formatSaleConfirmation({
+    ...session,
+    paymentMethod: 'Nota',
+    invoiceName: 'Cliente Teste',
+    isCityHallSale: false,
+  });
+
+  assert.match(cityHallConfirmation, /Destino da nota: Prefeitura \(sem comissão\)/);
+  assert.match(customerConfirmation, /Destino da nota: Cliente \(com comissão\)/);
 });
 
 test('shows the discount and chosen price clearly to the seller and owner', () => {

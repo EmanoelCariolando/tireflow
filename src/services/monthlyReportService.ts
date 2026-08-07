@@ -25,6 +25,7 @@ interface SellerSummary {
   saleCount: number;
   quantity: number;
   totalValue: number;
+  commissionBase: number;
   commission: number;
 }
 
@@ -67,6 +68,12 @@ export interface MonthlyReportFormatInput {
   showStockLocations: boolean;
 }
 
+export interface CommissionReportFormatInput {
+  period: MonthlyPeriod;
+  commissionPercent: number;
+  sellers: SellerSummary[];
+}
+
 const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
 const ZERO_STOCK_ITEMS_PER_MESSAGE = 8;
 
@@ -92,10 +99,28 @@ export async function buildMonthlyReport(
   );
 }
 
+export async function buildCommissionReport(
+  referenceDate = new Date(),
+  commissionPercent = env.monthlyCommissionPercent
+): Promise<string> {
+  const period = getCommissionPeriod(referenceDate);
+  const movements = await movementRepository.findByDateRange(period.start, period.end);
+  return formatCommissionReport(
+    summarizeCommissionReport(period, movements, commissionPercent)
+  );
+}
+
 export function getPreviousMonthPeriod(referenceDate: Date): MonthlyPeriod {
   const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const start = new Date(end.getFullYear(), end.getMonth() - 1, 1);
   const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+  return { start, end, key };
+}
+
+export function getCommissionPeriod(referenceDate: Date): MonthlyPeriod {
+  const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 20);
+  const start = new Date(end.getFullYear(), end.getMonth() - 1, 20);
+  const key = `${formatDateKey(start)}_${formatDateKey(previousDay(end))}`;
   return { start, end, key };
 }
 
@@ -118,7 +143,7 @@ export function summarizeMonthlyReport(
     paymentTotals: calculateMonthlyPaymentTotals(sales),
     totalRevenue,
     previousMonthRevenue: sumSalesValue(previousSales),
-    saleCount: sales.length,
+    saleCount: countSaleGroups(sales),
     unitsSold: sumSaleQuantity(sales),
     previousMonthUnitsSold: sumSaleQuantity(previousSales),
     movementCounts: countMovements(movements),
@@ -129,12 +154,56 @@ export function summarizeMonthlyReport(
   };
 }
 
+export function summarizeCommissionReport(
+  period: MonthlyPeriod,
+  movements: MonthlyMovementWithRelations[],
+  commissionPercent: number
+): CommissionReportFormatInput {
+  const sales = movements.filter((movement) => movement.type === MovementType.SALE);
+  return {
+    period,
+    commissionPercent,
+    sellers: summarizeSellers(sales, commissionPercent),
+  };
+}
+
 export function formatMonthlyReport(input: MonthlyReportFormatInput): string[] {
   return [
     formatFinancialSummary(input),
-    formatTeamAndProducts(input),
+    formatProducts(input),
     ...formatZeroStockMessages(input),
   ];
+}
+
+export function formatCommissionReport(input: CommissionReportFormatInput): string {
+  const lines = [
+    '💵 *RELATÓRIO DE COMISSÕES*',
+    `Período: ${formatDate(input.period.start)} a ${formatDate(previousDay(input.period.end))}`,
+    '',
+    '👥 *FUNCIONÁRIOS*',
+    '',
+  ];
+
+  if (input.sellers.length === 0) {
+    lines.push('Nenhum funcionário registrou vendas no período.');
+    return lines.join('\n');
+  }
+
+  for (const [index, seller] of input.sellers.entries()) {
+    lines.push(
+      `${index + 1}. *${seller.name}*`,
+      `Vendas: *${seller.saleCount}* | Pneus: *${seller.quantity}*`,
+      `Total vendido: *${formatCurrency(seller.totalValue)}*`,
+      `Comissão (${formatPercent(input.commissionPercent)}): *${formatCurrency(seller.commission)}*`,
+      ''
+    );
+  }
+  lines.push(
+    `Comissão total: *${formatCurrency(input.sellers.reduce((sum, seller) => sum + seller.commission, 0))}*`,
+    '',
+    '_TireFlow • Fechamento automático de comissões_'
+  );
+  return lines.join('\n');
 }
 
 function formatFinancialSummary(input: MonthlyReportFormatInput): string {
@@ -167,31 +236,11 @@ function formatFinancialSummary(input: MonthlyReportFormatInput): string {
   ].join('\n');
 }
 
-function formatTeamAndProducts(input: MonthlyReportFormatInput): string {
+function formatProducts(input: MonthlyReportFormatInput): string {
   const lines = [
-    `👥 *DESEMPENHO DA EQUIPE — ${formatMonthLabel(input.period.start)}*`,
+    `🏆 *PNEUS MAIS VENDIDOS — ${formatMonthLabel(input.period.start)}*`,
     '',
   ];
-
-  if (input.sellers.length === 0) {
-    lines.push('Nenhum funcionário registrou vendas.', '');
-  } else {
-    for (const [index, seller] of input.sellers.entries()) {
-      lines.push(
-        `${index + 1}. *${seller.name}*`,
-        `Vendas: *${seller.saleCount}* | Pneus: *${seller.quantity}*`,
-        `Total vendido: *${formatCurrency(seller.totalValue)}*`,
-        `Comissão (${formatPercent(input.commissionPercent)}): *${formatCurrency(seller.commission)}*`,
-        ''
-      );
-    }
-    lines.push(
-      `Comissão total: *${formatCurrency(input.sellers.reduce((sum, seller) => sum + seller.commission, 0))}*`,
-      ''
-    );
-  }
-
-  lines.push('🏆 *PNEUS MAIS VENDIDOS*', '');
   if (input.bestSellers.length === 0) {
     lines.push('Nenhum pneu vendido no mês.');
   } else {
@@ -294,8 +343,9 @@ function calculateMonthlyPaymentTotals(sales: MonthlyMovementWithRelations[]): P
 }
 
 function countMovements(movements: MonthlyMovementWithRelations[]): MonthlyMovementCounts {
+  const sales = movements.filter((movement) => movement.type === MovementType.SALE);
   return {
-    sale: movements.filter((movement) => movement.type === MovementType.SALE).length,
+    sale: countSaleGroups(sales),
     entry: movements.filter((movement) => movement.type === MovementType.ENTRY).length,
     adjustment: movements.filter((movement) => movement.type === MovementType.ADJUSTMENT).length,
     priceChange: movements.filter((movement) => movement.type === MovementType.PRICE_CHANGE).length,
@@ -307,6 +357,7 @@ function summarizeSellers(
   commissionPercent: number
 ): SellerSummary[] {
   const sellers = new Map<string, SellerSummary>();
+  const saleGroupsBySeller = new Map<string, Set<string>>();
 
   for (const sale of sales) {
     const current = sellers.get(sale.userId) ?? {
@@ -314,20 +365,35 @@ function summarizeSellers(
       saleCount: 0,
       quantity: 0,
       totalValue: 0,
+      commissionBase: 0,
       commission: 0,
     };
-    current.saleCount += 1;
+    const sellerSaleGroups = saleGroupsBySeller.get(sale.userId) ?? new Set<string>();
+    sellerSaleGroups.add(getSaleGroupKey(sale));
+    saleGroupsBySeller.set(sale.userId, sellerSaleGroups);
+    current.saleCount = sellerSaleGroups.size;
     current.quantity += sale.quantity ?? 0;
     current.totalValue += toNumber(sale.totalValue);
+    if (!sale.isCityHallSale) {
+      current.commissionBase += toNumber(sale.totalValue);
+    }
     sellers.set(sale.userId, current);
   }
 
   return [...sellers.values()]
     .map((seller) => ({
       ...seller,
-      commission: roundCurrency(seller.totalValue * commissionPercent / 100),
+      commission: roundCurrency(seller.commissionBase * commissionPercent / 100),
     }))
     .sort((left, right) => right.totalValue - left.totalValue);
+}
+
+function countSaleGroups(sales: MonthlyMovementWithRelations[]): number {
+  return new Set(sales.map(getSaleGroupKey)).size;
+}
+
+function getSaleGroupKey(sale: MonthlyMovementWithRelations): string {
+  return sale.saleGroupCode || sale.code;
 }
 
 function summarizeProducts(sales: MonthlyMovementWithRelations[]): ProductSummary[] {
@@ -452,6 +518,14 @@ function formatDate(date: Date): string {
     month: '2-digit',
     year: 'numeric',
   }).format(date);
+}
+
+function formatDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
 }
 
 function previousDay(date: Date): Date {

@@ -1,4 +1,5 @@
 import type { Message } from 'whatsapp-web.js';
+import type { QueriedProduct } from './lastQueryStore.js';
 
 export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
 export type ReceiptPaymentMethod = MixedPaymentMethod | 'Nota';
@@ -16,13 +17,28 @@ export interface SaleReceipt {
   message?: Message;
 }
 
+export interface SaleItem {
+  productId: string;
+  reference: string;
+  description: string;
+  quantity: number;
+  cashPrice: number;
+  creditPrice: number;
+  priceType: SalePriceType;
+  unitPrice: number;
+  totalValue: number;
+}
+
 export type SaleSessionStep =
   | 'awaiting_payment'
   | 'awaiting_price_type'
+  | 'awaiting_additional_measure'
+  | 'awaiting_additional_item'
   | 'awaiting_discount_confirmation'
   | 'awaiting_mixed_methods'
   | 'awaiting_mixed_amount'
   | 'awaiting_photo'
+  | 'awaiting_city_hall_confirmation'
   | 'awaiting_invoice_name'
   | 'awaiting_confirmation'
   | 'processing';
@@ -48,7 +64,11 @@ export interface SaleSession {
   paymentBreakdown?: PaymentBreakdownPart[];
   pendingReceiptMethods?: ReceiptPaymentMethod[];
   receipts?: SaleReceipt[];
+  isCityHallSale?: boolean;
   invoiceName?: string;
+  items?: SaleItem[];
+  additionalMeasure?: string;
+  additionalProducts?: QueriedProduct[];
   updatedAt: number;
 }
 

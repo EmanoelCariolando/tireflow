@@ -6,8 +6,9 @@ import {
   calculateSaleTotal,
   getCurrentProductStock,
   InsufficientStockError,
-  registerSale,
+  registerSaleItems,
   SaleProductNotFoundError,
+  type RegisteredSaleItem,
 } from '../services/saleService.js';
 import {
   forwardMessageToBoss,
@@ -21,6 +22,7 @@ import {
   PaymentMethod,
   ReceiptPaymentMethod,
   SalePriceType,
+  SaleItem,
   SaleSession,
   saveSaleSession,
 } from '../utils/saleSessionStore.js';
@@ -33,9 +35,18 @@ import {
   parseMixedPaymentMethods,
 } from '../utils/salePayment.js';
 import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import { normalizeTireSize } from '../utils/normalizeTireSize.js';
+import {
+  findActiveProductsByReference,
+  findAvailableProductsByReference,
+} from '../services/productService.js';
+import { formatProductList } from './pneuCommand.js';
+import type { QueriedProduct } from '../utils/lastQueryStore.js';
+import { allocateAmountByWeights } from '../utils/saleAllocation.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 const DISCOUNT_PERCENT = 3;
+const MAX_SALE_ITEMS = 20;
 const MIXED_PAYMENT_MENU = [
   'Quais foram as duas formas de pagamento usadas?',
   '',
@@ -147,6 +158,16 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (session.step === 'awaiting_additional_measure') {
+    await handleAdditionalMeasureStep(message, session, body);
+    return true;
+  }
+
+  if (session.step === 'awaiting_additional_item') {
+    await handleAdditionalItemStep(message, session, body);
+    return true;
+  }
+
   if (isNewOperationCommand(normalizedBody)) {
     await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
     return true;
@@ -182,6 +203,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (session.step === 'awaiting_city_hall_confirmation') {
+    await handleCityHallConfirmationStep(message, session, normalizedBody);
+    return true;
+  }
+
   if (session.step === 'awaiting_invoice_name') {
     await handleInvoiceNameStep(message, session, body);
     return true;
@@ -205,6 +231,27 @@ async function handlePaymentStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
+  if (isAddItemSelection(normalizedBody)) {
+    const items = getSaleItems(session);
+    if (items.length >= MAX_SALE_ITEMS) {
+      await message.reply(
+        `Esta compra já atingiu o limite de ${MAX_SALE_ITEMS} itens.\n\n${formatPaymentMenu(session)}`
+      );
+      return;
+    }
+
+    saveSaleSession({
+      ...session,
+      items,
+      step: 'awaiting_additional_measure',
+      additionalMeasure: undefined,
+      additionalProducts: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatAdditionalMeasureQuestion(session));
+    return;
+  }
+
   if (isDiscountSelection(normalizedBody)) {
     if (session.discountPercent) {
       await message.reply(
@@ -213,24 +260,24 @@ async function handlePaymentStep(
       return;
     }
 
-    if (
-      !session.priceType ||
-      session.unitPrice === undefined ||
-      session.totalValue === undefined
-    ) {
+    const items = getSaleItems(session);
+    if (items.length === 0 || session.totalValue === undefined) {
       clearSaleSession(session.userId, session.chatId);
       await message.reply('Ocorreu um erro na sessão da venda. Faça a consulta novamente.');
       return;
     }
 
-    const originalTotalInCents = Math.round(session.totalValue * 100);
+    const originalTotalInCents = items.reduce(
+      (total, item) => total + Math.round(item.totalValue * 100),
+      0
+    );
     const discountInCents = Math.round(originalTotalInCents * DISCOUNT_PERCENT / 100);
     const totalValue = (originalTotalInCents - discountInCents) / 100;
     const discountedSession: SaleSession = {
       ...session,
       step: 'awaiting_discount_confirmation',
       paymentMethod: undefined,
-      unitPrice: totalValue / session.quantity,
+      unitPrice: items.length === 1 ? totalValue / session.quantity : session.unitPrice,
       totalValue,
       originalTotalValue: originalTotalInCents / 100,
       discountPercent: DISCOUNT_PERCENT,
@@ -294,6 +341,140 @@ async function continueDirectPayment(
   await message.reply('Envie a foto do comprovante.');
 }
 
+async function handleAdditionalMeasureStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  const rawMeasure = body.trim().replace(/^pneu\s+/i, '');
+  const normalizedMeasure = normalizeTireSize(rawMeasure);
+
+  if (!normalizedMeasure) {
+    await message.reply(
+      [
+        'Medida inválida.',
+        '',
+        'Digite somente a nova medida.',
+        'Exemplos: 175/70 R14 ou 275 80 22.5',
+      ].join('\n')
+    );
+    return;
+  }
+
+  let products: QueriedProduct[];
+  try {
+    products = adjustAvailableProductsForCart(
+      await findAvailableProductsByReference(normalizedMeasure),
+      getSaleItems(session)
+    );
+
+    if (products.length === 0) {
+      const activeProducts = await findActiveProductsByReference(normalizedMeasure);
+      const hasDatabaseStock = activeProducts.some((product) => product.stock > 0);
+      await message.reply(
+        hasDatabaseStock
+          ? `Todo o estoque disponível de ${normalizedMeasure} já está nesta compra.\n\nDigite outra medida ou cancelar.`
+          : `Nenhum pneu disponível para ${normalizedMeasure}.\n\nDigite outra medida ou cancelar.`
+      );
+      return;
+    }
+  } catch (error) {
+    console.error('[SALE] Error searching an additional tire:', error);
+    await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite cancelar.');
+    return;
+  }
+
+  saveSaleSession({
+    ...session,
+    step: 'awaiting_additional_item',
+    additionalMeasure: normalizedMeasure,
+    additionalProducts: products,
+    updatedAt: Date.now(),
+  });
+  await message.reply(
+    [
+      formatProductList(products, normalizedMeasure),
+      '',
+      'Para adicionar à mesma compra, digite:',
+      '*venda <número> <quantidade>*',
+      'Exemplo: venda 1 2',
+    ].join('\n')
+  );
+}
+
+async function handleAdditionalItemStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  const selection = parseAdditionalItemSelection(body);
+  if (!selection) {
+    await message.reply(
+      'Opção inválida. Digite o número e a quantidade.\n\nExemplo: venda 1 2'
+    );
+    return;
+  }
+
+  const product = session.additionalProducts?.[selection.optionNumber - 1];
+  if (!product) {
+    await message.reply('Opção inválida. Escolha um número da lista mostrada.');
+    return;
+  }
+
+  let currentStock: number | null;
+  try {
+    currentStock = await getCurrentProductStock(product.id);
+  } catch (error) {
+    console.error('[SALE] Error checking additional tire stock:', error);
+    await message.reply('Não consegui conferir o estoque agora. Tente novamente ou digite cancelar.');
+    return;
+  }
+  if (currentStock === null) {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_additional_measure',
+      additionalMeasure: undefined,
+      additionalProducts: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply('Este produto não está mais disponível. Digite outra medida.');
+    return;
+  }
+
+  const reservedQuantity = getReservedQuantity(getSaleItems(session), product.id);
+  const availableQuantity = Math.max(0, currentStock - reservedQuantity);
+  if (selection.quantity > availableQuantity) {
+    await message.reply(
+      [
+        'Quantidade indisponível para esta compra.',
+        '',
+        `Estoque atual: ${currentStock}`,
+        `Já separado nesta compra: ${reservedQuantity}`,
+        `Disponível para adicionar: ${availableQuantity}`,
+      ].join('\n')
+    );
+    return;
+  }
+
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_price_type',
+    productId: product.id,
+    reference: product.reference || session.additionalMeasure || '',
+    description: product.description,
+    quantity: selection.quantity,
+    cashPrice: product.cashPrice,
+    creditPrice: product.creditPrice,
+    unitPrice: undefined,
+    priceType: undefined,
+    additionalMeasure: undefined,
+    additionalProducts: undefined,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply(formatPriceTypeQuestion(nextSession));
+}
+
 async function handlePriceTypeStep(
   message: Message,
   session: SaleSession,
@@ -307,7 +488,7 @@ async function handlePriceTypeStep(
   }
 
   const nextSession: SaleSession = {
-    ...applyPriceTypeToSession(session, priceType),
+    ...appendPricedItemToSession(session, priceType),
     step: 'awaiting_payment',
     paymentMethod: undefined,
     updatedAt: Date.now(),
@@ -504,12 +685,12 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
   if (receiptMethod === 'Nota') {
     saveSaleSession({
       ...session,
-      step: 'awaiting_invoice_name',
+      step: 'awaiting_city_hall_confirmation',
       receipts,
       pendingReceiptMethods,
       updatedAt: Date.now(),
     });
-    await message.reply('✅ Comprovante recebido.\n\nNome da nota?\n\nExemplo:\nPrefeitura de Congo');
+    await message.reply(`✅ Comprovante recebido.\n\n${formatCityHallQuestion()}`);
     return;
   }
 
@@ -545,6 +726,27 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
     ? `✅ Comprovante do ${formatMethodForSentence(receiptMethod)} recebido.`
     : '✅ Comprovante recebido.';
   await message.reply(`${receiptConfirmation}\n\n${formatSaleConfirmation(nextSession)}`);
+}
+
+async function handleCityHallConfirmationStep(
+  message: Message,
+  session: SaleSession,
+  normalizedBody: string
+): Promise<void> {
+  const isCityHallSale = parseCityHallResponse(normalizedBody);
+
+  if (isCityHallSale === null) {
+    await message.reply(`Resposta inválida.\n\n${formatCityHallQuestion()}`);
+    return;
+  }
+
+  saveSaleSession({
+    ...session,
+    step: 'awaiting_invoice_name',
+    isCityHallSale,
+    updatedAt: Date.now(),
+  });
+  await message.reply('Nome da nota?\n\nExemplo:\nPrefeitura de Congo');
 }
 
 async function handleInvoiceNameStep(
@@ -593,26 +795,35 @@ async function handleConfirmationStep(
 
   const sellerName = await getSellerName(message, session.userId);
 
-  let registeredSale: Awaited<ReturnType<typeof registerSale>>;
+  let registeredSale: Awaited<ReturnType<typeof registerSaleItems>>;
 
   try {
-    registeredSale = await registerSale({
-      productId: session.productId,
+    registeredSale = await registerSaleItems({
+      items: buildPersistenceItems(session),
       sellerPhone: session.userId,
       sellerName,
-      quantity: session.quantity,
-      unitPrice: session.unitPrice,
       totalValue: session.totalValue,
       paymentMethod: session.paymentMethod,
       paymentBreakdown: session.paymentBreakdown,
       invoiceName: session.invoiceName,
+      isCityHallSale: session.isCityHallSale,
     });
   } catch (error) {
     clearSaleSession(session.userId, session.chatId);
 
     if (error instanceof InsufficientStockError) {
+      const unavailableItem = getSaleItems(session).find(
+        (item) => item.productId === error.productId
+      );
       await message.reply(
-        `⚠️ Venda cancelada.\n\nEstoque atual: ${error.currentStock}\nQuantidade solicitada: ${error.requestedQuantity}`
+        [
+          '⚠️ Venda cancelada.',
+          ...(unavailableItem
+            ? ['', `${unavailableItem.reference} — ${unavailableItem.description}`]
+            : []),
+          `Estoque atual: ${error.currentStock}`,
+          `Quantidade solicitada: ${error.requestedQuantity}`,
+        ].join('\n')
       );
       return;
     }
@@ -629,15 +840,17 @@ async function handleConfirmationStep(
 
   const groupMessage = formatRegisteredSale(
     session,
-    registeredSale.movementCode,
+    registeredSale.saleGroupCode,
     sellerName,
-    registeredSale.currentStock
+    registeredSale.items[0]?.currentStock ?? 0,
+    registeredSale.items
   );
   const bossMessage = formatBossSaleNotification(
     session,
-    registeredSale.movementCode,
+    registeredSale.saleGroupCode,
     sellerName,
-    registeredSale.currentStock
+    registeredSale.items[0]?.currentStock ?? 0,
+    registeredSale.items
   );
 
   await Promise.all([
@@ -732,6 +945,14 @@ function logReceiptMessageIdDiagnostics(message: Message): void {
   });
 }
 
+export function parseCityHallResponse(value: string): boolean | null {
+  const normalized = value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (normalized === 's' || normalized === 'sim') return true;
+  if (normalized === 'n' || normalized === 'nao') return false;
+  return null;
+}
+
 function parsePaymentMethod(value: string): PaymentMethod | null {
   const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
@@ -749,6 +970,35 @@ function parsePaymentMethod(value: string): PaymentMethod | null {
 function isDiscountSelection(value: string): boolean {
   const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return normalized === '6' || normalized === 'desconto';
+}
+
+function isAddItemSelection(value: string): boolean {
+  const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return (
+    normalized === '7' ||
+    normalized === 'adicionar outro pneu' ||
+    normalized === 'outro pneu' ||
+    normalized === 'vender mais'
+  );
+}
+
+function parseAdditionalItemSelection(value: string): {
+  optionNumber: number;
+  quantity: number;
+} | null {
+  const match = value.trim().match(/^(?:venda\s+)?(\d+)\s+(\d+)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const optionNumber = Number(match[1]);
+  const quantity = Number(match[2]);
+  return Number.isInteger(optionNumber) &&
+    optionNumber > 0 &&
+    Number.isInteger(quantity) &&
+    quantity > 0
+    ? { optionNumber, quantity }
+    : null;
 }
 
 function parsePriceType(value: string): SalePriceType | null {
@@ -771,32 +1021,148 @@ function isNewOperationCommand(normalizedBody: string): boolean {
   return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
-function applyPriceTypeToSession(
+function appendPricedItemToSession(
   session: SaleSession,
   priceType: SalePriceType
 ): SaleSession {
   const unitPrice = priceType === 'À vista' ? session.cashPrice : session.creditPrice;
-
-  return {
-    ...session,
+  const newItem: SaleItem = {
+    productId: session.productId,
+    reference: session.reference,
+    description: session.description,
+    quantity: session.quantity,
+    cashPrice: session.cashPrice,
+    creditPrice: session.creditPrice,
     priceType,
     unitPrice,
     totalValue: calculateSaleTotal(session.quantity, unitPrice),
   };
+  const items = [...getExplicitSaleItems(session), newItem];
+  const originalTotalInCents = items.reduce(
+    (total, item) => total + Math.round(item.totalValue * 100),
+    0
+  );
+  const discountInCents = session.discountPercent
+    ? Math.round(originalTotalInCents * session.discountPercent / 100)
+    : 0;
+  const totalValue = (originalTotalInCents - discountInCents) / 100;
+  const sharedPriceType = items.every((item) => item.priceType === items[0]?.priceType)
+    ? items[0]?.priceType
+    : undefined;
+
+  return {
+    ...session,
+    items,
+    priceType: sharedPriceType,
+    unitPrice,
+    totalValue,
+    originalTotalValue: session.discountPercent ? originalTotalInCents / 100 : undefined,
+  };
+}
+
+function getExplicitSaleItems(session: SaleSession): SaleItem[] {
+  return session.items ? session.items.map((item) => ({ ...item })) : [];
+}
+
+function getSaleItems(session: SaleSession): SaleItem[] {
+  const items = getExplicitSaleItems(session);
+  if (items.length > 0) {
+    return items;
+  }
+
+  if (session.unitPrice === undefined || session.totalValue === undefined) {
+    return [];
+  }
+
+  const priceType = session.priceType ??
+    (session.unitPrice === session.creditPrice ? 'A prazo' : 'À vista');
+  const baseTotalValue = session.originalTotalValue ?? session.totalValue;
+  return [{
+    productId: session.productId,
+    reference: session.reference,
+    description: session.description,
+    quantity: session.quantity,
+    cashPrice: session.cashPrice,
+    creditPrice: session.creditPrice,
+    priceType,
+    unitPrice: baseTotalValue / session.quantity,
+    totalValue: baseTotalValue,
+  }];
+}
+
+function getReservedQuantity(items: SaleItem[], productId: string): number {
+  return items
+    .filter((item) => item.productId === productId)
+    .reduce((total, item) => total + item.quantity, 0);
+}
+
+function adjustAvailableProductsForCart(
+  products: QueriedProduct[],
+  items: SaleItem[]
+): QueriedProduct[] {
+  return products
+    .map((product) => ({
+      ...product,
+      stock: Math.max(0, product.stock - getReservedQuantity(items, product.id)),
+    }))
+    .filter((product) => product.stock > 0);
+}
+
+function buildPersistenceItems(session: SaleSession): Array<{
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+  totalValue: number;
+}> {
+  const items = getSaleItems(session);
+  const baseTotalsInCents = items.map((item) => Math.round(item.totalValue * 100));
+  const allocatedTotalsInCents = allocateAmountByWeights(
+    Math.round((session.totalValue ?? 0) * 100),
+    baseTotalsInCents
+  );
+
+  return items.map((item, index) => {
+    const totalValue = allocatedTotalsInCents[index]! / 100;
+    return {
+      productId: item.productId,
+      quantity: item.quantity,
+      unitPrice: totalValue / item.quantity,
+      totalValue,
+    };
+  });
 }
 
 function formatPaymentMenu(session?: SaleSession): string {
   const discountApplied = Boolean(session?.discountPercent && session.totalValue !== undefined);
   const selectedPrice = Boolean(session?.priceType && session.totalValue !== undefined);
+  const items = session ? getSaleItems(session) : [];
+  const multipleItems = items.length > 1;
   return [
-    ...(selectedPrice
+    ...(multipleItems && session
+      ? [
+          '🛒 *RESUMO DA COMPRA*',
+          '',
+          ...formatCartItemLines(items),
+          '',
+          ...(discountApplied
+            ? [
+                `Subtotal: ${formatCurrency(session.originalTotalValue ?? 0)}`,
+                `Desconto de ${session.discountPercent}%: -${formatCurrency(
+                  (session.originalTotalValue ?? 0) - (session.totalValue ?? 0)
+                )}`,
+              ]
+            : []),
+          `💰 ${discountApplied ? 'Total com desconto' : 'Total'}: *${formatCurrency(session.totalValue ?? 0)}*`,
+          '',
+        ]
+      : selectedPrice
       ? [
           `Valor selecionado: *${session!.priceType}*`,
           `💰 ${discountApplied ? 'Total com desconto' : 'Total'}: *${formatCurrency(session!.totalValue!)}*`,
           '',
         ]
       : []),
-    'Forma de pagamento?',
+    '*FORMAS DE PAGAMENTO E OUTRAS OPÇÕES*',
     '',
     '1️⃣ *Dinheiro*',
     '2️⃣ *PIX*',
@@ -804,11 +1170,20 @@ function formatPaymentMenu(session?: SaleSession): string {
     '4️⃣ *Nota*',
     '5️⃣ *Pagamento misto*',
     `6️⃣ *Desconto de ${DISCOUNT_PERCENT}%*${discountApplied ? ' — já aplicado' : ''}`,
+    '7️⃣ *Adicionar outro pneu*',
   ].join('\n');
 }
 
 function formatPriceTypeQuestion(session: SaleSession): string {
   return [
+    ...(getExplicitSaleItems(session).length > 0
+      ? [
+          '➕ *NOVO ITEM*',
+          `${session.reference} — ${session.description}`,
+          `Quantidade: ${session.quantity}`,
+          '',
+        ]
+      : []),
     'Usar valor à vista ou a prazo?',
     '',
     `1️⃣ *À vista* — ${formatCurrency(calculateSaleTotal(session.quantity, session.cashPrice))}`,
@@ -816,13 +1191,49 @@ function formatPriceTypeQuestion(session: SaleSession): string {
   ].join('\n');
 }
 
+function formatAdditionalMeasureQuestion(session: SaleSession): string {
+  return [
+    '➕ *ADICIONAR OUTRO PNEU*',
+    '',
+    `Itens já adicionados: ${getSaleItems(session).length}`,
+    `Total atual: *${formatCurrency(session.totalValue ?? 0)}*`,
+    '',
+    'Digite a nova medida.',
+    'Exemplo: 275 80 22.5',
+  ].join('\n');
+}
+
+export function formatCityHallQuestion(): string {
+  return [
+    'Essa nota é para uma prefeitura (de Congo ou de outra cidade)?',
+    '',
+    'Digite *s* para sim ou *n* para não.',
+  ].join('\n');
+}
+
+function formatInvoiceLines(session: SaleSession): string[] {
+  if (!session.invoiceName) {
+    return [];
+  }
+
+  return [
+    session.isCityHallSale
+      ? 'Destino da nota: Prefeitura (sem comissão)'
+      : 'Destino da nota: Cliente (com comissão)',
+    `Nome da nota: ${session.invoiceName}`,
+  ];
+}
+
 function formatDiscountPreview(session: SaleSession): string {
   const originalTotal = session.originalTotalValue ?? 0;
   const discountValue = originalTotal - (session.totalValue ?? 0);
+  const multipleItems = getSaleItems(session).length > 1;
   return [
     '🏷️ *APLICAR DESCONTO?*',
     '',
-    `Valor ${session.priceType?.toLowerCase()}: ${formatCurrency(originalTotal)}`,
+    multipleItems
+      ? `Subtotal da compra: ${formatCurrency(originalTotal)}`
+      : `Valor ${session.priceType?.toLowerCase()}: ${formatCurrency(originalTotal)}`,
     `Desconto de ${session.discountPercent}%: -${formatCurrency(discountValue)}`,
     '',
     `💰 Novo total: *${formatCurrency(session.totalValue ?? 0)}*`,
@@ -832,6 +1243,25 @@ function formatDiscountPreview(session: SaleSession): string {
 }
 
 export function formatSaleConfirmation(session: SaleSession): string {
+  const items = getSaleItems(session);
+  if (items.length > 1) {
+    return [
+      '⚠️ *CONFIRMAR VENDA?*',
+      '',
+      '🛒 *ITENS DA COMPRA*',
+      '',
+      ...formatCartItemLines(items),
+      '',
+      ...formatConfirmationPaymentLines(session),
+      ...formatDiscountLines(session, true),
+      ...formatInvoiceLines(session),
+      '',
+      `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
+      '',
+      'Digite: confirmar ou cancelar',
+    ].join('\n');
+  }
+
   return [
     '⚠️ *CONFIRMAR VENDA?*',
     '',
@@ -839,7 +1269,7 @@ export function formatSaleConfirmation(session: SaleSession): string {
     formatSaleItemLine(session, false),
     ...formatConfirmationPaymentLines(session),
     ...formatDiscountLines(session, true),
-    ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
+    ...formatInvoiceLines(session),
     '',
     `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
@@ -851,8 +1281,20 @@ export function formatRegisteredSale(
   session: SaleSession,
   movementCode: string,
   sellerName: string,
-  currentStock: number
+  currentStock: number,
+  registeredItems?: RegisteredSaleItem[]
 ): string {
+  const items = getSaleItems(session);
+  if (items.length > 1) {
+    return formatRegisteredMultiItemSale(
+      '✅ *VENDA REGISTRADA*',
+      session,
+      movementCode,
+      sellerName,
+      registeredItems ?? []
+    );
+  }
+
   return [
     '✅ *VENDA REGISTRADA*',
     '',
@@ -860,7 +1302,7 @@ export function formatRegisteredSale(
     formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
     ...formatDiscountLines(session, false),
-    ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
+    ...formatInvoiceLines(session),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',
@@ -874,8 +1316,20 @@ export function formatBossSaleNotification(
   session: SaleSession,
   movementCode: string,
   sellerName: string,
-  currentStock: number
+  currentStock: number,
+  registeredItems?: RegisteredSaleItem[]
 ): string {
+  const items = getSaleItems(session);
+  if (items.length > 1) {
+    return formatRegisteredMultiItemSale(
+      '🔔 *NOVA VENDA*',
+      session,
+      movementCode,
+      sellerName,
+      registeredItems ?? []
+    );
+  }
+
   return [
     '🔔 *NOVA VENDA*',
     '',
@@ -883,7 +1337,7 @@ export function formatBossSaleNotification(
     formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
     ...formatDiscountLines(session, false),
-    ...(session.invoiceName ? [`Nome da nota: ${session.invoiceName}`] : []),
+    ...formatInvoiceLines(session),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',
@@ -891,6 +1345,56 @@ export function formatBossSaleNotification(
     `Movimentação: ${movementCode}`,
     `Vendedor: ${sellerName}`,
   ].join('\n');
+}
+
+function formatCartItemLines(items: SaleItem[]): string[] {
+  return items.flatMap((item, index) => [
+    `${index + 1}. *${item.reference}* — *${item.description}*`,
+    `   *${item.quantity} un.* × ${formatCurrency(item.unitPrice)} = *${formatCurrency(item.totalValue)}* | ${item.priceType}`,
+  ]);
+}
+
+function formatRegisteredMultiItemSale(
+  title: string,
+  session: SaleSession,
+  saleGroupCode: string,
+  sellerName: string,
+  registeredItems: RegisteredSaleItem[]
+): string {
+  const items = getSaleItems(session);
+  return [
+    title,
+    '',
+    '🛒 *ITENS DA COMPRA*',
+    '',
+    ...formatCartItemLines(items),
+    '',
+    ...formatPaymentLines(session),
+    ...formatDiscountLines(session, false),
+    ...formatInvoiceLines(session),
+    '',
+    `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
+    '',
+    '📦 *ESTOQUE APÓS A VENDA*',
+    ...items.map((item) =>
+      `${item.reference} — ${findFinalRegisteredStock(registeredItems, item.productId) ?? 'confirmado'}`
+    ),
+    `Compra: ${saleGroupCode}`,
+    ...(registeredItems.length > 1
+      ? [`Movimentações: ${registeredItems.map((item) => item.movementCode).join(', ')}`]
+      : []),
+    `Vendedor: ${sellerName}`,
+  ].join('\n');
+}
+
+function findFinalRegisteredStock(
+  registeredItems: RegisteredSaleItem[],
+  productId: string
+): number | undefined {
+  return [...registeredItems]
+    .reverse()
+    .find((item) => item.productId === productId)
+    ?.currentStock;
 }
 
 async function getSellerName(message: Message, fallback: string): Promise<string> {
