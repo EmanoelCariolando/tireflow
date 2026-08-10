@@ -59,6 +59,7 @@ import {
 import { isCancellationResponse } from '../utils/operationResponse.js';
 import { getSaleSession } from '../utils/saleSessionStore.js';
 import { getEntrySession } from '../utils/entrySessionStore.js';
+import { handleProductActionConversation } from '../commands/productActionCommand.js';
 
 /**
  * Message Handler (Fase 3)
@@ -174,6 +175,10 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   }
 
   if (await handleSaleConversation(message, body)) {
+    return;
+  }
+
+  if (await handleProductActionConversation(message, body)) {
     return;
   }
 

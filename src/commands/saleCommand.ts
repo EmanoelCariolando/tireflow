@@ -581,7 +581,7 @@ async function startMixedAmountStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatMixedAmountQuestion(totalValue, session.mixedAmountMethod!));
+  await message.reply(formatMixedAmountQuestion(session.mixedAmountMethod!));
 }
 
 async function handleMixedAmountStep(
@@ -1182,10 +1182,7 @@ function formatPriceTypeQuestion(session: SaleSession): string {
           '➕ *NOVO ITEM*',
         ]
       : []),
-    '💰 *VALOR DA VENDA*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    `📦 Quantidade: *${session.quantity}*`,
+    '💰 *ESCOLHA O VALOR*',
     '',
     `1️⃣ 💰 À vista: *${formatCurrency(calculateSaleTotal(session.quantity, session.cashPrice))}*`,
     `2️⃣ 💳 A prazo: *${formatCurrency(calculateSaleTotal(session.quantity, session.creditPrice))}*`,
@@ -1412,15 +1409,12 @@ async function getSellerName(message: Message, fallback: string): Promise<string
   }
 }
 
-function formatMixedAmountQuestion(
-  totalValue: number,
-  paymentMethod: MixedPaymentMethod
-): string {
+function formatMixedAmountQuestion(paymentMethod: MixedPaymentMethod): string {
   return [
     '💳 *PAGAMENTO MISTO*',
     '',
-    `Total: *${formatCurrency(totalValue)}*`,
-    `Quanto foi pago em *${paymentMethod}*? Ex.: *100,00*`,
+    `Quanto foi pago em *${paymentMethod}*?`,
+    'Ex.: 100,00',
   ].join('\n');
 }
 

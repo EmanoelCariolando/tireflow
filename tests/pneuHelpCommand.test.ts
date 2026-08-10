@@ -9,6 +9,7 @@ import {
   isStandaloneTireSizeCommand,
   isTireSizeLikeCommand,
   formatResolvedReferenceNotice,
+  formatProductChoiceQuestion,
   handleLegacyPneuCommandNotice,
 } from '../src/commands/pneuCommand.js';
 import {
@@ -22,6 +23,10 @@ import {
   rankReferenceSuggestions,
 } from '../src/services/productService.js';
 import { normalizeTireSize } from '../src/utils/normalizeTireSize.js';
+import {
+  clearProductActionSession,
+  getProductActionSession,
+} from '../src/utils/productActionSessionStore.js';
 
 test('accepts both pneu and pneus as the tire command help', () => {
   assert.equal(isPneuHelpCommand('pneu'), true);
@@ -135,6 +140,9 @@ test('explains foto and addfoto in the tire command help', async () => {
   assert.match(replyText, /consultar pneus com estoque[\s\S]*\*175 70 14\*/);
   assert.match(replyText, /\*zero 175 70 14\*/);
   assert.doesNotMatch(replyText, /pneu <medida>/);
+  assert.match(replyText, /Escolha o pneu pelo número/);
+  assert.match(replyText, /Escolha o que deseja fazer/);
+  assert.match(replyText, /ATALHOS \(OPCIONAL\)/);
   assert.match(replyText, /O número corresponde ao item da última consulta/);
 });
 
@@ -190,6 +198,48 @@ test('zero query lists and caches only products without stock', async () => {
     );
   } finally {
     mutableRepository.findActiveByReferences = originalFindActiveByReferences;
+    clearLastQuery(userId, chatId);
+  }
+});
+
+test('sends the product choice instruction separately after an available-stock query', async () => {
+  const userId = 'available-query-user';
+  const chatId = 'available-query-chat@g.us';
+  const replies: string[] = [];
+  const mutableRepository = productRepository as unknown as {
+    findAvailableByReferences: (references: string[]) => Promise<Array<Record<string, unknown>>>;
+  };
+  const originalFindAvailableByReferences = mutableRepository.findAvailableByReferences;
+
+  mutableRepository.findAvailableByReferences = async () => [{
+    id: 'available-product',
+    reference: '175/75 R13',
+    description: 'PNEU DISPONÍVEL',
+    stock: 4,
+    stockLocation: null,
+    cashPrice: 300,
+    creditPrice: 320,
+    imagePath: null,
+  }];
+
+  try {
+    const message = {
+      author: userId,
+      from: chatId,
+      reply: async (text: string) => {
+        replies.push(text);
+      },
+    } as unknown as Message;
+
+    await handlePneuCommand(message, '175 75 13');
+
+    assert.equal(replies.length, 2);
+    assert.match(replies[0] ?? '', /PNEU DISPONÍVEL/);
+    assert.equal(replies[1], formatProductChoiceQuestion());
+    assert.equal(getProductActionSession(userId, chatId)?.step, 'awaiting_product');
+  } finally {
+    mutableRepository.findAvailableByReferences = originalFindAvailableByReferences;
+    clearProductActionSession(userId, chatId);
     clearLastQuery(userId, chatId);
   }
 });

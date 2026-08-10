@@ -21,6 +21,7 @@ import {
   getProductRegistrationSession,
   hasExpiredProductRegistrationSession,
 } from './productRegistrationSessionStore.js';
+import { clearProductActionSession } from './productActionSessionStore.js';
 
 export function hasActiveOperationSession(userId: string, chatId: string): boolean {
   return Boolean(
@@ -35,6 +36,7 @@ export function hasActiveOperationSession(userId: string, chatId: string): boole
 }
 
 export function clearAllOperationSessions(userId: string, chatId: string): void {
+  clearProductActionSession(userId, chatId);
   clearSaleSession(userId, chatId);
   clearEntrySession(userId, chatId);
   clearAdjustmentSession(userId, chatId);

@@ -11,6 +11,8 @@ import {
   findSuggestedActiveReferences,
 } from '../services/productService.js';
 import env from '../config/env.js';
+import { clearMenuSession } from '../utils/menuSessionStore.js';
+import { saveProductActionSession } from '../utils/productActionSessionStore.js';
 
 /**
  * Pneu Command - Fase 6 (Consulta real no banco)
@@ -19,7 +21,7 @@ import env from '../config/env.js';
  * - Detect a standalone tire size
  * - Normalize the tire size (175/70 R14 etc.)
  * - Return a numbered list of active matching products with stock
- * - Save the last query in memory for 5 minutes (per SPEC)
+ * - Save the last query in memory for 9 minutes
  * 
  * Does NOT start any sale/operation by itself.
  * Sale is handled by saleCommand.
@@ -59,6 +61,13 @@ export function formatProductList(
   }
 
   return text;
+}
+
+export function formatProductChoiceQuestion(): string {
+  return [
+    '*ESCOLHA UM PNEU 🛞*',
+    '*Digite o número do pneu:*',
+  ].join('\n');
 }
 
 export function isPneuHelpCommand(body: string): boolean {
@@ -144,7 +153,11 @@ export function formatPneuHelp(
     '⚠️ *zero <medida>* — consultar somente os zerados',
     'Ex.: *zero 175 70 14*',
     '',
-    'Após consultar, use o número do item:',
+    'Após consultar:',
+    '1️⃣ Escolha o pneu pelo número',
+    '2️⃣ Escolha o que deseja fazer',
+    '',
+    '⚡ *ATALHOS (OPCIONAL)*',
     '🛒 *venda 1 2* — vender 2 unidades',
     '📦 *entrada 1* — repor estoque',
     '🧮 *ajuste 1* — corrigir estoque',
@@ -223,7 +236,7 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
       return;
     }
 
-    // Save last consultation (5 minute TTL) - required for indexed commands
+    // Save last consultation (9 minute TTL) - required for indexed commands
     saveLastQuery(userId, chatId, normalized, matches);
 
     const referenceNotice = formatResolvedReferenceNotice(normalized, matches);
@@ -232,6 +245,9 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
       formatProductList(matches, normalized);
     const replyStartedAt = Date.now();
     await message.reply(response);
+    clearMenuSession(userId, chatId);
+    saveProductActionSession(userId, chatId, 'awaiting_product');
+    await message.reply(formatProductChoiceQuestion());
     const replyMs = Date.now() - replyStartedAt;
 
     console.log(

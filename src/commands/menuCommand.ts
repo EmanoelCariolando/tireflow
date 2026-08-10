@@ -67,7 +67,10 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
 }
 
 export async function handleMenuCommand(message: Message): Promise<void> {
-  saveMenuSession(getMessageUserId(message), getMessageChatId(message));
+  const userId = getMessageUserId(message);
+  const chatId = getMessageChatId(message);
+  clearAllOperationSessions(userId, chatId);
+  saveMenuSession(userId, chatId);
   await message.reply(MENU_TEXT);
 }
 

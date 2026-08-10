@@ -1,7 +1,7 @@
 /**
  * In-memory store for the last tire consultation per user.
  * 
- * Fase 2: Save last query for 5 minutes to support indexed selection (e.g. venda 1 5).
+ * Fase 2: Save last query for 9 minutes to support indexed selection (e.g. venda 1 5).
  * 
  * This will be used in Fase 3, but the storage mechanism is part of Fase 2.
  */
@@ -27,7 +27,7 @@ interface StoredQuery {
 
 const lastQueries = new Map<string, StoredQuery>();
 
-const TTL_MS = 5 * 60 * 1000; // 5 minutes
+export const LAST_QUERY_TTL_MS = 9 * 60 * 1000;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;
@@ -52,7 +52,7 @@ export function saveLastQuery(
 }
 
 /**
- * Get the last query if it is still valid (< 5 minutes old).
+ * Get the last query if it is still valid (< 9 minutes old).
  * Automatically removes expired entries.
  */
 export function getLastQuery(userId: string, chatId: string): {
@@ -63,7 +63,7 @@ export function getLastQuery(userId: string, chatId: string): {
   const stored = lastQueries.get(key);
   if (!stored) return null;
 
-  if (Date.now() - stored.timestamp > TTL_MS) {
+  if (Date.now() - stored.timestamp > LAST_QUERY_TTL_MS) {
     lastQueries.delete(key);
     return null;
   }
@@ -97,7 +97,7 @@ export function updateLastQueryProductLocation(
   const key = buildKey(userId, chatId);
   const stored = lastQueries.get(key);
 
-  if (!stored || Date.now() - stored.timestamp > TTL_MS) {
+  if (!stored || Date.now() - stored.timestamp > LAST_QUERY_TTL_MS) {
     lastQueries.delete(key);
     return;
   }
