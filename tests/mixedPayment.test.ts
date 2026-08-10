@@ -105,7 +105,7 @@ test('requires PIX and cash receipts for Dinheiro + PIX', async () => {
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_mixed_methods');
 
   await handleSaleConversation(createMessage(ids, replies), '1 2 3');
-  assert.match(replies.at(-1) ?? '', /Exemplo: 1 e 2/);
+  assert.match(replies.at(-1) ?? '', /Ex\.: \*1 e 2\*/);
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_mixed_methods');
 
   await handleSaleConversation(createMessage(ids, replies), '1 e 2');
@@ -113,12 +113,12 @@ test('requires PIX and cash receipts for Dinheiro + PIX', async () => {
   assert.equal(amountSession?.step, 'awaiting_mixed_amount');
   assert.equal(amountSession?.totalValue, 500);
   assert.equal(amountSession?.mixedAmountMethod, 'PIX');
-  assert.match(replies.at(-1) ?? '', /Quanto foi pago em PIX/);
+  assert.match(replies.at(-1) ?? '', /Quanto foi pago em \*PIX\*/);
 
   for (const invalidAmount of ['0', '500,00', '600,00', 'valor']) {
     await handleSaleConversation(createMessage(ids, replies), invalidAmount);
     assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_mixed_amount');
-    assert.match(replies.at(-1) ?? '', /Exemplo: 100,00/);
+    assert.match(replies.at(-1) ?? '', /Ex\.: \*100,00\*/);
   }
 
   await handleSaleConversation(createMessage(ids, replies), '300,00');
@@ -129,7 +129,7 @@ test('requires PIX and cash receipts for Dinheiro + PIX', async () => {
     { method: 'PIX', amount: 300 },
     { method: 'Dinheiro', amount: 200 },
   ]);
-  assert.match(replies.at(-1) ?? '', /comprovante do PIX/);
+  assert.match(replies.at(-1) ?? '', /COMPROVANTE — PIX/);
 
   await handleSaleConversation(createMessage(ids, replies, 'pix-receipt'), '');
   assert.deepEqual(
@@ -170,7 +170,7 @@ test('requires PIX and card receipts in sequence for PIX + Cartão', async () =>
     getSaleSession(ids.userId, ids.chatId)?.pendingReceiptMethods,
     ['Cartão']
   );
-  assert.match(replies.at(-1) ?? '', /comprovante do cartão/);
+  assert.match(replies.at(-1) ?? '', /COMPROVANTE — CARTÃO/);
 
   await handleSaleConversation(createMessage(ids, replies, 'pix-card-card'), '');
   const confirmationSession = getSaleSession(ids.userId, ids.chatId);
@@ -199,7 +199,7 @@ test('requires card and cash receipts for Dinheiro + Cartão', async () => {
     { method: 'Dinheiro', amount: 350 },
   ]);
   assert.deepEqual(receiptSession?.pendingReceiptMethods, ['Cartão', 'Dinheiro']);
-  assert.match(replies.at(-1) ?? '', /comprovante do cartão/);
+  assert.match(replies.at(-1) ?? '', /COMPROVANTE — CARTÃO/);
 
   await handleSaleConversation(createMessage(ids, replies, 'cash-card-card'), '');
   assert.deepEqual(

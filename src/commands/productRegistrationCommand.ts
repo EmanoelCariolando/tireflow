@@ -36,12 +36,12 @@ export async function handleProductRegistrationStart(message: Message): Promise<
   const chatId = getMessageChatId(message);
 
   if (hasExpiredProductRegistrationSession(userId, chatId)) {
-    await message.reply('⏳ O cadastro anterior foi cancelado por inatividade. Inicie novamente pela opção 4 do menu.');
+    await message.reply('⌛ *CADASTRO EXPIRADO*\nAbra o menu e escolha *4* para recomeçar.');
     return;
   }
 
   if (hasActiveOperationSession(userId, chatId)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -63,7 +63,7 @@ export async function handleProductRegistrationConversation(
   const chatId = getMessageChatId(message);
 
   if (hasExpiredProductRegistrationSession(userId, chatId)) {
-    await message.reply('⏳ Cadastro cancelado por inatividade. Abra o menu e escolha a opção 4 para começar novamente.');
+    await message.reply('⌛ *CADASTRO EXPIRADO*\nAbra o menu e escolha *4* para recomeçar.');
     return true;
   }
 
@@ -77,13 +77,13 @@ export async function handleProductRegistrationConversation(
 
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
-    await message.reply('❌ Cadastro de pneu cancelado. Nenhuma informação foi salva.');
+    await message.reply('❌ *CADASTRO CANCELADO*\nNenhuma informação foi salva.');
     return true;
   }
 
   if (isNewOperationCommand(normalizedBody)) {
     await message.reply(
-      '⚠️ Existe um cadastro de pneu em andamento.\n\nContinue respondendo à pergunta atual ou digite: cancelar'
+      '⚠️ *CADASTRO EM ANDAMENTO*\nResponda à pergunta atual ou digite *cancelar*.'
     );
     return true;
   }
@@ -111,7 +111,7 @@ export async function handleProductRegistrationConversation(
       await handleConfirmationStep(message, session, normalizedBody);
       return true;
     case 'processing':
-      await message.reply('⏳ Cadastro em processamento. Aguarde um instante.');
+      await message.reply('⏳ *CADASTRANDO PNEU...*');
       return true;
   }
 }
@@ -128,15 +128,10 @@ async function handleMeasureStep(
       [
         '❌ *MEDIDA INVÁLIDA*',
         '',
-        'Digite somente a medida, sem marca, modelo, LT, índice de carga ou quantidade de lonas.',
+        'Digite só a medida, sem marca/modelo ou especificações.',
+        'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*',
         '',
-        'Exemplos aceitos:',
-        '• Carro: 175/70 R14 ou 175 70 14',
-        '• Moto: 110/90-17 ou 110 90 17',
-        '• Agrícola: 18.4/30 ou 18,4-30',
-        '• Americana: 31x10.50R15',
-        '',
-        'Tente novamente ou digite: cancelar',
+        'Tente novamente ou digite *cancelar*.',
       ].join('\n')
     );
     return;
@@ -164,12 +159,9 @@ async function handleDescriptionStep(
       [
         '❌ *DESCRIÇÃO INVÁLIDA*',
         '',
-        `Digite de 2 a ${MAX_TEXT_LENGTH} caracteres com a marca e o modelo do pneu.`,
-        'Exemplos:',
-        '• PIRELLI MT60 TRASEIRO 60P',
-        '• SPEEDMAXII R-2 10 LONAS',
-        '',
-        'Tente novamente ou digite: cancelar',
+        `Informe marca/modelo em 2 a ${MAX_TEXT_LENGTH} caracteres.`,
+        'Ex.: *PIRELLI MT60 TRASEIRO 60P*',
+        'Tente novamente ou digite *cancelar*.',
       ].join('\n')
     );
     return;
@@ -184,16 +176,10 @@ async function handleDescriptionStep(
 
   await message.reply(
     [
-      '📦 *ESTOQUE INICIAL*',
+      '📦 *CADASTRO — ESTOQUE INICIAL*',
       '',
-      'Quantas unidades deste pneu existem agora?',
-      'Digite somente um número inteiro, sem sinal.',
-      '',
-      'Exemplos:',
-      '• Digite 0 se ainda não recebeu o pneu',
-      '• Digite 4 se já possui quatro unidades',
-      '',
-      'Digite: cancelar para sair',
+      'Digite a quantidade atual. Ex.: *0* ou *4*',
+      'Para sair: *cancelar*',
     ].join('\n')
   );
 }
@@ -207,7 +193,7 @@ async function handleInitialStockStep(
 
   if (initialStock === null) {
     await message.reply(
-      '❌ Estoque inválido.\n\nDigite somente um número inteiro igual ou maior que zero.\nExemplos: 0, 1 ou 20'
+      '❌ Estoque inválido. Digite um inteiro maior ou igual a zero. Ex.: *0*, *1* ou *20*'
     );
     return;
   }
@@ -223,14 +209,10 @@ async function handleInitialStockStep(
   if (initialStock > 0) {
     await message.reply(
       [
-        '🚚 *FORNECEDOR DO ESTOQUE INICIAL*',
+        '🚚 *CADASTRO — FORNECEDOR*',
         '',
-        'Digite o nome do fornecedor das unidades que estão entrando no estoque.',
-        'Essa informação ficará registrada no histórico da entrada.',
-        '',
-        'Exemplo: JTR Pneus',
-        '',
-        'Digite: cancelar para sair',
+        'Informe o fornecedor. Ex.: *JTR Pneus*',
+        'Para sair: *cancelar*',
       ].join('\n')
     );
     return;
@@ -248,7 +230,7 @@ async function handleSupplierStep(
 
   if (!supplier) {
     await message.reply(
-      `❌ Fornecedor inválido.\n\nDigite um nome de 2 a ${MAX_TEXT_LENGTH} caracteres.\nExemplo: JTR Pneus`
+      `❌ Fornecedor inválido. Use de 2 a ${MAX_TEXT_LENGTH} caracteres. Ex.: *JTR Pneus*`
     );
     return;
   }
@@ -287,15 +269,11 @@ async function handleCashPriceStep(
   if (env.inventoryLocationsEnabled) {
     await message.reply(
       [
-        '📍 *LOCAL DO ESTOQUE*',
+        '📍 *CADASTRO — LOCAL*',
         '',
-        'Digite o código do local físico onde o pneu ficará guardado.',
-        'Use de 1 a 20 letras ou números, sem espaços.',
-        '',
-        'Exemplos: CG, W3 ou PMAIS',
-        'Se ainda não souber o local, digite: pular',
-        '',
-        'Digite: cancelar para sair',
+        'Use 1 a 20 letras/números, sem espaços.',
+        'Ex.: *CG*, *W3* ou *PMAIS*',
+        'Sem local definido: *pular* | Sair: *cancelar*',
       ].join('\n')
     );
     return;
@@ -317,10 +295,8 @@ async function handleLocationStep(
       [
         '❌ *LOCAL INVÁLIDO*',
         '',
-        'Use de 1 a 20 letras ou números, sem espaços.',
-        'Exemplos: CG, W3 ou PMAIS',
-        '',
-        'Se ainda não souber o local, digite: pular',
+        'Use 1 a 20 letras/números, sem espaços.',
+        'Ex.: *CG*, *W3*, *PMAIS* ou *pular*',
       ].join('\n')
     );
     return;
@@ -343,7 +319,7 @@ async function handleConfirmationStep(
 ): Promise<void> {
   if (!isConfirmationResponse(normalizedBody)) {
     await message.reply(
-      'Para salvar exatamente os dados mostrados, digite: confirmar\n\nPara sair sem salvar, digite: cancelar'
+      'Responda: *confirmar* para salvar ou *cancelar* para sair.'
     );
     return;
   }
@@ -469,81 +445,59 @@ export function formatProductRegistrationConfirmation(
   session: ProductRegistrationSession
 ): string {
   return [
-    '🧾 *REVISE O CADASTRO*',
+    '🧾 *CADASTRO — CONFIRMAR*',
     '',
-    `Medida: *${session.reference}*`,
-    `Descrição: *${session.description}*`,
-    `Estoque inicial: *${session.initialStock}*`,
+    `🛞 *${session.reference} — ${session.description}*`,
+    '',
+    `📦 Estoque inicial: *${session.initialStock}*`,
     ...(session.initialStock
-      ? [`Fornecedor: *${session.supplier}*`]
+      ? [`🚚 Fornecedor: *${session.supplier}*`]
       : []),
-    `Preço à vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
-    `Preço a prazo (+5,8%): *${formatCurrency(session.creditPrice ?? 0)}*`,
+    '',
+    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
+    `💳 A prazo (+5,8%): *${formatCurrency(session.creditPrice ?? 0)}*`,
     ...(env.inventoryLocationsEnabled
-      ? [`Local: *${session.stockLocation ?? 'não cadastrado'}*`]
+      ? ['', `📍 Local: *${session.stockLocation ?? 'não cadastrado'}*`]
       : []),
     '',
-    'Confira principalmente a medida, a descrição, o estoque e os preços.',
-    '',
-    'Para salvar, digite: confirmar',
-    'Para sair sem salvar, digite: cancelar',
+    'Responda: *confirmar* ou *cancelar*.',
   ].join('\n');
 }
 
 function formatMeasureQuestion(): string {
   return [
-    '🆕 *CADASTRO DE PNEU*',
+    '🆕 *CADASTRO — MEDIDA*',
     '',
-    '📏 *ETAPA: MEDIDA*',
+    'Digite apenas a medida, sem marca/modelo ou especificações.',
+    'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*',
     '',
-    'Digite somente a medida do pneu.',
-    'Não inclua marca, modelo, LT, índice de carga, velocidade ou quantidade de lonas.',
-    '',
-    'Exemplos:',
-    '• Carro: 175/70 R14',
-    '• Moto: 110/90-17 ou 110 90 17',
-    '• Agrícola: 18.4/30',
-    '• Americana: 31x10.50R15',
-    '',
-    'Você poderá revisar tudo antes de salvar.',
-    'Digite: cancelar para sair',
+    'Para sair: *cancelar*',
   ].join('\n');
 }
 
 function formatDescriptionQuestion(reference: string): string {
   return [
-    '🏷️ *ETAPA: DESCRIÇÃO*',
+    '🏷️ *CADASTRO — DESCRIÇÃO*',
     '',
-    `Medida identificada: *${reference}*`,
-    '',
-    'Digite a marca e o modelo que diferenciam este pneu dos outros da mesma medida.',
-    'Inclua informações úteis, como desenho, índice ou quantidade de lonas.',
-    '',
-    'Exemplos:',
-    '• PIRELLI MT60 TRASEIRO 60P',
-    '• SPEEDMAXII R-2 10 LONAS',
-    '',
-    'Não repita a medida na descrição.',
-    'Digite: cancelar para sair',
+    `Medida: *${reference}*`,
+    'Informe marca/modelo e detalhes úteis, sem repetir a medida.',
+    'Ex.: *PIRELLI MT60 TRASEIRO 60P*',
+    'Para sair: *cancelar*',
   ].join('\n');
 }
 
 function formatCashPriceQuestion(): string {
   return [
-    '💰 *PREÇO À VISTA*',
+    '💰 *CADASTRO — PREÇO À VISTA*',
     '',
-    'Digite o preço unitário à vista deste pneu.',
-    'O preço a prazo será calculado automaticamente com acréscimo de 5,8%.',
-    '',
-    'Exemplos aceitos: 899,90 | 899.90 | 899',
-    'Para um valor acima de mil: 1.299,90',
-    '',
-    'Digite: cancelar para sair',
+    'Digite o valor unitário. Ex.: *899,90* ou *1.299,90*',
+    '_O preço a prazo (+5,8%) será calculado automaticamente._',
+    'Para sair: *cancelar*',
   ].join('\n');
 }
 
 function formatInvalidPriceMessage(label: string, example: string): string {
-  return `❌ Preço ${label} inválido.\n\nDigite somente o valor, sem parcelas.\nExemplo: ${example}`;
+  return `❌ Preço ${label} inválido. Digite somente o valor. Ex.: *${example}*`;
 }
 
 function isCompleteSession(session: ProductRegistrationSession): session is ProductRegistrationSession & {
@@ -572,17 +526,18 @@ function formatRegisteredProduct(
   return [
     '✅ *PNEU CADASTRADO*',
     '',
-    `Medida: *${session.reference}*`,
-    `Descrição: *${session.description}*`,
-    `Estoque atual: *${session.initialStock}*`,
-    ...(movementCode ? [`Entrada inicial: *${movementCode}*`] : []),
-    `À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
-    `A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
+    `🛞 *${session.reference} — ${session.description}*`,
+    '',
+    `📦 Estoque inicial: *${session.initialStock}*`,
+    ...(movementCode ? [`🧾 Entrada inicial: *${movementCode}*`] : []),
+    '',
+    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
+    `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
     ...(env.inventoryLocationsEnabled
-      ? [`Local: *${session.stockLocation ?? 'não cadastrado'}*`]
+      ? [`📍 Local: *${session.stockLocation ?? 'não cadastrado'}*`]
       : []),
     '',
-    `Para consultar essa medida, digite: pneu ${session.reference}`,
+    `🔎 Consultar: *pneu ${session.reference}*`,
     ...(session.initialStock === 0
       ? ['', 'ℹ️ O pneu foi cadastrado, mas a consulta informará estoque zero até que seja feita uma entrada.']
       : []),
@@ -597,13 +552,14 @@ function formatBossProductRegistrationNotification(
   return [
     '🆕 *NOVO PNEU CADASTRADO*',
     '',
-    `Medida: ${session.reference}`,
-    `Descrição: ${session.description}`,
-    `Estoque inicial: ${session.initialStock}`,
-    ...(movementCode ? [`Entrada inicial: ${movementCode}`] : []),
-    `À vista: ${formatCurrency(session.cashPrice ?? 0)}`,
-    `A prazo: ${formatCurrency(session.creditPrice ?? 0)}`,
-    `Responsável: ${responsibleName}`,
+    `🛞 *${session.reference} — ${session.description}*`,
+    '',
+    `📦 Estoque inicial: *${session.initialStock}*`,
+    ...(movementCode ? [`🧾 Entrada inicial: *${movementCode}*`] : []),
+    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
+    `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
+    '',
+    `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
 

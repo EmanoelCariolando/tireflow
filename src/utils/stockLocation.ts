@@ -12,5 +12,5 @@ export function formatStockLocationLine(
   enabled = env.inventoryLocationsEnabled
 ): string | null {
   const normalized = normalizeStockLocation(stockLocation);
-  return enabled && normalized ? `📍 Local: ${normalized}` : null;
+  return enabled && normalized ? `📍 Local: *${normalized}*` : null;
 }

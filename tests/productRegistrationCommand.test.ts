@@ -64,8 +64,8 @@ test('guides a zero-stock registration through validation and confirmation', asy
     env.inventoryLocationsEnabled = false;
     await handleProductRegistrationStart(message);
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
-    assert.match(replies.at(-1) ?? '', /CADASTRO DE PNEU/);
-    assert.match(replies.at(-1) ?? '', /Moto: 110\/90-17 ou 110 90 17/);
+    assert.match(replies.at(-1) ?? '', /CADASTRO — MEDIDA/);
+    assert.match(replies.at(-1) ?? '', /110\/90-17/);
 
     await handleProductRegistrationConversation(message, 'medida errada');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
@@ -73,7 +73,7 @@ test('guides a zero-stock registration through validation and confirmation', asy
 
     await handleProductRegistrationConversation(message, '110 90 17');
     assert.equal(getProductRegistrationSession(userId, chatId)?.reference, '110/90 R17');
-    assert.match(replies.at(-1) ?? '', /ETAPA: DESCRIÇÃO/);
+    assert.match(replies.at(-1) ?? '', /CADASTRO — DESCRIÇÃO/);
 
     await handleProductRegistrationConversation(message, 'Pirelli MT60 traseiro 60P');
     assert.equal(
@@ -99,14 +99,14 @@ test('guides a zero-stock registration through validation and confirmation', asy
     const confirmationSession = getProductRegistrationSession(userId, chatId);
     assert.equal(confirmationSession?.step, 'awaiting_confirmation');
     assert.equal(confirmationSession?.stockLocation, null);
-    assert.match(replies.at(-1) ?? '', /REVISE O CADASTRO/);
+    assert.match(replies.at(-1) ?? '', /CADASTRO — CONFIRMAR/);
     assert.match(replies.at(-1) ?? '', /Estoque inicial: \*0\*/);
     assert.doesNotMatch(replies.at(-1) ?? '', /Fornecedor:/);
     assert.doesNotMatch(replies.at(-1) ?? '', /Local:/);
 
     await handleProductRegistrationConversation(message, 'sim');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_confirmation');
-    assert.match(replies.at(-1) ?? '', /digite: confirmar/i);
+    assert.match(replies.at(-1) ?? '', /\*confirmar\* para salvar/i);
 
     await handleProductRegistrationConversation(message, 'cancela');
     assert.equal(getProductRegistrationSession(userId, chatId), null);
@@ -131,7 +131,7 @@ test('requires a supplier for initial stock and allows an optional valid locatio
     await handleProductRegistrationConversation(message, 'Alliance Agri Nova 14 lonas');
     await handleProductRegistrationConversation(message, '2');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_supplier');
-    assert.match(replies.at(-1) ?? '', /FORNECEDOR DO ESTOQUE INICIAL/);
+    assert.match(replies.at(-1) ?? '', /CADASTRO — FORNECEDOR/);
 
     await handleProductRegistrationConversation(message, 'x');
     assert.match(replies.at(-1) ?? '', /Fornecedor inválido/);
@@ -153,7 +153,7 @@ test('requires a supplier for initial stock and allows an optional valid locatio
   }
 });
 
-test('shows product registration as menu option 4 and starts its isolated flow', async () => {
+test('shows product registration as menu option 3 and starts its isolated flow', async () => {
   const userId = 'new-product-menu-user';
   const chatId = 'new-product-menu-group@g.us';
   const replies: string[] = [];
@@ -161,12 +161,13 @@ test('shows product registration as menu option 4 and starts its isolated flow',
 
   try {
     await handleMenuCommand(message);
-    assert.match(replies.at(-1) ?? '', /4️⃣ Cadastrar pneu/);
-    assert.match(replies.at(-1) ?? '', /1, 2, 3 ou 4/);
+    assert.match(replies.at(-1) ?? '', /3️⃣ Cadastrar pneu/);
+    assert.doesNotMatch(replies.at(-1) ?? '', /Baixo estoque/);
+    assert.match(replies.at(-1) ?? '', /\*1\*, \*2\* ou \*3\*/);
 
-    assert.equal(await handleMenuSelection(message, '4'), true);
+    assert.equal(await handleMenuSelection(message, '3'), true);
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
-    assert.match(replies.at(-1) ?? '', /CADASTRO DE PNEU/);
+    assert.match(replies.at(-1) ?? '', /CADASTRO — MEDIDA/);
   } finally {
     clearProductRegistrationSession(userId, chatId);
   }

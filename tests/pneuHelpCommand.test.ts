@@ -6,12 +6,118 @@ import {
   handlePneuCommand,
   handlePneuHelpCommand,
   isPneuHelpCommand,
+  isStandaloneTireSizeCommand,
+  isTireSizeLikeCommand,
+  formatResolvedReferenceNotice,
+  handleLegacyPneuCommandNotice,
 } from '../src/commands/pneuCommand.js';
+import {
+  handleZeroStockCommand,
+  isZeroStockCommand,
+} from '../src/commands/menuCommand.js';
+import { productRepository } from '../src/repositories/productRepository.js';
+import { clearLastQuery, getLastQuery } from '../src/utils/lastQueryStore.js';
+import {
+  buildReferenceCandidates,
+  rankReferenceSuggestions,
+} from '../src/services/productService.js';
+import { normalizeTireSize } from '../src/utils/normalizeTireSize.js';
 
 test('accepts both pneu and pneus as the tire command help', () => {
   assert.equal(isPneuHelpCommand('pneu'), true);
   assert.equal(isPneuHelpCommand('PNEUS'), true);
   assert.equal(isPneuHelpCommand('pneu 175/70 R14'), false);
+});
+
+test('redirects the legacy pneu measure format to the standalone size', async () => {
+  let replyText = '';
+  const message = {
+    reply: async (text: string) => {
+      replyText = text;
+    },
+  } as unknown as Message;
+
+  await handleLegacyPneuCommandNotice(message);
+
+  assert.equal(
+    replyText,
+    'ℹ️ A consulta mudou. Agora, digite apenas a medida.\nEx.: *175 70 14*'
+  );
+});
+
+test('accepts a standalone tire size without treating ordinary messages as queries', () => {
+  assert.equal(isStandaloneTireSizeCommand('175 75 13'), true);
+  assert.equal(isStandaloneTireSizeCommand('175/75 R13'), true);
+  assert.equal(isStandaloneTireSizeCommand('pneu 175 75 13'), false);
+  assert.equal(isStandaloneTireSizeCommand('bom dia'), false);
+  assert.equal(isTireSizeLikeCommand('205 7 15'), true);
+  assert.equal(isTireSizeLikeCommand('175.70.14'), true);
+  assert.equal(isTireSizeLikeCommand('bom dia 205 70 15'), false);
+});
+
+test('recognizes the explicit zero-stock query', () => {
+  assert.equal(isZeroStockCommand('zero 175 75 13'), true);
+  assert.equal(isZeroStockCommand('ZERO 175/75 R13'), true);
+  assert.equal(isZeroStockCommand('zerado 175 75 13'), false);
+});
+
+test('a base metric size includes its C variant without broadening an explicit C query', () => {
+  const baseCandidates = buildReferenceCandidates('205/70 R15');
+  assert.ok(baseCandidates.includes('205/70 R15'));
+  assert.ok(baseCandidates.includes('205/70 R15C'));
+  assert.ok(baseCandidates.includes('205/70/15'));
+  assert.ok(baseCandidates.includes('205/70/15C'));
+
+  const commercialCandidates = buildReferenceCandidates('205/70 R15C');
+  assert.ok(commercialCandidates.includes('205/70 R15C'));
+  assert.equal(commercialCandidates.includes('205/70 R15'), false);
+});
+
+test('compact commercial sizes match their equivalent decimal notation', () => {
+  const compact = normalizeTireSize('1400 16');
+  assert.equal(compact, '1400/16');
+  assert.ok(buildReferenceCandidates(compact).includes('14.00/16'));
+  assert.ok(buildReferenceCandidates(compact).includes('14.00-16'));
+
+  const decimal = normalizeTireSize('14.00 16');
+  assert.equal(decimal, '14.00/16');
+  assert.ok(buildReferenceCandidates(decimal).includes('1400/16'));
+  assert.ok(buildReferenceCandidates(decimal).includes('1400-16'));
+
+  // A metric width must never be reinterpreted as a decimal commercial size.
+  assert.equal(buildReferenceCandidates('205/16').includes('2.05/16'), false);
+});
+
+test('ranks only close active-reference candidates and limits the result', () => {
+  const references = [
+    '205/70 R15',
+    '205/70 R15C',
+    '205/75 R15',
+    '205/70 R16',
+    '275/80 R22.5',
+  ];
+
+  assert.deepEqual(rankReferenceSuggestions('205 7 15', references), [
+    '205/70 R15',
+    '205/75 R15',
+    '205/70 R16',
+  ]);
+  assert.deepEqual(rankReferenceSuggestions('medida errada', references), []);
+});
+
+test('reports the registered reference when an equivalent spelling was used', () => {
+  const notice = formatResolvedReferenceNotice('1400/16', [
+    {
+      id: 'commercial-size',
+      reference: '14.00/16',
+      description: 'PNEU COMERCIAL',
+      stock: 1,
+      cashPrice: 1,
+      creditPrice: 1,
+    },
+  ]);
+
+  assert.equal(notice, '🔎 Medida encontrada como: *14.00/16*');
 });
 
 test('explains foto and addfoto in the tire command help', async () => {
@@ -24,10 +130,68 @@ test('explains foto and addfoto in the tire command help', async () => {
 
   await handlePneuHelpCommand(message);
 
-  assert.match(replyText, /foto <número>\n↳ Mostra a foto cadastrada/);
-  assert.match(replyText, /addfoto <número>\n↳ Adiciona uma foto ou substitui a foto atual/);
-  assert.match(replyText, /Depois do comando, envie a imagem solicitada/);
-  assert.match(replyText, /O número é a posição do produto na última consulta/);
+  assert.match(replyText, /\*foto 1\* — ver foto/);
+  assert.match(replyText, /\*addfoto 1\* — adicionar\/substituir foto/);
+  assert.match(replyText, /consultar pneus com estoque[\s\S]*\*175 70 14\*/);
+  assert.match(replyText, /\*zero 175 70 14\*/);
+  assert.doesNotMatch(replyText, /pneu <medida>/);
+  assert.match(replyText, /O número corresponde ao item da última consulta/);
+});
+
+test('zero query lists and caches only products without stock', async () => {
+  const userId = 'zero-query-user';
+  const chatId = 'zero-query-chat@g.us';
+  const replies: string[] = [];
+  const mutableRepository = productRepository as unknown as {
+    findActiveByReferences: (references: string[]) => Promise<Array<Record<string, unknown>>>;
+  };
+  const originalFindActiveByReferences = mutableRepository.findActiveByReferences;
+
+  mutableRepository.findActiveByReferences = async () => [
+    {
+      id: 'available-product',
+      reference: '175/75 R13',
+      description: 'PNEU COM ESTOQUE',
+      stock: 4,
+      stockLocation: null,
+      cashPrice: 300,
+      creditPrice: 320,
+      imagePath: null,
+    },
+    {
+      id: 'zero-product',
+      reference: '175/75 R13',
+      description: 'PNEU ZERADO',
+      stock: 0,
+      stockLocation: null,
+      cashPrice: 310,
+      creditPrice: 330,
+      imagePath: null,
+    },
+  ];
+
+  try {
+    const message = {
+      author: userId,
+      from: chatId,
+      reply: async (text: string) => {
+        replies.push(text);
+      },
+    } as unknown as Message;
+
+    await handleZeroStockCommand(message, 'zero 175 75 13');
+
+    assert.match(replies.at(-1) ?? '', /PNEU ZERADO/);
+    assert.doesNotMatch(replies.at(-1) ?? '', /PNEU COM ESTOQUE/);
+    assert.match(replies.at(-1) ?? '', /ESTOQUE ZERO — 1 modelo/);
+    assert.deepEqual(
+      getLastQuery(userId, chatId)?.products.map((product) => product.id),
+      ['zero-product']
+    );
+  } finally {
+    mutableRepository.findActiveByReferences = originalFindActiveByReferences;
+    clearLastQuery(userId, chatId);
+  }
 });
 
 test('lists every supported common format when the tire size is invalid', async () => {
@@ -40,20 +204,24 @@ test('lists every supported common format when the tire size is invalid', async 
     },
   } as unknown as Message;
 
-  await handlePneuCommand(message, '175.70.14');
+  const mutableRepository = productRepository as unknown as {
+    findDistinctActiveReferences: () => Promise<Array<{ reference: string }>>;
+  };
+  const originalFindDistinctActiveReferences = mutableRepository.findDistinctActiveReferences;
+  mutableRepository.findDistinctActiveReferences = async () => [
+    { reference: '175/70 R14' },
+    { reference: '165/70 R14' },
+  ];
 
-  assert.equal(
-    replyText,
-    [
-      'Medida inválida.',
-      '',
-      'Formas aceitas:',
-      '• pneu 175/70 R14',
-      '• pneu 175/70/14',
-      '• pneu 175 70 14',
-      '• pneu 175-70-14',
-    ].join('\n')
-  );
+  try {
+    await handlePneuCommand(message, '175.70.14');
+
+    assert.match(replyText, /Use uma destas formas:/);
+    assert.match(replyText, /Você quis dizer:\n• \*175\/70 R14\*/);
+    assert.match(replyText, /Digite novamente a medida correta/);
+  } finally {
+    mutableRepository.findDistinctActiveReferences = originalFindDistinctActiveReferences;
+  }
 });
 
 test('shows the camera only beside products whose photo file exists', () => {
@@ -83,9 +251,9 @@ test('shows the camera only beside products whose photo file exists', () => {
     true
   );
 
-  assert.match(text, /Estoque: 1\n📍 Local: CG/);
-  assert.match(text, /APOLO AMAZER 84T[\s\S]*A prazo: R\$366,00\n📷/);
-  assert.doesNotMatch(text, /DYNAMO STREET-H MH01 84T[\s\S]*A prazo: R\$334,95\n📷/);
+  assert.match(text, /Estoque: \*1\*\n📍 Local: \*CG\*/);
+  assert.match(text, /APOLO AMAZER 84T[\s\S]*A prazo: \*R\$366,00\*\n📷/);
+  assert.doesNotMatch(text, /DYNAMO STREET-H MH01 84T[\s\S]*A prazo: \*R\$334,95\*\n📷/);
   assert.equal((text.match(/📷/g) ?? []).length, 1);
   assert.doesNotMatch(
     formatProductList(

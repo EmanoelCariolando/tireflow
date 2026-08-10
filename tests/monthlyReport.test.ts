@@ -199,7 +199,7 @@ test('summarizes sellers, mixed payments, top tires and specific zero-stock even
   assert.match(reports[2]!, /\*175\/70 R14\* — \*DYNAMO 82T\*/);
   assert.match(reports[2]!, /Situação no fechamento: \*Continua zerado\*/);
   assert.match(reports[2]!, /Reposto: \*15\/07\/2026\*/);
-  assert.match(reports[2]!, /📍 Local: W3/);
+  assert.match(reports[2]!, /📍 Local: \*W3\*/);
 });
 
 test('excludes city hall invoices from commission without removing their revenue', () => {

@@ -69,7 +69,7 @@ test('allocates discounts and mixed payments without losing a cent', () => {
 
 test('shows every tire under one confirmation and one total', () => {
   const confirmation = formatSaleConfirmation(multiItemSession);
-  assert.match(confirmation, /ITENS DA COMPRA/);
+  assert.match(confirmation, /CONFIRMAR VENDA/);
   assert.match(confirmation, /175\/70 R13/);
   assert.match(confirmation, /275\/80 R22\.5/);
   assert.match(confirmation, /Desconto: \*3% \(-R\$70,50\)\*/);
@@ -107,7 +107,7 @@ test('option 7 keeps the current purchase and asks directly for another measure'
 
   await handleSaleConversation(message, '7');
   assert.equal(getSaleSession(session.userId, session.chatId)?.step, 'awaiting_additional_measure');
-  assert.match(replies.at(-1) ?? '', /Digite a nova medida/);
+  assert.match(replies.at(-1) ?? '', /Digite a medida/);
   assert.match(replies.at(-1) ?? '', /Total atual: \*R\$2279,50\*/);
   clearSaleSession(session.userId, session.chatId);
 });
@@ -151,6 +151,6 @@ test('applies the discount when cart items use different price types', async () 
   assert.equal(discounted?.step, 'awaiting_discount_confirmation');
   assert.equal(discounted?.originalTotalValue, 2450);
   assert.equal(discounted?.totalValue, 2376.50);
-  assert.match(replies.at(-1) ?? '', /Subtotal da compra: R\$2450,00/);
+  assert.match(replies.at(-1) ?? '', /Subtotal: \*R\$2450,00\*/);
   clearSaleSession(ids.userId, ids.chatId);
 });

@@ -29,12 +29,12 @@ export async function handleAdjustmentCommand(message: Message, body: string): P
   const chatId = getMessageChatId(message);
 
   if (hasExpiredAdjustmentSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *OPERAÇÃO EXPIRADA*\nInicie novamente.');
     return;
   }
 
   if (hasActiveOperationSession(userId, chatId)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -46,25 +46,25 @@ export async function handleAdjustmentCommand(message: Message, body: string): P
   const optionNumber = Number(match[1]);
 
   if (!Number.isInteger(optionNumber) || optionNumber <= 0) {
-    await message.reply('Comando inválido. Exemplo: ajuste 1');
+    await message.reply('❌ Comando inválido. Use: *ajuste 1*');
     return;
   }
 
   const lastQuery = getLastQuery(userId, chatId);
   if (!lastQuery) {
-    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque');
+    await message.reply('⌛ *CONSULTA EXPIRADA*\nPesquise novamente: *pneu 175/70 R14* ou *baixo estoque*.');
     return;
   }
 
   const product = lastQuery.products[optionNumber - 1];
   if (!product) {
-    await message.reply('Opção inválida. Escolha um número da última consulta.');
+    await message.reply('❌ Item inválido. Use um número da última consulta.');
     return;
   }
 
   const currentStock = await getCurrentProductStock(product.id);
   if (currentStock === null) {
-    await message.reply('⚠️ Produto não está mais disponível. Faça uma nova consulta.');
+    await message.reply('⚠️ Produto indisponível. Faça uma nova consulta.');
     return;
   }
 
@@ -79,7 +79,7 @@ export async function handleAdjustmentCommand(message: Message, body: string): P
     updatedAt: Date.now(),
   });
 
-  await message.reply('Novo estoque?\n\nDigite apenas o número. Exemplo: 10');
+  await message.reply('🧮 *AJUSTE — NOVO ESTOQUE*\n\nDigite um número inteiro.\nEx.: *10*');
 }
 
 export async function handleAdjustmentConversation(message: Message, body: string): Promise<boolean> {
@@ -87,7 +87,7 @@ export async function handleAdjustmentConversation(message: Message, body: strin
   const chatId = getMessageChatId(message);
 
   if (hasExpiredAdjustmentSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *OPERAÇÃO EXPIRADA*\nInicie novamente.');
     return true;
   }
 
@@ -100,12 +100,12 @@ export async function handleAdjustmentConversation(message: Message, body: strin
 
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
-    await message.reply('❌ Operação cancelada.');
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
     return true;
   }
 
   if (isNewOperationCommand(normalizedBody)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return true;
   }
 
@@ -125,7 +125,7 @@ export async function handleAdjustmentConversation(message: Message, body: strin
   }
 
   if (session.step === 'processing') {
-    await message.reply('⏳ Ajuste em processamento. Aguarde um instante.');
+    await message.reply('⏳ *REGISTRANDO AJUSTE...*');
     return true;
   }
 
@@ -140,7 +140,7 @@ async function handleNewStockStep(
   const newStock = Number(normalizedBody);
 
   if (!Number.isInteger(newStock) || newStock < 0) {
-    await message.reply('Estoque inválido.\n\nDigite um número inteiro igual ou maior que zero. Exemplo: 10');
+    await message.reply('❌ Estoque inválido. Digite um inteiro maior ou igual a zero. Ex.: *10*');
     return;
   }
 
@@ -151,7 +151,7 @@ async function handleNewStockStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply('Motivo do ajuste?\n\nExemplo:\nConferência semanal');
+  await message.reply('📝 *AJUSTE — MOTIVO*\n\nInforme o motivo.\nEx.: *Conferência semanal*');
 }
 
 async function handleReasonStep(
@@ -162,7 +162,7 @@ async function handleReasonStep(
   const reason = body.trim();
 
   if (!reason) {
-    await message.reply('Motivo do ajuste?\n\nExemplo:\nConferência semanal');
+    await message.reply('❌ Informe o motivo. Ex.: *Conferência semanal*');
     return;
   }
 
@@ -183,7 +183,7 @@ async function handleConfirmationStep(
   normalizedBody: string
 ): Promise<void> {
   if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Digite: confirmar ou cancelar');
+    await message.reply('Responda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -257,15 +257,14 @@ function isNewOperationCommand(normalizedBody: string): boolean {
 
 function formatAdjustmentConfirmation(session: AdjustmentSession): string {
   return [
-    '⚠️ Confirmar ajuste?',
+    '🧮 *AJUSTE — CONFIRMAR*',
     '',
-    `Produto: ${session.reference}`,
-    `Descrição: ${session.description}`,
-    `Estoque anterior: ${session.previousStock}`,
-    `Novo estoque: ${session.newStock}`,
-    `Motivo: ${session.reason}`,
+    `🛞 *${session.reference} — ${session.description}*`,
     '',
-    'Digite: confirmar ou cancelar',
+    `📦 Estoque: *${session.previousStock} → ${session.newStock}*`,
+    `📝 Motivo: *${session.reason}*`,
+    '',
+    'Responda: *confirmar* ou *cancelar*.',
   ].join('\n');
 }
 
@@ -277,15 +276,15 @@ function formatRegisteredAdjustment(
   currentStock: number
 ): string {
   return [
-    '⚠️ Ajuste registrado',
+    '✅ *AJUSTE REGISTRADO*',
     '',
-    `Movimentação: ${movementCode}`,
-    `Produto: ${session.reference}`,
-    `Descrição: ${session.description}`,
-    `Anterior: ${previousStock}`,
-    `Atual: ${currentStock}`,
-    `Responsável: ${responsibleName}`,
-    `Motivo: ${session.reason}`,
+    `🛞 *${session.reference} — ${session.description}*`,
+    '',
+    `📦 Estoque: *${previousStock} → ${currentStock}*`,
+    `📝 Motivo: *${session.reason}*`,
+    '',
+    `🧾 Movimentação: *${movementCode}*`,
+    `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
 
@@ -297,15 +296,15 @@ function formatBossAdjustmentNotification(
   currentStock: number
 ): string {
   return [
-    '⚠️ Ajuste de estoque',
+    '🧮 *AJUSTE DE ESTOQUE*',
     '',
-    `Movimentação: ${movementCode}`,
-    `${responsibleName} ajustou estoque`,
-    `${session.reference} ${session.description}`,
+    `🛞 *${session.reference} — ${session.description}*`,
     '',
-    `Anterior: ${previousStock}`,
-    `Atual: ${currentStock}`,
-    `Motivo: ${session.reason}`,
+    `📦 Estoque: *${previousStock} → ${currentStock}*`,
+    `📝 Motivo: *${session.reason}*`,
+    '',
+    `🧾 Movimentação: *${movementCode}*`,
+    `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
 

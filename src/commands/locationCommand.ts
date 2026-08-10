@@ -42,12 +42,12 @@ export async function handleLocationCommand(message: Message, body: string): Pro
   }
 
   if (hasExpiredLocationSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *LOCALIZAÇÃO EXPIRADA*\nFaça uma nova consulta.');
     return;
   }
 
   if (hasActiveOperationSession(userId, chatId)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -60,7 +60,7 @@ export async function handleLocationCommand(message: Message, body: string): Pro
   const optionNumber = Number(match[1]);
 
   if (!Number.isInteger(optionNumber) || optionNumber <= 0) {
-    await message.reply('Comando inválido. Exemplo: local 1');
+    await message.reply('❌ Comando inválido. Use: *local 1*');
     return;
   }
 
@@ -68,7 +68,7 @@ export async function handleLocationCommand(message: Message, body: string): Pro
 
   if (!lastQuery) {
     await message.reply(
-      '⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque'
+      '⌛ *CONSULTA EXPIRADA*\nPesquise novamente: *pneu 175/70/14* ou *baixo estoque*.'
     );
     return;
   }
@@ -76,7 +76,7 @@ export async function handleLocationCommand(message: Message, body: string): Pro
   const product = lastQuery.products[optionNumber - 1];
 
   if (!product) {
-    await message.reply('Opção inválida. Escolha um número da última consulta.');
+    await message.reply('❌ Opção inválida. Escolha um item da última consulta.');
     return;
   }
 
@@ -106,7 +106,7 @@ export async function handleLocationConversation(
   const chatId = getMessageChatId(message);
 
   if (hasExpiredLocationSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *LOCALIZAÇÃO EXPIRADA*\nFaça uma nova consulta.');
     return true;
   }
 
@@ -120,12 +120,12 @@ export async function handleLocationConversation(
 
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
-    await message.reply('❌ Operação cancelada.');
+    await message.reply('❌ *LOCALIZAÇÃO CANCELADA*');
     return true;
   }
 
   if (isNewOperationCommand(normalizedBody)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return true;
   }
 
@@ -140,7 +140,7 @@ export async function handleLocationConversation(
   }
 
   if (session.step === 'processing') {
-    await message.reply('⏳ Atualização do local em processamento. Aguarde um instante.');
+    await message.reply('⏳ *ATUALIZANDO LOCAL...*');
     return true;
   }
 
@@ -188,7 +188,7 @@ async function handleConfirmationStep(
   normalizedBody: string
 ): Promise<void> {
   if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Digite: confirmar ou cancelar');
+    await message.reply('Responda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -270,27 +270,26 @@ function formatLocationQuestion(
   previousLocation: string | null
 ): string {
   return [
-    '📍 *LOCAL DO PNEU*',
+    '📍 *LOCALIZAÇÃO — NOVO LOCAL*',
     '',
-    `*${reference}* — *${description}*`,
-    `Local atual: *${formatLocation(previousLocation)}*`,
+    `🛞 *${reference} — ${description}*`,
     '',
-    'Digite o novo local.',
-    'Exemplos: CG, W3 ou PMAIS',
+    `📍 Local atual: *${formatLocation(previousLocation)}*`,
     '',
-    'Digite: cancelar para sair',
+    'Digite o novo local. Ex.: *CG*, *W3* ou *PMAIS*',
+    'Para sair: *cancelar*',
   ].join('\n');
 }
 
 export function formatLocationConfirmation(session: LocationSession): string {
   return [
-    '⚠️ *CONFIRMAR LOCAL?*',
+    '📍 *LOCALIZAÇÃO — CONFIRMAR*',
     '',
-    `*${session.reference}* — *${session.description}*`,
-    `De: *${formatLocation(session.previousLocation)}*`,
-    `Para: *${formatLocation(session.newLocation ?? null)}*`,
+    `🛞 *${session.reference} — ${session.description}*`,
     '',
-    'Digite: confirmar ou cancelar',
+    `📍 Local: *${formatLocation(session.previousLocation)} → ${formatLocation(session.newLocation ?? null)}*`,
+    '',
+    'Responda: *confirmar* ou *cancelar*.',
   ].join('\n');
 }
 
@@ -298,7 +297,8 @@ function formatRegisteredLocation(session: LocationSession, currentLocation: str
   return [
     '✅ *LOCAL ATUALIZADO*',
     '',
-    `*${session.reference}* — *${session.description}*`,
+    `🛞 *${session.reference} — ${session.description}*`,
+    '',
     `📍 Local: *${currentLocation}*`,
   ].join('\n');
 }
@@ -312,10 +312,11 @@ function formatBossLocationNotification(
   return [
     '📍 *LOCALIZAÇÃO ATUALIZADA*',
     '',
-    `*${session.reference}* — *${session.description}*`,
-    `De: *${formatLocation(previousLocation)}*`,
-    `Para: *${currentLocation}*`,
-    `Responsável: ${responsibleName}`,
+    `🛞 *${session.reference} — ${session.description}*`,
+    '',
+    `📍 Local: *${formatLocation(previousLocation)} → ${currentLocation}*`,
+    '',
+    `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
 

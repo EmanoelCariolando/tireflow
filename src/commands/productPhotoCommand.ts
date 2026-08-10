@@ -183,7 +183,7 @@ export async function handleAddPhotoCommand(
     startedAt: Date.now(),
   });
 
-  await message.reply(`📷 Envie a foto do pneu:\n\n${queriedProduct.description}`);
+  await message.reply(`📷 *FOTO DO PNEU*\n*${queriedProduct.description}*\nEnvie a imagem.`);
 }
 
 export async function handleAddPhotoConversation(
@@ -217,7 +217,7 @@ export async function handleAddPhotoConversation(
   }
 
   if (!message.hasMedia || (message.type !== 'image' && message.type !== 'document')) {
-    await message.reply('Envie uma imagem válida do pneu.');
+    await message.reply('❌ Envie uma imagem válida do pneu.');
     return true;
   }
 
@@ -237,7 +237,7 @@ export async function handleAddPhotoConversation(
   }
 
   if (!downloadedMedia) {
-    await message.reply('Não consegui receber a imagem.\nEnvie a foto novamente.');
+    await message.reply('❌ Não consegui receber a imagem. Envie novamente.');
     return true;
   }
 
@@ -252,7 +252,7 @@ export async function handleAddPhotoConversation(
     const confirmation = result.replaced
       ? '✅ Foto substituída com sucesso.'
       : '✅ Foto adicionada com sucesso.';
-    await message.reply(`${confirmation}\n\n🛞 ${session.description}`);
+    await message.reply(`${confirmation}\n🛞 *${session.description}*`);
   } catch (error) {
     if (error instanceof ProductImageTooLargeError) {
       await message.reply('A imagem é muito grande. Envie uma foto de até 20 MB.');
@@ -260,7 +260,7 @@ export async function handleAddPhotoConversation(
     }
 
     if (error instanceof UnsupportedProductImageError) {
-      await message.reply('Envie uma imagem válida do pneu.');
+      await message.reply('❌ Envie uma imagem válida do pneu.');
       return true;
     }
 
@@ -274,7 +274,7 @@ export async function handleAddPhotoConversation(
       productId: session.productId,
       error,
     });
-    await message.reply('Não consegui salvar a imagem.\nEnvie a foto novamente.');
+    await message.reply('❌ Não consegui salvar a imagem. Envie novamente.');
   }
 
   return true;
@@ -282,11 +282,11 @@ export async function handleAddPhotoConversation(
 
 export function formatProductPhotoCaption(product: PhotoProduct): string {
   return [
-    `🛞 ${product.description}`,
+    `🛞 *${product.description}*`,
     '',
-    `📦 Estoque: ${product.stock}`,
-    `💰 À vista: ${formatCurrency(Number(product.cashPrice))}`,
-    `💳 A prazo: ${formatCurrency(Number(product.creditPrice))}`,
+    `📦 Estoque: *${product.stock}*`,
+    `💰 À vista: *${formatCurrency(Number(product.cashPrice))}*`,
+    `💳 A prazo: *${formatCurrency(Number(product.creditPrice))}*`,
   ].join('\n');
 }
 
@@ -300,5 +300,5 @@ function parseOptionNumber(body: string, commandRegex: RegExp): number | null {
 }
 
 async function replyConsultationGuidance(message: Message): Promise<void> {
-  await message.reply('Faça primeiro uma consulta, por exemplo:\npneu 175 70 14');
+  await message.reply('🔎 Consulte primeiro. Ex.: *pneu 175 70 14*');
 }

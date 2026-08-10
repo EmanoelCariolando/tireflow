@@ -27,12 +27,12 @@ export async function handlePriceCommand(message: Message, body: string): Promis
   const chatId = getMessageChatId(message);
 
   if (hasExpiredPriceSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *OPERAÇÃO EXPIRADA*\nInicie novamente.');
     return;
   }
 
   if (hasActiveOperationSession(userId, chatId)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -44,19 +44,19 @@ export async function handlePriceCommand(message: Message, body: string): Promis
   const optionNumber = Number(match[1]);
 
   if (!Number.isInteger(optionNumber) || optionNumber <= 0) {
-    await message.reply('Comando inválido. Exemplo: preco 1');
+    await message.reply('❌ Comando inválido. Use: *preco 1*');
     return;
   }
 
   const lastQuery = getLastQuery(userId, chatId);
   if (!lastQuery) {
-    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque');
+    await message.reply('⌛ *CONSULTA EXPIRADA*\nPesquise novamente: *pneu 175/70 R14* ou *baixo estoque*.');
     return;
   }
 
   const product = lastQuery.products[optionNumber - 1];
   if (!product) {
-    await message.reply('Opção inválida. Escolha um número da última consulta.');
+    await message.reply('❌ Item inválido. Use um número da última consulta.');
     return;
   }
 
@@ -74,7 +74,7 @@ export async function handlePriceCommand(message: Message, body: string): Promis
   });
 
   await message.reply(
-    'Novo preço à vista?\n\nDigite o valor. Exemplo: 335.50\n\nO preço a prazo será calculado automaticamente com acréscimo de 5,8%.'
+    '💰 *PREÇO — NOVO VALOR À VISTA*\n\nDigite o novo valor.\nEx.: *335,50*\n\n_O preço a prazo (+5,8%) será calculado automaticamente._'
   );
 }
 
@@ -83,7 +83,7 @@ export async function handlePriceConversation(message: Message, body: string): P
   const chatId = getMessageChatId(message);
 
   if (hasExpiredPriceSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *OPERAÇÃO EXPIRADA*\nInicie novamente.');
     return true;
   }
 
@@ -96,12 +96,12 @@ export async function handlePriceConversation(message: Message, body: string): P
 
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
-    await message.reply('❌ Operação cancelada.');
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
     return true;
   }
 
   if (isNewOperationCommand(normalizedBody)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return true;
   }
 
@@ -116,7 +116,7 @@ export async function handlePriceConversation(message: Message, body: string): P
   }
 
   if (session.step === 'processing') {
-    await message.reply('⏳ Alteração de preço em processamento. Aguarde um instante.');
+    await message.reply('⏳ *ATUALIZANDO PREÇO...*');
     return true;
   }
 
@@ -131,7 +131,7 @@ async function handleCashPriceStep(
   const cashPrice = parsePriceValue(body);
 
   if (cashPrice === null) {
-    await message.reply('Preço inválido.\n\nDigite um valor maior ou igual a zero. Exemplo: 335.50');
+    await message.reply('❌ Preço inválido. Digite um valor maior ou igual a zero. Ex.: *335,50*');
     return;
   }
 
@@ -153,7 +153,7 @@ async function handleConfirmationStep(
   normalizedBody: string
 ): Promise<void> {
   if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Digite: confirmar ou cancelar');
+    await message.reply('Responda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -235,18 +235,14 @@ function isNewOperationCommand(normalizedBody: string): boolean {
 
 function formatPriceConfirmation(session: PriceSession): string {
   return [
-    '⚠️ Confirmar alteração de preço?',
+    '💰 *PREÇO — CONFIRMAR*',
     '',
-    `Produto: ${session.reference}`,
-    `Descrição: ${session.description}`,
+    `🛞 *${session.reference} — ${session.description}*`,
     '',
-    `Preço à vista anterior: ${formatCurrency(session.oldCashPrice)}`,
-    `Novo preço à vista: ${formatCurrency(session.newCashPrice ?? 0)}`,
+    `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
+    `💳 A prazo (+5,8%): ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
     '',
-    `Preço a prazo anterior: ${formatCurrency(session.oldCreditPrice)}`,
-    `Novo preço a prazo (+5,8%): ${formatCurrency(session.newCreditPrice ?? 0)}`,
-    '',
-    'Digite: confirmar ou cancelar',
+    'Responda: *confirmar* ou *cancelar*.',
   ].join('\n');
 }
 
@@ -257,17 +253,16 @@ function formatRegisteredPriceChange(
   currentStock: number
 ): string {
   return [
-    '✅ Preço alterado',
+    '✅ *PREÇO ATUALIZADO*',
     '',
-    `Movimentação: ${movementCode}`,
-    `Produto: ${session.reference}`,
-    `Descrição: ${session.description}`,
+    `🛞 *${session.reference} — ${session.description}*`,
     '',
-    `À vista: ${formatCurrency(session.oldCashPrice)} -> ${formatCurrency(session.newCashPrice ?? 0)}`,
-    `A prazo: ${formatCurrency(session.oldCreditPrice)} -> ${formatCurrency(session.newCreditPrice ?? 0)}`,
-    `Responsável: ${responsibleName}`,
+    `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
+    `💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
     '',
-    `Estoque atual: ${currentStock}`,
+    `📦 Estoque: *${currentStock}*`,
+    `🧾 Movimentação: *${movementCode}*`,
+    `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
 
@@ -277,13 +272,15 @@ function formatBossPriceNotification(
   responsibleName: string
 ): string {
   return [
-    '🔔 Alteração de preço',
+    '💰 *PREÇO ATUALIZADO*',
     '',
-    `Movimentação: ${movementCode}`,
-    `${responsibleName} alterou preços de ${session.reference} ${session.description}`,
+    `🛞 *${session.reference} — ${session.description}*`,
     '',
-    `À vista: ${formatCurrency(session.oldCashPrice)} -> ${formatCurrency(session.newCashPrice ?? 0)}`,
-    `A prazo: ${formatCurrency(session.oldCreditPrice)} -> ${formatCurrency(session.newCreditPrice ?? 0)}`,
+    `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
+    `💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
+    '',
+    `🧾 Movimentação: *${movementCode}*`,
+    `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
 

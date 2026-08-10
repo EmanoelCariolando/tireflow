@@ -48,13 +48,15 @@ const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 const DISCOUNT_PERCENT = 3;
 const MAX_SALE_ITEMS = 20;
 const MIXED_PAYMENT_MENU = [
-  'Quais foram as duas formas de pagamento usadas?',
+  '💳 *PAGAMENTO MISTO*',
   '',
-  '1️⃣ Dinheiro',
-  '2️⃣ PIX',
-  '3️⃣ Cartão',
+  'Escolha duas formas:',
   '',
-  'Exemplo: 1 e 2',
+  '1️⃣ *Dinheiro*',
+  '2️⃣ *PIX*',
+  '3️⃣ *Cartão*',
+  '',
+  'Ex.: *1 e 2*',
 ].join('\n');
 
 export function isSaleCommand(body: string): boolean {
@@ -66,12 +68,12 @@ export async function handleSaleCommand(message: Message, body: string): Promise
   const chatId = getMessageChatId(message);
 
   if (hasExpiredSaleSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *OPERAÇÃO EXPIRADA*\nInicie novamente.');
     return;
   }
 
   if (hasActiveOperationSession(userId, chatId)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -84,32 +86,32 @@ export async function handleSaleCommand(message: Message, body: string): Promise
   const quantity = Number(match[2]);
 
   if (!Number.isInteger(optionNumber) || optionNumber <= 0 || !Number.isInteger(quantity) || quantity <= 0) {
-    await message.reply('Comando inválido. Exemplo: venda 1 5');
+    await message.reply('❌ Comando inválido. Use: *venda 1 5*');
     return;
   }
 
   const lastQuery = getLastQuery(userId, chatId);
   if (!lastQuery) {
-    await message.reply('⚠️ Consulta expirada.\n\nPesquise novamente:\npneu 175/70/14\nou\nbaixo estoque');
+    await message.reply('⌛ *CONSULTA EXPIRADA*\nPesquise novamente: *pneu 175/70 R14* ou *baixo estoque*.');
     return;
   }
 
   const product = lastQuery.products[optionNumber - 1];
   if (!product) {
-    await message.reply('Opção inválida. Escolha um número da última consulta.');
+    await message.reply('❌ Item inválido. Use um número da última consulta.');
     return;
   }
 
   const currentStock = await getCurrentProductStock(product.id);
 
   if (currentStock === null) {
-    await message.reply('⚠️ Produto não está mais disponível. Faça uma nova consulta.');
+    await message.reply('⚠️ Produto indisponível. Faça uma nova consulta.');
     return;
   }
 
   if (currentStock < quantity) {
     await message.reply(
-      `⚠️ Venda cancelada.\n\nEstoque atual: ${currentStock}\nQuantidade solicitada: ${quantity}`
+      `⚠️ *ESTOQUE INSUFICIENTE*\nDisponível: *${currentStock}* | Solicitado: *${quantity}*`
     );
     return;
   }
@@ -136,7 +138,7 @@ export async function handleSaleConversation(message: Message, body: string): Pr
   const chatId = getMessageChatId(message);
 
   if (hasExpiredSaleSession(userId, chatId)) {
-    await message.reply('⏳ Operação cancelada por inatividade.');
+    await message.reply('⌛ *OPERAÇÃO EXPIRADA*\nInicie novamente.');
     return true;
   }
 
@@ -149,7 +151,7 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
-    await message.reply('❌ Operação cancelada.');
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
     return true;
   }
 
@@ -169,7 +171,7 @@ export async function handleSaleConversation(message: Message, body: string): Pr
   }
 
   if (isNewOperationCommand(normalizedBody)) {
-    await message.reply('⚠️ Você possui uma operação em andamento.\n\nDigite: confirmar ou cancelar');
+    await message.reply('⚠️ *OPERAÇÃO EM ANDAMENTO*\nResponda: *confirmar* ou *cancelar*.');
     return true;
   }
 
@@ -219,7 +221,7 @@ export async function handleSaleConversation(message: Message, body: string): Pr
   }
 
   if (session.step === 'processing') {
-    await message.reply('⏳ Venda em processamento. Aguarde um instante.');
+    await message.reply('⏳ *REGISTRANDO VENDA...*');
     return true;
   }
 
@@ -329,16 +331,16 @@ async function continueDirectPayment(
   saveSaleSession(nextSession);
 
   if (paymentMethod === 'Nota') {
-    await message.reply('Envie a foto da nota/pedido.');
+    await message.reply('📎 *NOTA/PEDIDO*\nEnvie a foto.');
     return;
   }
 
   if (paymentMethod === 'Dinheiro') {
-    await message.reply('Envie a foto do depósito/dinheiro.');
+    await message.reply('📎 *COMPROVANTE — DINHEIRO*\nEnvie a foto do depósito/dinheiro.');
     return;
   }
 
-  await message.reply('Envie a foto do comprovante.');
+  await message.reply('📎 *COMPROVANTE*\nEnvie a foto.');
 }
 
 async function handleAdditionalMeasureStep(
@@ -504,7 +506,7 @@ async function handleDiscountConfirmationStep(
   normalizedBody: string
 ): Promise<void> {
   if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Digite: confirmar ou cancelar');
+    await message.reply('Responda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -514,7 +516,7 @@ async function handleDiscountConfirmationStep(
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
-  await message.reply(`✅ Desconto confirmado.\n\n${formatPaymentMenu(nextSession)}`);
+  await message.reply(`✅ *DESCONTO APLICADO*\n\n${formatPaymentMenu(nextSession)}`);
 }
 
 async function handleMixedMethodsStep(
@@ -611,10 +613,9 @@ async function handleMixedAmountStep(
   if (!paymentBreakdown) {
     await message.reply(
       [
-        `Informe quanto foi pago em ${session.mixedAmountMethod}.`,
-        `O valor deve ser maior que R$0,00 e menor que ${formatCurrency(session.totalValue)}.`,
-        '',
-        'Exemplo: 100,00',
+        '❌ *VALOR INVÁLIDO*',
+        `Informe quanto foi pago em *${session.mixedAmountMethod}* (entre R$0,00 e ${formatCurrency(session.totalValue)}).`,
+        'Ex.: *100,00*',
       ].join('\n')
     );
     return;
@@ -746,7 +747,7 @@ async function handleCityHallConfirmationStep(
     isCityHallSale,
     updatedAt: Date.now(),
   });
-  await message.reply('Nome da nota?\n\nExemplo:\nPrefeitura de Congo');
+  await message.reply('🧾 *NOME DA NOTA*\nEx.: *Prefeitura de Congo*');
 }
 
 async function handleInvoiceNameStep(
@@ -757,7 +758,7 @@ async function handleInvoiceNameStep(
   const invoiceName = body.trim();
 
   if (!invoiceName) {
-    await message.reply('Nome da nota?\n\nExemplo:\nPrefeitura de Congo');
+    await message.reply('❌ Informe o nome da nota. Ex.: *Prefeitura de Congo*');
     return;
   }
 
@@ -777,7 +778,7 @@ async function handleConfirmationStep(
   normalizedBody: string
 ): Promise<void> {
   if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Digite: confirmar ou cancelar');
+    await message.reply('Responda: *confirmar* ou *cancelar*.');
     return;
   }
 
@@ -1142,34 +1143,34 @@ function formatPaymentMenu(session?: SaleSession): string {
       ? [
           '🛒 *RESUMO DA COMPRA*',
           '',
-          ...formatCartItemLines(items),
+          ...formatCompactCartItemLines(items),
           '',
           ...(discountApplied
             ? [
-                `Subtotal: ${formatCurrency(session.originalTotalValue ?? 0)}`,
-                `Desconto de ${session.discountPercent}%: -${formatCurrency(
+                `🧾 Subtotal: *${formatCurrency(session.originalTotalValue ?? 0)}*`,
+                `🏷️ Desconto: *-${formatCurrency(
                   (session.originalTotalValue ?? 0) - (session.totalValue ?? 0)
-                )}`,
+                )}*`,
               ]
             : []),
-          `💰 ${discountApplied ? 'Total com desconto' : 'Total'}: *${formatCurrency(session.totalValue ?? 0)}*`,
+          `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
           '',
         ]
       : selectedPrice
       ? [
-          `Valor selecionado: *${session!.priceType}*`,
-          `💰 ${discountApplied ? 'Total com desconto' : 'Total'}: *${formatCurrency(session!.totalValue!)}*`,
+          `🏷️ Valor selecionado: *${session!.priceType}*`,
+          `💰 Total: *${formatCurrency(session!.totalValue!)}*`,
           '',
         ]
       : []),
-    '*FORMAS DE PAGAMENTO E OUTRAS OPÇÕES*',
+    '💳 *FORMAS DE PAGAMENTO*',
     '',
     '1️⃣ *Dinheiro*',
     '2️⃣ *PIX*',
     '3️⃣ *Cartão*',
     '4️⃣ *Nota*',
     '5️⃣ *Pagamento misto*',
-    `6️⃣ *Desconto de ${DISCOUNT_PERCENT}%*${discountApplied ? ' — já aplicado' : ''}`,
+    `6️⃣ *Desconto de ${DISCOUNT_PERCENT}%*${discountApplied ? ' ✅' : ''}`,
     '7️⃣ *Adicionar outro pneu*',
   ].join('\n');
 }
@@ -1179,35 +1180,34 @@ function formatPriceTypeQuestion(session: SaleSession): string {
     ...(getExplicitSaleItems(session).length > 0
       ? [
           '➕ *NOVO ITEM*',
-          `${session.reference} — ${session.description}`,
-          `Quantidade: ${session.quantity}`,
-          '',
         ]
       : []),
-    'Usar valor à vista ou a prazo?',
+    '💰 *VALOR DA VENDA*',
     '',
-    `1️⃣ *À vista* — ${formatCurrency(calculateSaleTotal(session.quantity, session.cashPrice))}`,
-    `2️⃣ *A prazo* — ${formatCurrency(calculateSaleTotal(session.quantity, session.creditPrice))}`,
+    `🛞 *${session.reference} — ${session.description}*`,
+    `📦 Quantidade: *${session.quantity}*`,
+    '',
+    `1️⃣ 💰 À vista: *${formatCurrency(calculateSaleTotal(session.quantity, session.cashPrice))}*`,
+    `2️⃣ 💳 A prazo: *${formatCurrency(calculateSaleTotal(session.quantity, session.creditPrice))}*`,
   ].join('\n');
 }
 
 function formatAdditionalMeasureQuestion(session: SaleSession): string {
   return [
-    '➕ *ADICIONAR OUTRO PNEU*',
+    '➕ *ADICIONAR PNEU*',
     '',
-    `Itens já adicionados: ${getSaleItems(session).length}`,
-    `Total atual: *${formatCurrency(session.totalValue ?? 0)}*`,
+    `📦 Itens adicionados: *${getSaleItems(session).length}*`,
+    `💰 Total atual: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    'Digite a nova medida.',
-    'Exemplo: 275 80 22.5',
+    'Digite a medida. Ex.: *275 80 22.5*',
   ].join('\n');
 }
 
 export function formatCityHallQuestion(): string {
   return [
-    'Essa nota é para uma prefeitura (de Congo ou de outra cidade)?',
+    '🏛️ *NOTA PARA PREFEITURA?*',
     '',
-    'Digite *s* para sim ou *n* para não.',
+    'Responda: *s* (sim) ou *n* (não).',
   ].join('\n');
 }
 
@@ -1229,16 +1229,15 @@ function formatDiscountPreview(session: SaleSession): string {
   const discountValue = originalTotal - (session.totalValue ?? 0);
   const multipleItems = getSaleItems(session).length > 1;
   return [
-    '🏷️ *APLICAR DESCONTO?*',
+    '🏷️ *DESCONTO — CONFIRMAR*',
     '',
     multipleItems
-      ? `Subtotal da compra: ${formatCurrency(originalTotal)}`
-      : `Valor ${session.priceType?.toLowerCase()}: ${formatCurrency(originalTotal)}`,
-    `Desconto de ${session.discountPercent}%: -${formatCurrency(discountValue)}`,
-    '',
+      ? `🧾 Subtotal: *${formatCurrency(originalTotal)}*`
+      : `🏷️ ${session.priceType}: *${formatCurrency(originalTotal)}*`,
+    `🏷️ Desconto: *${session.discountPercent}% (-${formatCurrency(discountValue)})*`,
     `💰 Novo total: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    'Digite: confirmar ou cancelar',
+    'Responda: *confirmar* ou *cancelar*.',
   ].join('\n');
 }
 
@@ -1347,6 +1346,13 @@ export function formatBossSaleNotification(
   ].join('\n');
 }
 
+function formatCompactCartItemLines(items: SaleItem[]): string[] {
+  return items.flatMap((item, index) => [
+    `${index + 1}. *${item.reference} — ${item.description}*`,
+    `   *${item.quantity} un.* × ${formatCurrency(item.unitPrice)} = *${formatCurrency(item.totalValue)}* (${item.priceType})`,
+  ]);
+}
+
 function formatCartItemLines(items: SaleItem[]): string[] {
   return items.flatMap((item, index) => [
     `${index + 1}. *${item.reference}* — *${item.description}*`,
@@ -1411,11 +1417,10 @@ function formatMixedAmountQuestion(
   paymentMethod: MixedPaymentMethod
 ): string {
   return [
-    `Valor total da venda: *${formatCurrency(totalValue)}*`,
+    '💳 *PAGAMENTO MISTO*',
     '',
-    `Quanto foi pago em ${paymentMethod}?`,
-    '',
-    'Exemplo: 100,00',
+    `Total: *${formatCurrency(totalValue)}*`,
+    `Quanto foi pago em *${paymentMethod}*? Ex.: *100,00*`,
   ].join('\n');
 }
 
@@ -1428,16 +1433,16 @@ function formatReceiptRequest(
   }
 
   if (paymentMethod === 'Nota') {
-    return 'Envie a foto da nota/pedido.';
+    return '📎 *NOTA/PEDIDO*\nEnvie a foto.';
   }
 
   if (paymentMethod === 'Dinheiro') {
-    return 'Envie a foto do depósito/dinheiro.';
+    return '📎 *COMPROVANTE — DINHEIRO*\nEnvie a foto do depósito/dinheiro.';
   }
 
   return identifyPaymentMethod
-    ? `Envie a foto do comprovante do ${formatMethodForSentence(paymentMethod)}.`
-    : 'Envie a foto do comprovante.';
+    ? `📎 *COMPROVANTE — ${paymentMethod.toUpperCase()}*\nEnvie a foto.`
+    : '📎 *COMPROVANTE*\nEnvie a foto.';
 }
 
 function formatMethodForSentence(paymentMethod: ReceiptPaymentMethod): string {
@@ -1446,9 +1451,9 @@ function formatMethodForSentence(paymentMethod: ReceiptPaymentMethod): string {
 
 function formatMissingReceiptMessage(paymentMethod: ReceiptPaymentMethod): string {
   if (paymentMethod === 'Dinheiro') {
-    return 'Envie a foto do depósito/dinheiro para continuar.';
+    return '📎 Envie a foto do *depósito/dinheiro* para continuar.';
   }
-  return 'Envie a imagem da nota/comprovante para continuar.';
+  return '📎 Envie a *nota/comprovante* para continuar.';
 }
 
 function formatPaymentLines(session: SaleSession): string[] {

@@ -1,6 +1,25 @@
+import type { QueriedProduct } from './lastQueryStore.js';
+
+export interface EntryItem {
+  productId: string;
+  reference: string;
+  description: string;
+  oldCashPrice: number;
+  oldCreditPrice: number;
+  quantity: number;
+  supplier: string;
+  newCashPrice?: number;
+  newCreditPrice?: number;
+}
+
 export type EntrySessionStep =
   | 'awaiting_quantity'
   | 'awaiting_supplier'
+  | 'awaiting_price_decision'
+  | 'awaiting_cash_price'
+  | 'awaiting_additional_decision'
+  | 'awaiting_additional_measure'
+  | 'awaiting_additional_item'
   | 'awaiting_confirmation'
   | 'processing';
 
@@ -11,8 +30,15 @@ export interface EntrySession {
   productId: string;
   reference: string;
   description: string;
+  oldCashPrice: number;
+  oldCreditPrice: number;
   quantity?: number;
   supplier?: string;
+  newCashPrice?: number;
+  newCreditPrice?: number;
+  items?: EntryItem[];
+  additionalMeasure?: string;
+  additionalProducts?: QueriedProduct[];
   updatedAt: number;
 }
 

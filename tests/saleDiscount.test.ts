@@ -62,12 +62,12 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
   assert.equal(previewSession?.originalTotalValue, 1000);
   assert.equal(previewSession?.totalValue, 970);
   assert.equal(previewSession?.discountPercent, 3);
-  assert.match(replies.at(-1) ?? '', /Desconto de 3%: -R\$30,00/);
+  assert.match(replies.at(-1) ?? '', /Desconto: \*3% \(-R\$30,00\)\*/);
   assert.match(replies.at(-1) ?? '', /Novo total: \*R\$970,00\*/);
 
   await handleSaleConversation(message, 'confirma');
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_payment');
-  assert.match(replies.at(-1) ?? '', /Total com desconto: \*R\$970,00\*/);
+  assert.match(replies.at(-1) ?? '', /Total: \*R\$970,00\*/);
 
   await handleSaleConversation(message, '6');
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.totalValue, 970);
@@ -81,7 +81,7 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
 
   await handleSaleConversation(message, 'confirmar');
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_photo');
-  assert.match(replies.at(-1) ?? '', /foto do depósito\/dinheiro para continuar/);
+  assert.match(replies.at(-1) ?? '', /foto do \*depósito\/dinheiro\* para continuar/);
 
   await handleSaleConversation(createMessage(ids, replies, 'cash-receipt'), '');
   const confirmationSession = getSaleSession(ids.userId, ids.chatId);
@@ -144,7 +144,7 @@ test('keeps the initially selected price for a mixed payment with card', async (
   assert.equal(session?.step, 'awaiting_mixed_amount');
   assert.equal(session?.priceType, 'A prazo');
   assert.equal(session?.totalValue, 1100);
-  assert.match(replies.at(-1) ?? '', /Quanto foi pago em Cartão/);
+  assert.match(replies.at(-1) ?? '', /Quanto foi pago em \*Cartão\*/);
 
   clearSaleSession(ids.userId, ids.chatId);
 });

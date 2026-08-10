@@ -52,15 +52,15 @@ test('asks only for cash price and proceeds directly to confirmation', async () 
 
     await handlePriceCommand(message, 'preço 1');
     assert.equal(getPriceSession(userId, chatId)?.step, 'awaiting_cash_price');
-    assert.match(replies.at(-1) ?? '', /acréscimo de 5,8%/);
+    assert.match(replies.at(-1) ?? '', /preço a prazo \(\+5,8%\).*calculado automaticamente/);
 
     await handlePriceConversation(message, '1000');
     const confirmation = getPriceSession(userId, chatId);
     assert.equal(confirmation?.step, 'awaiting_confirmation');
     assert.equal(confirmation?.newCashPrice, 1000);
     assert.equal(confirmation?.newCreditPrice, 1058);
-    assert.match(replies.at(-1) ?? '', /Novo preço a prazo \(\+5,8%\): R\$1058,00/);
-    assert.match(replies.at(-1) ?? '', /Digite: confirmar ou cancelar/);
+    assert.match(replies.at(-1) ?? '', /A prazo \(\+5,8%\): R\$952,20 → \*R\$1058,00\*/);
+    assert.match(replies.at(-1) ?? '', /Responda: \*confirmar\* ou \*cancelar\*/);
 
     await handlePriceConversation(message, 'cancela');
     assert.equal(getPriceSession(userId, chatId), null);

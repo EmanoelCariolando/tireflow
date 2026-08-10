@@ -104,11 +104,11 @@ test('foto envia a imagem cadastrada somente com descrição, estoque e preços'
   assert.equal(
     String((replies[0]?.[2] as { caption?: string }).caption),
     [
-      '🛞 ITARO 203',
+      '🛞 *ITARO 203*',
       '',
-      '📦 Estoque: 9',
-      '💰 À vista: R$299,00',
-      '💳 A prazo: R$313,95',
+      '📦 Estoque: *9*',
+      '💰 À vista: *R$299,00*',
+      '💳 A prazo: *R$313,95*',
     ].join('\n')
   );
   clearLastQuery(userId);
@@ -173,7 +173,7 @@ test('foto orienta a consultar primeiro quando não há última consulta', async
   clearLastQuery(userId);
   const { message, replies } = fakeMessage({ userId });
   await handlePhotoCommand(message, 'foto 1', dependencies());
-  assert.equal(replies[0]?.[0], 'Faça primeiro uma consulta, por exemplo:\npneu 175 70 14');
+  assert.equal(replies[0]?.[0], '🔎 Consulte primeiro. Ex.: *pneu 175 70 14*');
 });
 
 test('usuário autorizado adiciona uma foto nova', async () => {
@@ -181,7 +181,7 @@ test('usuário autorizado adiciona uma foto nova', async () => {
   queryProduct(userId);
   const command = fakeMessage({ userId });
   await handleAddPhotoCommand(command.message, 'addfoto 1', dependencies());
-  assert.equal(command.replies[0]?.[0], '📷 Envie a foto do pneu:\n\nITARO 203');
+  assert.equal(command.replies[0]?.[0], '📷 *FOTO DO PNEU*\n*ITARO 203*\nEnvie a imagem.');
 
   const upload = fakeMessage({
     userId,
@@ -190,7 +190,7 @@ test('usuário autorizado adiciona uma foto nova', async () => {
     downloadMedia: async () => jpegMedia,
   });
   await handleAddPhotoConversation(upload.message, '', dependencies());
-  assert.equal(upload.replies[0]?.[0], '✅ Foto adicionada com sucesso.\n\n🛞 ITARO 203');
+  assert.equal(upload.replies[0]?.[0], '✅ Foto adicionada com sucesso.\n🛞 *ITARO 203*');
   assert.equal(getAddPhotoSession(userId, 'official-group@g.us'), null);
   clearLastQuery(userId);
 });
@@ -212,7 +212,7 @@ test('usuário autorizado substitui uma foto existente', async () => {
     '',
     dependencies({ replacePhoto: async () => ({ replaced: true }) })
   );
-  assert.equal(upload.replies[0]?.[0], '✅ Foto substituída com sucesso.\n\n🛞 ITARO 203');
+  assert.equal(upload.replies[0]?.[0], '✅ Foto substituída com sucesso.\n🛞 *ITARO 203*');
   clearLastQuery(userId);
 });
 
@@ -221,7 +221,7 @@ test('addfoto não exige permissão de administrador', async () => {
   queryProduct(userId);
   const { message, replies } = fakeMessage({ userId });
   await handleAddPhotoCommand(message, 'addfoto 1', dependencies());
-  assert.equal(replies[0]?.[0], '📷 Envie a foto do pneu:\n\nITARO 203');
+  assert.equal(replies[0]?.[0], '📷 *FOTO DO PNEU*\n*ITARO 203*\nEnvie a imagem.');
   assert.ok(getAddPhotoSession(userId, 'official-group@g.us'));
   clearAddPhotoSession(userId, 'official-group@g.us');
   clearLastQuery(userId);
@@ -232,7 +232,7 @@ test('texto durante addfoto é rejeitado e a sessão continua', async () => {
   savePendingSession(userId);
   const { message, replies } = fakeMessage({ userId, body: 'texto' });
   assert.equal(await handleAddPhotoConversation(message, 'texto', dependencies()), true);
-  assert.equal(replies[0]?.[0], 'Envie uma imagem válida do pneu.');
+  assert.equal(replies[0]?.[0], '❌ Envie uma imagem válida do pneu.');
   assert.ok(getAddPhotoSession(userId, 'official-group@g.us'));
   clearAddPhotoSession(userId, 'official-group@g.us');
 });
@@ -247,7 +247,7 @@ test('falha em downloadMedia mantém a sessão para nova tentativa', async () =>
     downloadMedia: async () => { throw new Error('download failed'); },
   });
   await handleAddPhotoConversation(message, '', dependencies());
-  assert.equal(replies[0]?.[0], 'Não consegui receber a imagem.\nEnvie a foto novamente.');
+  assert.equal(replies[0]?.[0], '❌ Não consegui receber a imagem. Envie novamente.');
   assert.ok(getAddPhotoSession(userId, 'official-group@g.us'));
   clearAddPhotoSession(userId, 'official-group@g.us');
 });

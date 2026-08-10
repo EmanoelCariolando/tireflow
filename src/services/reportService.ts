@@ -79,30 +79,24 @@ export async function buildLowStockOperationalReport(limit?: number): Promise<{
 
 function formatLowStockReport(lowStockProducts: Product[]): string {
   if (lowStockProducts.length === 0) {
-    return [
-      '✅ Estoque baixo',
-      '',
-      'Nenhum produto abaixo do estoque mínimo.',
-    ].join('\n');
+    return '✅ *ESTOQUE BAIXO*\nNenhum produto abaixo do mínimo.';
   }
 
   return [
-    '⚠️ Estoque baixo',
+    '⚠️ *ESTOQUE BAIXO*',
     '',
     ...lowStockProducts.map((product, index) =>
       [
-        `${index + 1}. ${product.reference} - ${product.description}`,
-        `Estoque: ${product.stock}`,
+        `${index + 1}️⃣ 🛞 *${product.reference} — ${product.description}*`,
+        `📦 Estoque: *${product.stock}*`,
+        `⚠️ Mínimo: *${product.minStock}*`,
         formatStockLocationLine(product.stockLocation),
-        `Mínimo: ${product.minStock}`,
-        `À vista: ${formatCurrency(toNumber(product.cashPrice))}`,
-        `A prazo: ${formatCurrency(toNumber(product.creditPrice))}`,
+        `💰 À vista: *${formatCurrency(toNumber(product.cashPrice))}*`,
+        `💳 A prazo: *${formatCurrency(toNumber(product.creditPrice))}*`,
       ].filter((line): line is string => Boolean(line)).join('\n')
     ),
     '',
-    'Para repor estoque:\nentrada 1',
-    'Para ajustar estoque:\najuste 1',
-    'Para alterar preço:\npreco 1',
+    'Ações: *entrada 1* | *ajuste 1* | *preco 1*',
   ].join('\n\n');
 }
 
@@ -111,21 +105,17 @@ export async function buildBestSellersReport(limit = 10): Promise<string> {
   const bestSellers = summarizeSalesByProduct(sales).slice(0, limit);
 
   if (bestSellers.length === 0) {
-    return [
-      '🏆 Mais vendidos',
-      '',
-      'Nenhuma venda registrada ainda.',
-    ].join('\n');
+    return '🏆 *MAIS VENDIDOS*\nNenhuma venda registrada.';
   }
 
   return [
-    '🏆 Mais vendidos',
+    '🏆 *MAIS VENDIDOS*',
     '',
     ...bestSellers.map((item, index) =>
       [
-        `${index + 1}. ${item.product.reference} - ${item.product.description}`,
-        `Quantidade vendida: ${item.quantity}`,
-        `Faturamento: ${formatCurrency(item.totalValue)}`,
+        `${index + 1}️⃣ 🛞 *${item.product.reference} — ${item.product.description}*`,
+        `📦 Vendidos: *${item.quantity}*`,
+        `💰 Faturamento: *${formatCurrency(item.totalValue)}*`,
       ].join('\n')
     ),
   ].join('\n\n');
@@ -175,17 +165,19 @@ export function formatTodayReport(input: TodayReportFormatInput): string {
   lines.push(
     `💰 *FATURAMENTO: ${formatCurrency(input.totalRevenue)}*`,
     '',
-    '*PAGAMENTOS*',
-    `Dinheiro: *${formatCurrency(input.paymentTotals.Dinheiro)}*`,
-    `PIX: *${formatCurrency(input.paymentTotals.PIX)}*`,
-    `Cartão: *${formatCurrency(input.paymentTotals.Cartão)}*`,
-    `Nota: *${formatCurrency(input.paymentTotals.Nota)}*`,
+    '💳 *PAGAMENTOS*',
+    `💵 Dinheiro: *${formatCurrency(input.paymentTotals.Dinheiro)}*`,
+    `📲 PIX: *${formatCurrency(input.paymentTotals.PIX)}*`,
+    `💳 Cartão: *${formatCurrency(input.paymentTotals.Cartão)}*`,
+    `🧾 Nota: *${formatCurrency(input.paymentTotals.Nota)}*`,
     '',
-    '*MOVIMENTAÇÕES*',
-    `Vendas: *${input.movementCounts.sale}* | Entradas: *${input.movementCounts.entry}*`,
-    `Ajustes: *${input.movementCounts.adjustment}* | Preços: *${input.movementCounts.priceChange}*`,
+    '📊 *MOVIMENTAÇÕES*',
+    `🛒 Vendas: *${input.movementCounts.sale}*`,
+    `📥 Entradas: *${input.movementCounts.entry}*`,
+    `🧮 Ajustes: *${input.movementCounts.adjustment}*`,
+    `🏷️ Preços: *${input.movementCounts.priceChange}*`,
     '',
-    '*MAIS VENDIDO*',
+    '🏆 *MAIS VENDIDO*',
     formatBestSeller(input.bestSeller),
     '',
     '⚠️ *ESTOQUE ZERADO NO DIA*',
@@ -330,8 +322,8 @@ function formatBestSeller(bestSeller: TodayReportFormatInput['bestSeller']): str
   }
 
   return [
-    `*${bestSeller.reference}* — *${bestSeller.description}*`,
-    `Quantidade: *${bestSeller.quantity} unidades*`,
+    `🛞 *${bestSeller.reference} — ${bestSeller.description}*`,
+    `📦 Quantidade: *${bestSeller.quantity} unidades*`,
   ].join('\n');
 }
 

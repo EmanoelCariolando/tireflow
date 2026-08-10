@@ -15,23 +15,55 @@ import {
 } from '../utils/menuSessionStore.js';
 import env from '../config/env.js';
 import { handleProductRegistrationStart } from './productRegistrationCommand.js';
+import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
+import {
+  formatReferenceSuggestions,
+  formatResolvedReferenceNotice,
+} from './pneuCommand.js';
+import { findSuggestedActiveReferences } from '../services/productService.js';
 
 const MENU_TEXT = [
-  '🤖 TireFlow',
-  '',
-  '📊 MENU',
+  '🤖 *TIREFLOW — MENU*',
   '',
   '1️⃣ Relatório de hoje',
-  '2️⃣ Baixo estoque',
-  '3️⃣ Mais vendidos',
-  '4️⃣ Cadastrar pneu',
+  '2️⃣ Mais vendidos',
+  '3️⃣ Cadastrar pneu',
   '',
-  'Responda com:',
-  '1, 2, 3 ou 4',
+  'Responda: *1*, *2* ou *3*',
 ].join('\n');
 
 export function isMenuCommand(body: string): boolean {
   return body.trim().toLowerCase() === 'menu';
+}
+
+export function isZeroStockCommand(body: string): boolean {
+  return /^zero(?:\s|$)/i.test(body.trim());
+}
+
+export async function handleZeroStockCommand(message: Message, body: string): Promise<void> {
+  const userId = getMessageUserId(message);
+  const chatId = getMessageChatId(message);
+  const rawMeasure = body.trim().replace(/^zero(?:\s+|$)/i, '');
+  const normalized = normalizeTireSize(rawMeasure);
+
+  clearAllOperationSessions(userId, chatId);
+
+  try {
+    if (!normalized) {
+      const suggestions = await findSuggestedActiveReferences(rawMeasure);
+      const suggestionText = formatReferenceSuggestions(suggestions);
+      await message.reply(
+        '❌ Medida inválida. Ex.: *zero 175 70 14*' +
+          (suggestionText ? `\n\n${suggestionText}` : '')
+      );
+      return;
+    }
+
+    await replyWithZeroStockProducts(message, normalized, userId, chatId);
+  } catch (error) {
+    console.error('[ZERO STOCK] Error:', error);
+    await message.reply('❌ *ERRO NA CONSULTA*\nTente novamente.');
+  }
 }
 
 export async function handleMenuCommand(message: Message): Promise<void> {
@@ -49,12 +81,7 @@ export async function handleMenuSelection(message: Message, body: string): Promi
     return false;
   }
 
-  if (session.step === 'awaiting_low_stock_measure') {
-    await handleLowStockMeasureStep(message, body, userId, chatId);
-    return true;
-  }
-
-  if (!['1', '2', '3', '4'].includes(selection)) {
+  if (!['1', '2', '3'].includes(selection)) {
     return false;
   }
 
@@ -65,53 +92,48 @@ export async function handleMenuSelection(message: Message, body: string): Promi
   }
 
   if (selection === '2') {
-    saveMenuSession(userId, chatId, 'awaiting_low_stock_measure');
-    await message.reply('Digite a medida do pneu que está sem estoque.\n\nExemplo: 175 70 14');
-    return true;
-  }
-
-  if (selection === '4') {
     clearMenuSession(userId, chatId);
-    await handleProductRegistrationStart(message);
+    await handleBestSellersCommand(message);
     return true;
   }
 
   clearMenuSession(userId, chatId);
-  await handleBestSellersCommand(message);
+  await handleProductRegistrationStart(message);
   return true;
 }
 
-async function handleLowStockMeasureStep(
+async function replyWithZeroStockProducts(
   message: Message,
-  rawMeasure: string,
+  normalized: string,
   userId: string,
   chatId: string
 ): Promise<void> {
-  const normalized = normalizeTireSize(rawMeasure);
-
-  if (!normalized) {
-    saveMenuSession(userId, chatId, 'awaiting_low_stock_measure');
-    await message.reply('Medida inválida. Exemplo: 175 70 14');
-    return;
-  }
-
   const products = await findActiveProductsByReference(normalized);
   const zeroStockProducts = products.filter((product) => product.stock <= 0);
 
   clearMenuSession(userId, chatId);
 
   if (products.length === 0) {
-    await message.reply(`Nenhum pneu encontrado para ${normalized}.`);
+    const suggestions = await findSuggestedActiveReferences(normalized);
+    const suggestionText = formatReferenceSuggestions(suggestions);
+    await message.reply(
+      `🔎 Nenhum pneu encontrado para *${normalized}*.` +
+        (suggestionText ? `\n\n${suggestionText}` : '')
+    );
     return;
   }
 
   if (zeroStockProducts.length === 0) {
-    await message.reply(`Nenhum pneu zerado encontrado para ${normalized}.`);
+    await message.reply(`✅ Nenhum pneu *${normalized}* está zerado.`);
     return;
   }
 
   saveLastQuery(userId, chatId, normalized, zeroStockProducts);
-  await message.reply(formatZeroStockProductList(zeroStockProducts, normalized));
+  const referenceNotice = formatResolvedReferenceNotice(normalized, zeroStockProducts);
+  await message.reply(
+    (referenceNotice ? `${referenceNotice}\n\n` : '') +
+      formatZeroStockProductList(zeroStockProducts, normalized)
+  );
 }
 
 export function formatZeroStockProductList(
@@ -119,31 +141,29 @@ export function formatZeroStockProductList(
   normalized: string,
   inventoryLocationsEnabled = env.inventoryLocationsEnabled
 ): string {
-  let text = `🛞 ${normalized} - estoque 0\n\n`;
+  const totalLabel = products.length === 1 ? '1 modelo' : `${products.length} modelos`;
+  let text = `🛞 *${normalized}*\n\n⚠️ *ESTOQUE ZERO — ${totalLabel}*\n`;
 
   products.forEach((product, index) => {
-    text += `${index + 1}️⃣ ${product.description}\n`;
-    text += `📦 Estoque: ${product.stock}\n`;
+    text += `\n${index + 1}️⃣ *${product.description}*\n`;
+    text += `📦 Estoque: *${product.stock}*\n`;
     if (inventoryLocationsEnabled) {
       const stockLocationLine =
-        formatStockLocationLine(product.stockLocation, true) ?? '📍 Local: não cadastrado';
+        formatStockLocationLine(product.stockLocation, true) ?? '📍 Local: *não cadastrado*';
       text += `${stockLocationLine}\n`;
     }
-    text += `💰 À vista: ${formatCurrency(product.cashPrice)}\n`;
-    text += `💳 A prazo: ${formatCurrency(product.creditPrice)}\n`;
-
-    if (index < products.length - 1) {
-      text += '\n';
-    }
+    text += `💰 À vista: *${formatCurrency(product.cashPrice)}*\n`;
+    text += `💳 A prazo: *${formatCurrency(product.creditPrice)}*`;
+    if (index < products.length - 1) text += '\n';
   });
 
-  text += '\nPara repor estoque:\nentrada 1';
+  text += '\n\n📥 Para repor: *entrada 1*';
 
   if (
     inventoryLocationsEnabled &&
     products.some((product) => !normalizeStockLocation(product.stockLocation))
   ) {
-    text += '\n\n📍 Para cadastrar o local:\nlocal <número>\nExemplo: local 1';
+    text += '\n📍 Para cadastrar local: *local 1*';
   }
 
   return text;

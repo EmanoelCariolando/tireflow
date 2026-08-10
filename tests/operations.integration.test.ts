@@ -20,7 +20,8 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
 
   const { prisma } = await import('../src/database/prisma.js');
   const { registerSale, registerSaleItems, InsufficientStockError } = await import('../src/services/saleService.js');
-  const { registerEntry } = await import('../src/services/entryService.js');
+  const { registerEntry, registerEntryItems, EntryProductNotFoundError } =
+    await import('../src/services/entryService.js');
   const { registerAdjustment } = await import('../src/services/adjustmentService.js');
   const { registerPriceChange } = await import('../src/services/priceService.js');
   const {
@@ -205,6 +206,113 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
         newLocation: 'CG',
       }),
       ProductLocationChangedError
+    );
+
+    const entryWithPriceProduct = await prisma.product.create({
+      data: {
+        reference: '215/75/17.5', description: 'PNEU ENTRADA COM PREÇO', stock: 1,
+        minStock: 0, cashPrice: 250, creditPrice: 264.5,
+      },
+    });
+    await registerEntry({
+      productId: entryWithPriceProduct.id,
+      responsiblePhone: 'entry-price-user',
+      responsibleName: 'Entry Price User',
+      quantity: 3,
+      supplier: 'Fornecedor Preço',
+      newCashPrice: 275,
+    });
+    const productAfterEntryWithPrice = await prisma.product.findUniqueOrThrow({
+      where: { id: entryWithPriceProduct.id },
+    });
+    assert.equal(productAfterEntryWithPrice.stock, 4);
+    assert.equal(Number(productAfterEntryWithPrice.cashPrice), 275);
+    assert.equal(Number(productAfterEntryWithPrice.creditPrice), 290.95);
+    assert.equal(
+      await prisma.movement.count({ where: { productId: entryWithPriceProduct.id } }),
+      2
+    );
+    assert.equal(
+      await prisma.movement.count({
+        where: { productId: entryWithPriceProduct.id, type: 'PRICE_CHANGE' },
+      }),
+      1
+    );
+
+    const multiEntryProducts = await Promise.all([
+      prisma.product.create({
+        data: {
+          reference: '225/65/16', description: 'PNEU ENTRADA MULTI A', stock: 2,
+          minStock: 0, cashPrice: 300, creditPrice: 317.4,
+        },
+      }),
+      prisma.product.create({
+        data: {
+          reference: '275/80/22.5', description: 'PNEU ENTRADA MULTI B', stock: 0,
+          minStock: 0, cashPrice: 2000, creditPrice: 2116,
+        },
+      }),
+    ]);
+    const multiEntry = await registerEntryItems({
+      responsiblePhone: 'entry-multi-user',
+      responsibleName: 'Entry Multi User',
+      items: [
+        {
+          productId: multiEntryProducts[0].id,
+          quantity: 5,
+          supplier: 'Fornecedor A',
+        },
+        {
+          productId: multiEntryProducts[1].id,
+          quantity: 3,
+          supplier: 'Fornecedor B',
+          newCashPrice: 2100,
+        },
+      ],
+    });
+    assert.equal(multiEntry.items.length, 2);
+    assert.deepEqual(
+      await prisma.product.findMany({
+        where: { id: { in: multiEntryProducts.map((item) => item.id) } },
+        orderBy: { reference: 'asc' },
+        select: { stock: true, cashPrice: true, creditPrice: true },
+      }).then((products) => products.map((item) => ({
+        stock: item.stock,
+        cashPrice: Number(item.cashPrice),
+        creditPrice: Number(item.creditPrice),
+      }))),
+      [
+        { stock: 7, cashPrice: 300, creditPrice: 317.4 },
+        { stock: 3, cashPrice: 2100, creditPrice: 2221.8 },
+      ]
+    );
+
+    await prisma.product.update({
+      where: { id: multiEntryProducts[1].id },
+      data: { isActive: false },
+    });
+    await assert.rejects(
+      registerEntryItems({
+        responsiblePhone: 'entry-rollback-user',
+        responsibleName: 'Entry Rollback User',
+        items: [
+          {
+            productId: multiEntryProducts[0].id,
+            quantity: 2,
+            supplier: 'Fornecedor Rollback',
+          },
+          {
+            productId: multiEntryProducts[1].id,
+            quantity: 2,
+            supplier: 'Fornecedor Inativo',
+          },
+        ],
+      }),
+      EntryProductNotFoundError
+    );
+    assert.equal(
+      (await prisma.product.findUniqueOrThrow({ where: { id: multiEntryProducts[0].id } })).stock,
+      7
     );
   } finally {
     await prisma.$disconnect();

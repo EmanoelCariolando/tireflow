@@ -53,7 +53,7 @@ test('recognizes only a numbered local command', () => {
 
 test('renders missing locations and instructions only for Monteiro', () => {
   const monteiroList = formatProductList([product], '175/70 R14', true);
-  assert.match(monteiroList, /📍 Local: não cadastrado/);
+  assert.match(monteiroList, /📍 Local: \*não cadastrado\*/);
   assert.match(monteiroList, /Para cadastrar o local:\nlocal <número>\nExemplo: local 1/);
 
   const congoList = formatProductList([product], '175/70 R14', false);
@@ -68,15 +68,15 @@ test('offers local registration in the zero-stock list without changing entry gu
     true
   );
 
-  assert.match(text, /📦 Estoque: 0\n📍 Local: não cadastrado/);
-  assert.match(text, /Para repor estoque:\nentrada 1/);
-  assert.match(text, /Para cadastrar o local:\nlocal <número>\nExemplo: local 1/);
+  assert.match(text, /📦 Estoque: \*0\*\n📍 Local: \*não cadastrado\*/);
+  assert.match(text, /Para repor: \*entrada 1\*/);
+  assert.match(text, /Para cadastrar local: \*local 1\*/);
 });
 
 test('shows the local command in help only when inventory locations are enabled', () => {
   assert.match(
     formatPneuHelp(true),
-    /local <número>\n↳ Adiciona ou altera o local físico do produto/
+    /\*local 1\* — alterar localização/
   );
   assert.doesNotMatch(formatPneuHelp(false), /local <número>/);
 });
@@ -104,13 +104,13 @@ test('starts a clean location flow and validates the new location before confirm
     assert.equal(
       formatLocationConfirmation(session!),
       [
-        '⚠️ *CONFIRMAR LOCAL?*',
+        '📍 *LOCALIZAÇÃO — CONFIRMAR*',
         '',
-        '*175/70 R14* — *PNEU SEM LOCAL*',
-        'De: *não cadastrado*',
-        'Para: *W3*',
+        '🛞 *175/70 R14 — PNEU SEM LOCAL*',
         '',
-        'Digite: confirmar ou cancelar',
+        '📍 Local: *não cadastrado → W3*',
+        '',
+        'Responda: *confirmar* ou *cancelar*.',
       ].join('\n')
     );
 

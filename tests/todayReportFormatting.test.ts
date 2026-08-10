@@ -37,17 +37,19 @@ test('formats an empty daily report compactly while keeping every total', () => 
       '',
       '💰 *FATURAMENTO: R$0,00*',
       '',
-      '*PAGAMENTOS*',
-      'Dinheiro: *R$0,00*',
-      'PIX: *R$0,00*',
-      'Cartão: *R$0,00*',
-      'Nota: *R$0,00*',
+      '💳 *PAGAMENTOS*',
+      '💵 Dinheiro: *R$0,00*',
+      '📲 PIX: *R$0,00*',
+      '💳 Cartão: *R$0,00*',
+      '🧾 Nota: *R$0,00*',
       '',
-      '*MOVIMENTAÇÕES*',
-      'Vendas: *0* | Entradas: *0*',
-      'Ajustes: *0* | Preços: *0*',
+      '📊 *MOVIMENTAÇÕES*',
+      '🛒 Vendas: *0*',
+      '📥 Entradas: *0*',
+      '🧮 Ajustes: *0*',
+      '🏷️ Preços: *0*',
       '',
-      '*MAIS VENDIDO*',
+      '🏆 *MAIS VENDIDO*',
       'Nenhum produto vendido hoje.',
       '',
       '⚠️ *ESTOQUE ZERADO NO DIA*',
@@ -95,9 +97,9 @@ test('highlights revenue, movement numbers and the best-selling tire', () => {
   });
 
   assert.match(report, /💰 \*FATURAMENTO: R\$1220,00\*/);
-  assert.match(report, /Vendas: \*4\* \| Entradas: \*2\*/);
-  assert.match(report, /Ajustes: \*1\* \| Preços: \*3\*/);
-  assert.match(report, /\*175\/70 R14\* — \*PIRELLI FORMULA EVO\*/);
+  assert.match(report, /🛒 Vendas: \*4\*[\s\S]*📥 Entradas: \*2\*/);
+  assert.match(report, /🧮 Ajustes: \*1\*[\s\S]*🏷️ Preços: \*3\*/);
+  assert.match(report, /🛞 \*175\/70 R14 — PIRELLI FORMULA EVO\*/);
   assert.match(report, /Quantidade: \*3 unidades\*/);
   assert.match(report, /ESTOQUE ZERADO NO DIA/);
   assert.match(report, /🔴 \*175\/70 R14\* — \*PIRELLI FORMULA EVO\*/);

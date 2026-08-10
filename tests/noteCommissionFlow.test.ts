@@ -48,13 +48,13 @@ test('asks whether a note is for a city hall before requesting its name', async 
 
   await handleSaleConversation(createMessage(replies, 'note-image'), '');
   assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_city_hall_confirmation');
-  assert.match(replies.at(-1) ?? '', /Essa nota é para uma prefeitura/);
+  assert.match(replies.at(-1) ?? '', /NOTA PARA PREFEITURA/);
   assert.doesNotMatch(replies.at(-1) ?? '', /Nome da nota/);
 
   await handleSaleConversation(createMessage(replies), 's');
   assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_invoice_name');
   assert.equal(getSaleSession(userId, chatId)?.isCityHallSale, true);
-  assert.match(replies.at(-1) ?? '', /Nome da nota/);
+  assert.match(replies.at(-1) ?? '', /NOME DA NOTA/);
 
   await handleSaleConversation(createMessage(replies), 'Prefeitura de Congo');
   const confirmation = getSaleSession(userId, chatId);

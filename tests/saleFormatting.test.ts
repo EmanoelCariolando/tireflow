@@ -48,7 +48,7 @@ test('highlights and separates the total after a registered sale', () => {
   assert.doesNotMatch(message, /━/);
 });
 
-test('uses the same compact emphasis in the private boss notification', () => {
+test('uses the restored detailed format in the private boss notification', () => {
   const message = formatBossSaleNotification(session, 'VEN-001', 'Vendedor', 8);
 
   assert.equal(
@@ -92,7 +92,7 @@ test('accepts s or n for the city hall question and shows the commission rule', 
   assert.equal(parseCityHallResponse('n'), false);
   assert.equal(parseCityHallResponse('não'), false);
   assert.equal(parseCityHallResponse('talvez'), null);
-  assert.match(formatCityHallQuestion(), /prefeitura \(de Congo ou de outra cidade\)/);
+  assert.match(formatCityHallQuestion(), /NOTA PARA PREFEITURA/);
 
   const cityHallConfirmation = formatSaleConfirmation({
     ...session,

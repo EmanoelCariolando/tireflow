@@ -65,6 +65,21 @@ export const productRepository = {
     });
   },
 
+  findDistinctActiveReferences(client: PrismaClientOrTransaction = prisma) {
+    return client.product.findMany({
+      distinct: ['reference'],
+      select: {
+        reference: true,
+      },
+      where: {
+        isActive: true,
+      },
+      orderBy: {
+        reference: 'asc',
+      },
+    });
+  },
+
   findByReferenceAndDescription(
     reference: string,
     description: string,

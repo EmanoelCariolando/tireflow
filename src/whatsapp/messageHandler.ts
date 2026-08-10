@@ -4,6 +4,9 @@ import {
   handlePneuCommand,
   isPneuHelpCommand,
   handlePneuHelpCommand,
+  isStandaloneTireSizeCommand,
+  isTireSizeLikeCommand,
+  handleLegacyPneuCommandNotice,
 } from '../commands/pneuCommand.js';
 import { isSaleCommand, handleSaleCommand, handleSaleConversation } from '../commands/saleCommand.js';
 import { isEntryCommand, handleEntryCommand, handleEntryConversation } from '../commands/entryCommand.js';
@@ -17,7 +20,13 @@ import { isGroupIdCommand, handleGroupIdCommand } from '../commands/groupIdComma
 import { isLowStockCommand, handleLowStockCommand } from '../commands/lowStockCommand.js';
 import { isBestSellersCommand, handleBestSellersCommand } from '../commands/bestSellersCommand.js';
 import { isTodayReportCommand, handleTodayReportCommand } from '../commands/todayReportCommand.js';
-import { isMenuCommand, handleMenuCommand, handleMenuSelection } from '../commands/menuCommand.js';
+import {
+  isMenuCommand,
+  handleMenuCommand,
+  handleMenuSelection,
+  isZeroStockCommand,
+  handleZeroStockCommand,
+} from '../commands/menuCommand.js';
 import {
   handleAddPhotoCommand,
   handleAddPhotoConversation,
@@ -49,6 +58,7 @@ import {
 } from '../commands/productRegistrationCommand.js';
 import { isCancellationResponse } from '../utils/operationResponse.js';
 import { getSaleSession } from '../utils/saleSessionStore.js';
+import { getEntrySession } from '../utils/entrySessionStore.js';
 
 /**
  * Message Handler (Fase 3)
@@ -115,10 +125,22 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
+  const activeEntry = getEntrySession(userId, chatId);
+  if (
+    activeEntry?.step === 'awaiting_additional_item' &&
+    await handleEntryConversation(message, body)
+  ) {
+    return;
+  }
+
   // A fresh tire query intentionally abandons every incompatible operation.
   if (body && isPneuCommand(body)) {
-    const rawMeasure = body.trim().slice(5).trim();
-    await handlePneuCommand(message, rawMeasure);
+    await handleLegacyPneuCommandNotice(message);
+    return;
+  }
+
+  if (body && isZeroStockCommand(body)) {
+    await handleZeroStockCommand(message, body);
     return;
   }
 
@@ -170,6 +192,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isPneuHelpCommand(body)) {
     await handlePneuHelpCommand(message);
+    return;
+  }
+
+  if (isStandaloneTireSizeCommand(body) || isTireSizeLikeCommand(body)) {
+    await handlePneuCommand(message, body);
     return;
   }
 

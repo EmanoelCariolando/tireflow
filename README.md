@@ -18,10 +18,16 @@ O **TireFlow** transforma o WhatsApp em uma interface simples para consultar pro
 
 ## Exemplo de uso
 
-Consulte uma medida:
+Consulte pneus com estoque digitando somente a medida:
 
 ```text
-pneu 175/70 R14
+175 70 14
+```
+
+Consulte somente os pneus zerados da medida:
+
+```
+zero 175 70 14
 ```
 
 O bot retorna os produtos disponíveis. Para vender duas unidades da primeira opção:
@@ -36,7 +42,8 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 
 | Comando | Ação |
 | --- | --- |
-| `pneu <medida>` | Consultar pneus |
+| `<medida>` | Consultar pneus com estoque |
+| `zero <medida>` | Consultar somente pneus zerados |
 | `venda <item> <quantidade>` | Registrar uma venda |
 | `entrada <item>` | Adicionar estoque |
 | `ajuste <item>` | Corrigir o estoque |
