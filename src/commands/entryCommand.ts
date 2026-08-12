@@ -17,12 +17,22 @@ import {
   RegisteredEntry,
 } from '../services/entryService.js';
 import { sendBossNotification } from '../services/notificationService.js';
-import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import {
+  isBackResponse,
+  isCancellationResponse,
+  isConfirmationResponse,
+} from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import { findActiveProductsByReference } from '../services/productService.js';
-import { formatProductList } from './pneuCommand.js';
+import { formatProductChoiceQuestion, formatProductList } from './pneuCommand.js';
+import {
+  formatAdditionalTireQuestion,
+  formatCashPriceQuestion,
+  formatQuantityQuestion,
+  formatSupplierQuestion,
+} from '../utils/operationPrompts.js';
 
 const ENTRY_COMMAND_REGEX = /^entrada\s+(\d+)$/i;
 const MAX_ENTRY_ITEMS = 20;
@@ -81,7 +91,7 @@ export async function handleEntryCommand(message: Message, body: string): Promis
     updatedAt: Date.now(),
   });
 
-  await message.reply('📦 *ENTRADA — QUANTIDADE*\n\nDigite apenas o número.\nEx.: *20*');
+  await message.reply(formatQuantityQuestion());
 }
 
 export async function handleEntryConversation(message: Message, body: string): Promise<boolean> {
@@ -103,6 +113,11 @@ export async function handleEntryConversation(message: Message, body: string): P
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return true;
+  }
+
+  if (isBackResponse(normalizedBody) && canReturnFromAdditionalEntry(session)) {
+    await returnToPreparedEntry(message, session);
     return true;
   }
 
@@ -167,7 +182,22 @@ async function handleQuantityStep(
   const quantity = Number(normalizedBody);
 
   if (!Number.isInteger(quantity) || quantity <= 0) {
-    await message.reply('❌ Quantidade inválida. Digite um inteiro positivo. Ex.: *20*');
+    await message.reply(
+      `❌ Quantidade inválida. Digite um inteiro positivo.\n\n${formatQuantityQuestion()}`
+    );
+    return;
+  }
+
+  const noteSupplier = getExplicitEntryItems(session)[0]?.supplier;
+  if (noteSupplier) {
+    saveEntrySession({
+      ...session,
+      step: 'awaiting_price_decision',
+      quantity,
+      supplier: noteSupplier,
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatPriceDecisionQuestion());
     return;
   }
 
@@ -178,7 +208,7 @@ async function handleQuantityStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply('🚚 *ENTRADA — FORNECEDOR*\n\nInforme o fornecedor.\nEx.: *ABC Pneus*');
+  await message.reply(formatSupplierQuestion());
 }
 
 async function handleSupplierStep(
@@ -189,7 +219,7 @@ async function handleSupplierStep(
   const supplier = body.trim();
 
   if (!supplier) {
-    await message.reply('❌ Informe o fornecedor. Ex.: *ABC Pneus*');
+    await message.reply(`❌ Fornecedor inválido.\n\n${formatSupplierQuestion()}`);
     return;
   }
 
@@ -201,9 +231,7 @@ async function handleSupplierStep(
   };
 
   saveEntrySession(nextSession);
-  await message.reply(
-    '💰 *VOCÊ QUER ALTERAR O PREÇO?*\nDigite *s* ou *n*.'
-  );
+  await message.reply(formatPriceDecisionQuestion());
 }
 
 async function handlePriceDecisionStep(
@@ -217,9 +245,7 @@ async function handlePriceDecisionStep(
       step: 'awaiting_cash_price',
       updatedAt: Date.now(),
     });
-    await message.reply(
-      '💰 *DIGITE O PREÇO À VISTA*\nEx.: *275,00*\n_O preço a prazo (+5,8%) será calculado automaticamente._'
-    );
+    await message.reply(formatCashPriceQuestion());
     return;
   }
 
@@ -244,7 +270,7 @@ async function handleCashPriceStep(
   const cashPrice = parsePriceValue(body);
 
   if (cashPrice === null) {
-    await message.reply('❌ Preço inválido. Digite um valor maior ou igual a zero. Ex.: *275,00*');
+    await message.reply(`❌ Preço inválido.\n\n${formatCashPriceQuestion()}`);
     return;
   }
 
@@ -309,7 +335,7 @@ async function handleAdditionalDecisionStep(
       additionalProducts: undefined,
       updatedAt: Date.now(),
     });
-    await message.reply(formatAdditionalMeasureQuestion(session));
+    await message.reply(formatAdditionalTireQuestion());
     return;
   }
 
@@ -336,7 +362,9 @@ async function handleAdditionalMeasureStep(
   const normalizedMeasure = normalizeTireSize(rawMeasure);
 
   if (!normalizedMeasure) {
-    await message.reply('❌ Medida inválida. Digite somente a medida. Ex.: *275 80 22.5*');
+    await message.reply(
+      '❌ Medida inválida. Digite outra medida ou *voltar* para manter os pneus anteriores.'
+    );
     return;
   }
 
@@ -345,7 +373,7 @@ async function handleAdditionalMeasureStep(
 
     if (products.length === 0) {
       await message.reply(
-        `Nenhum pneu encontrado para *${normalizedMeasure}*.\nDigite outra medida ou *cancelar*.`
+        `Nenhum pneu encontrado para *${normalizedMeasure}*.\nDigite outra medida ou *voltar* para manter os pneus anteriores.`
       );
       return;
     }
@@ -357,15 +385,11 @@ async function handleAdditionalMeasureStep(
       additionalProducts: products,
       updatedAt: Date.now(),
     });
-    await message.reply([
-      formatProductList(products, normalizedMeasure),
-      '',
-      'Para adicionar, digite: *entrada <número>*',
-      'Ex.: *entrada 1*',
-    ].join('\n'));
+    await message.reply(formatProductList(products, normalizedMeasure));
+    await message.reply(formatProductChoiceQuestion());
   } catch (error) {
     console.error('[ENTRY] Error searching an additional tire:', error);
-    await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite *cancelar*.');
+    await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite *voltar*.');
   }
 }
 
@@ -377,16 +401,17 @@ async function handleAdditionalItemStep(
   const optionNumber = parseAdditionalItemSelection(body);
 
   if (optionNumber === null) {
-    await message.reply('❌ Opção inválida. Use: *entrada 1*');
+    await message.reply(`❌ Opção inválida.\n\n${formatProductChoiceQuestion()}`);
     return;
   }
 
   const product = session.additionalProducts?.[optionNumber - 1];
   if (!product) {
-    await message.reply('❌ Item inválido. Use um número da lista mostrada.');
+    await message.reply(`❌ Item inválido.\n\n${formatProductChoiceQuestion()}`);
     return;
   }
 
+  const noteSupplier = getExplicitEntryItems(session)[0]?.supplier;
   saveEntrySession({
     ...session,
     step: 'awaiting_quantity',
@@ -396,14 +421,14 @@ async function handleAdditionalItemStep(
     oldCashPrice: product.cashPrice,
     oldCreditPrice: product.creditPrice,
     quantity: undefined,
-    supplier: undefined,
+    supplier: noteSupplier,
     newCashPrice: undefined,
     newCreditPrice: undefined,
     additionalMeasure: undefined,
     additionalProducts: undefined,
     updatedAt: Date.now(),
   });
-  await message.reply('📦 *NOVO PNEU — QUANTIDADE*\n\nQuantos pneus chegaram?\nEx.: *20*');
+  await message.reply(formatQuantityQuestion());
 }
 
 async function handleConfirmationStep(
@@ -487,6 +512,49 @@ function parseAdditionalItemSelection(value: string): number | null {
   return Number.isInteger(optionNumber) && optionNumber > 0 ? optionNumber : null;
 }
 
+function canReturnFromAdditionalEntry(session: EntrySession): boolean {
+  return getExplicitEntryItems(session).length > 0 && [
+    'awaiting_additional_measure',
+    'awaiting_additional_item',
+    'awaiting_quantity',
+    'awaiting_supplier',
+    'awaiting_price_decision',
+    'awaiting_cash_price',
+  ].includes(session.step);
+}
+
+async function returnToPreparedEntry(
+  message: Message,
+  session: EntrySession
+): Promise<void> {
+  const items = getExplicitEntryItems(session);
+  const lastItem = items.at(-1)!;
+  const nextSession: EntrySession = {
+    ...session,
+    step: 'awaiting_additional_decision',
+    productId: lastItem.productId,
+    reference: lastItem.reference,
+    description: lastItem.description,
+    oldCashPrice: lastItem.oldCashPrice,
+    oldCreditPrice: lastItem.oldCreditPrice,
+    quantity: lastItem.quantity,
+    supplier: lastItem.supplier,
+    newCashPrice: lastItem.newCashPrice,
+    newCreditPrice: lastItem.newCreditPrice,
+    items,
+    additionalMeasure: undefined,
+    additionalProducts: undefined,
+    updatedAt: Date.now(),
+  };
+  saveEntrySession(nextSession);
+  await message.reply([
+    '↩️ *PNEU ATUAL IGNORADO*',
+    `Os *${items.length}* itens anteriores continuam na entrada.`,
+    '',
+    formatAdditionalDecisionQuestion(nextSession),
+  ].join('\n'));
+}
+
 function parsePriceValue(value: string): number | null {
   const trimmed = value.trim();
   const normalized = trimmed.includes(',')
@@ -543,13 +611,8 @@ function formatAdditionalDecisionQuestion(session: EntrySession): string {
   ].join('\n');
 }
 
-function formatAdditionalMeasureQuestion(session: EntrySession): string {
-  return [
-    '➕ *ADICIONAR PNEU*',
-    '',
-    `Itens preparados: *${getEntryItems(session).length}*`,
-    'Digite a medida. Ex.: *275 80 22.5*',
-  ].join('\n');
+function formatPriceDecisionQuestion(): string {
+  return '💰 *VOCÊ QUER ALTERAR O PREÇO?*\nDigite *s* ou *n*.';
 }
 
 export function formatEntryConfirmation(session: EntrySession): string {

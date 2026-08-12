@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  isBackResponse,
   isCancellationResponse,
   isConfirmationResponse,
 } from '../src/utils/operationResponse.js';
@@ -19,4 +20,11 @@ test('accepts both infinitive and conversational cancellation words', () => {
   assert.equal(isCancellationResponse(' cancela '), true);
   assert.equal(isCancellationResponse('cancelado'), false);
   assert.equal(isCancellationResponse('não'), false);
+});
+
+test('recognizes only voltar as the safe back command', () => {
+  assert.equal(isBackResponse('voltar'), true);
+  assert.equal(isBackResponse(' VOLTAR '), true);
+  assert.equal(isBackResponse('cancelar'), false);
+  assert.equal(isBackResponse('volta'), false);
 });

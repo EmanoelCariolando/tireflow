@@ -34,6 +34,7 @@ export type SaleSessionStep =
   | 'awaiting_price_type'
   | 'awaiting_additional_measure'
   | 'awaiting_additional_item'
+  | 'awaiting_additional_quantity'
   | 'awaiting_discount_confirmation'
   | 'awaiting_mixed_methods'
   | 'awaiting_mixed_amount'
@@ -69,6 +70,7 @@ export interface SaleSession {
   items?: SaleItem[];
   additionalMeasure?: string;
   additionalProducts?: QueriedProduct[];
+  additionalProduct?: QueriedProduct;
   updatedAt: number;
 }
 

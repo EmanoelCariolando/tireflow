@@ -4,6 +4,7 @@ import { getLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { isCancellationResponse } from '../utils/operationResponse.js';
 import { getSaleSession } from '../utils/saleSessionStore.js';
+import { formatQuantityQuestion } from '../utils/operationPrompts.js';
 import {
   clearProductActionSession,
   getProductActionSession,
@@ -62,10 +63,7 @@ export function formatProductActionMenu(
 }
 
 export function formatSaleQuantityQuestion(): string {
-  return [
-    '🛒*QUANTIDADE*',
-    '*Quantos pneus? :*',
-  ].join('\n');
+  return formatQuantityQuestion();
 }
 
 export async function handleProductActionConversation(

@@ -17,6 +17,7 @@ import {
 import { getCurrentProductStock } from '../services/saleService.js';
 import { sendBossNotification } from '../services/notificationService.js';
 import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import { formatQuantityQuestion } from '../utils/operationPrompts.js';
 
 const ADJUSTMENT_COMMAND_REGEX = /^ajuste\s+(\d+)$/i;
 
@@ -79,7 +80,7 @@ export async function handleAdjustmentCommand(message: Message, body: string): P
     updatedAt: Date.now(),
   });
 
-  await message.reply('🧮 *AJUSTE — NOVO ESTOQUE*\n\nDigite um número inteiro.\nEx.: *10*');
+  await message.reply(formatQuantityQuestion());
 }
 
 export async function handleAdjustmentConversation(message: Message, body: string): Promise<boolean> {
@@ -140,7 +141,9 @@ async function handleNewStockStep(
   const newStock = Number(normalizedBody);
 
   if (!Number.isInteger(newStock) || newStock < 0) {
-    await message.reply('❌ Estoque inválido. Digite um inteiro maior ou igual a zero. Ex.: *10*');
+    await message.reply(
+      `❌ Estoque inválido. Digite um inteiro maior ou igual a zero.\n\n${formatQuantityQuestion()}`
+    );
     return;
   }
 

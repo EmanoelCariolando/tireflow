@@ -41,7 +41,9 @@ test('asks whether to change prices before confirming an entry', async () => {
     }]);
 
     await handleEntryCommand(message, 'entrada 1');
+    assert.equal(replies.at(-1), '📦 *QUANTIDADE*\nQuantos pneus?');
     await handleEntryConversation(message, '10');
+    assert.equal(replies.at(-1), '🚚 *FORNECEDOR*\nInforme o fornecedor:');
     await handleEntryConversation(message, 'ABC Pneus');
 
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_price_decision');
@@ -54,8 +56,7 @@ test('asks whether to change prices before confirming an entry', async () => {
 
     await handleEntryConversation(message, 's');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_cash_price');
-    assert.match(replies.at(-1) ?? '', /DIGITE O PREÇO À VISTA/);
-    assert.match(replies.at(-1) ?? '', /275,00/);
+    assert.equal(replies.at(-1), '💰 *PREÇO À VISTA*\nDigite o preço à vista:');
 
     await handleEntryConversation(message, '275,00');
     const additionalDecision = getEntrySession(userId, chatId);
@@ -137,10 +138,21 @@ test('adds another tire and keeps the final confirmation compact', async () => {
 
     const awaitingMeasure = getEntrySession(userId, chatId);
     assert.equal(awaitingMeasure?.step, 'awaiting_additional_measure');
-    assert.match(replies.at(-1) ?? '', /Digite a medida/);
+    assert.equal(
+      replies.at(-1),
+      '➕ *ADICIONAR PNEU*\n*Digite a medida do outro pneu:*\nEx.: *275 80 22.5*'
+    );
+
+    await handleEntryConversation(message, 'voltar');
+    const returnedEntry = getEntrySession(userId, chatId);
+    assert.equal(returnedEntry?.step, 'awaiting_additional_decision');
+    assert.equal(returnedEntry?.items?.length, 1);
+    assert.match(replies.at(-1) ?? '', /itens anteriores continuam na entrada/);
+
+    await handleEntryConversation(message, 's');
 
     saveEntrySession({
-      ...awaitingMeasure!,
+      ...getEntrySession(userId, chatId)!,
       step: 'awaiting_additional_item',
       additionalMeasure: '275/80 R22.5',
       additionalProducts: [{
@@ -154,15 +166,26 @@ test('adds another tire and keeps the final confirmation compact', async () => {
       updatedAt: Date.now(),
     });
 
-    await handleEntryConversation(message, 'entrada 1');
+    await handleEntryConversation(message, 'x');
+    assert.equal(
+      replies.at(-1),
+      '❌ Opção inválida.\n\n*ESCOLHA UM PNEU 🛞*\n*Digite o número do pneu:*'
+    );
+
+    await handleEntryConversation(message, '1');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_quantity');
-    assert.match(replies.at(-1) ?? '', /Quantos pneus chegaram\?/);
+    assert.equal(replies.at(-1), '📦 *QUANTIDADE*\nQuantos pneus?');
 
     await handleEntryConversation(message, '3');
-    await handleEntryConversation(message, 'Fornecedor B');
+    const additionalPriceDecision = getEntrySession(userId, chatId);
+    assert.equal(additionalPriceDecision?.step, 'awaiting_price_decision');
+    assert.equal(additionalPriceDecision?.supplier, 'Fornecedor A');
+    assert.match(replies.at(-1) ?? '', /VOCÊ QUER ALTERAR O PREÇO/);
+
     await handleEntryConversation(message, 's');
     await handleEntryConversation(message, '2100');
     assert.equal(getEntrySession(userId, chatId)?.items?.length, 2);
+    assert.equal(getEntrySession(userId, chatId)?.items?.[1]?.supplier, 'Fornecedor A');
 
     await handleEntryConversation(message, 'n');
     const confirmation = replies.at(-1) ?? '';

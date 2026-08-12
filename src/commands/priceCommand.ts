@@ -15,6 +15,7 @@ import { PriceProductNotFoundError, registerPriceChange } from '../services/pric
 import { sendBossNotification } from '../services/notificationService.js';
 import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
+import { formatCashPriceQuestion } from '../utils/operationPrompts.js';
 
 const PRICE_COMMAND_REGEX = /^pre[cç]o\s+(\d+)$/i;
 
@@ -73,9 +74,7 @@ export async function handlePriceCommand(message: Message, body: string): Promis
     updatedAt: Date.now(),
   });
 
-  await message.reply(
-    '💰 *PREÇO — NOVO VALOR À VISTA*\n\nDigite o novo valor.\nEx.: *335,50*\n\n_O preço a prazo (+5,8%) será calculado automaticamente._'
-  );
+  await message.reply(formatCashPriceQuestion());
 }
 
 export async function handlePriceConversation(message: Message, body: string): Promise<boolean> {
@@ -131,7 +130,7 @@ async function handleCashPriceStep(
   const cashPrice = parsePriceValue(body);
 
   if (cashPrice === null) {
-    await message.reply('❌ Preço inválido. Digite um valor maior ou igual a zero. Ex.: *335,50*');
+    await message.reply(`❌ Preço inválido.\n\n${formatCashPriceQuestion()}`);
     return;
   }
 

@@ -99,8 +99,8 @@ test('formats the three new instructional messages exactly', () => {
   assert.equal(
     formatSaleQuantityQuestion(),
     [
-      '🛒*QUANTIDADE*',
-      '*Quantos pneus? :*',
+      '📦 *QUANTIDADE*',
+      'Quantos pneus?',
     ].join('\n')
   );
 });

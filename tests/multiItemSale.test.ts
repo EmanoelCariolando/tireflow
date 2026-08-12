@@ -72,8 +72,12 @@ test('shows every tire under one confirmation and one total', () => {
   assert.match(confirmation, /CONFIRMAR VENDA/);
   assert.match(confirmation, /175\/70 R13/);
   assert.match(confirmation, /275\/80 R22\.5/);
+  assert.match(confirmation, /📤 \*1 un\.\* \| 💰 \*R\$350,00\*/);
+  assert.match(confirmation, /📤 \*1 un\.\* \| 💰 \*R\$2000,00\*/);
   assert.match(confirmation, /Desconto: \*3% \(-R\$70,50\)\*/);
-  assert.match(confirmation, /Total: \*R\$2279,50\*/);
+  assert.match(confirmation, /💰 \*TOTAL: R\$2279,50\*/);
+  assert.doesNotMatch(confirmation, /ITENS DA COMPRA/);
+  assert.doesNotMatch(confirmation, /×/);
 
   const notification = formatBossSaleNotification(
     multiItemSession,
@@ -85,8 +89,14 @@ test('shows every tire under one confirmation and one total', () => {
       { productId: 'product-two', movementCode: '#V-000011', previousStock: 2, currentStock: 1 },
     ]
   );
-  assert.match(notification, /Compra: #V-000010/);
-  assert.match(notification, /Movimentações: #V-000010, #V-000011/);
+  assert.match(notification, /1\. 🛞 \*175\/70 R13 — PNEU PASSEIO\*/);
+  assert.match(notification, /📤 \*1 un\.\* \| 💰 \*R\$350,00\* \| 📦 Estoque: \*4\*/);
+  assert.match(notification, /2\. 🛞 \*275\/80 R22\.5 — PNEU PESADO\*/);
+  assert.match(notification, /📤 \*1 un\.\* \| 💰 \*R\$2000,00\* \| 📦 Estoque: \*1\*/);
+  assert.match(notification, /🧾 \*#V-000010\* \| 👤 \*Vendedor\*/);
+  assert.doesNotMatch(notification, /ITENS DA COMPRA/);
+  assert.doesNotMatch(notification, /ESTOQUE APÓS A VENDA/);
+  assert.doesNotMatch(notification, /Movimentações:/);
 });
 
 test('option 7 keeps the current purchase and asks directly for another measure', async () => {
@@ -105,10 +115,69 @@ test('option 7 keeps the current purchase and asks directly for another measure'
     },
   } as unknown as Message;
 
+  await handleSaleConversation(message, 'opção inválida');
+  const paymentMenu = replies.at(-1) ?? '';
+  assert.match(paymentMenu, /🛒 \*RESUMO DA COMPRA\*/);
+  assert.match(paymentMenu, /1\. 🛞 \*175\/70 R13 — PNEU PASSEIO\*/);
+  assert.match(paymentMenu, /📤 \*1 un\.\* \| 💰 \*R\$350,00\*/);
+  assert.match(paymentMenu, /2\. 🛞 \*275\/80 R22\.5 — PNEU PESADO\*/);
+  assert.match(paymentMenu, /📤 \*1 un\.\* \| 💰 \*R\$2000,00\*/);
+  assert.match(paymentMenu, /💳 \*FORMAS DE PAGAMENTO\*/);
+  assert.doesNotMatch(paymentMenu, /×/);
+  assert.doesNotMatch(paymentMenu, /\(À vista\)/);
+
   await handleSaleConversation(message, '7');
   assert.equal(getSaleSession(session.userId, session.chatId)?.step, 'awaiting_additional_measure');
-  assert.match(replies.at(-1) ?? '', /Digite a medida/);
-  assert.match(replies.at(-1) ?? '', /Total atual: \*R\$2279,50\*/);
+  assert.equal(
+    replies.at(-1),
+    '➕ *ADICIONAR PNEU*\n*Digite a medida do outro pneu:*\nEx.: *275 80 22.5*'
+  );
+  await handleSaleConversation(message, 'voltar');
+  const returnedSale = getSaleSession(session.userId, session.chatId);
+  assert.equal(returnedSale?.step, 'awaiting_payment');
+  assert.equal(returnedSale?.items?.length, 2);
+  assert.match(replies.at(-1) ?? '', /itens anteriores continuam na venda/);
+  clearSaleSession(session.userId, session.chatId);
+});
+
+test('selects an additional sale tire by number before asking its quantity', async () => {
+  const session: SaleSession = {
+    ...multiItemSession,
+    userId: 'additional-sale-selection-user',
+    chatId: 'additional-sale-selection-chat',
+    step: 'awaiting_additional_item',
+    additionalMeasure: '185/65 R15',
+    additionalProducts: [{
+      id: 'additional-sale-product',
+      reference: '185/65 R15',
+      description: 'PNEU ADICIONAL',
+      stock: 5,
+      cashPrice: 400,
+      creditPrice: 423.2,
+    }],
+  };
+  saveSaleSession(session);
+  const replies: string[] = [];
+  const message = {
+    author: session.userId,
+    from: session.chatId,
+    hasMedia: false,
+    type: 'chat',
+    rawData: {},
+    reply: async (text: string) => {
+      replies.push(text);
+      return undefined;
+    },
+  } as unknown as Message;
+
+  await handleSaleConversation(message, '1');
+  const awaitingQuantity = getSaleSession(session.userId, session.chatId);
+  assert.equal(awaitingQuantity?.step, 'awaiting_additional_quantity');
+  assert.equal(awaitingQuantity?.additionalProduct?.id, 'additional-sale-product');
+  assert.equal(
+    replies.at(-1),
+    '📦 *QUANTIDADE*\nQuantos pneus?'
+  );
   clearSaleSession(session.userId, session.chatId);
 });
 

@@ -80,6 +80,10 @@ test('guides a zero-stock registration through validation and confirmation', asy
       getProductRegistrationSession(userId, chatId)?.description,
       'PIRELLI MT60 TRASEIRO 60P'
     );
+    assert.equal(
+      replies.at(-1),
+      '📦 *QUANTIDADE*\nQuantos pneus?'
+    );
 
     await handleProductRegistrationConversation(message, '1.5');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_initial_stock');
@@ -87,7 +91,7 @@ test('guides a zero-stock registration through validation and confirmation', asy
 
     await handleProductRegistrationConversation(message, '0');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_cash_price');
-    assert.match(replies.at(-1) ?? '', /PREÇO À VISTA/);
+    assert.equal(replies.at(-1), '💰 *PREÇO À VISTA*\nDigite o preço à vista:');
 
     await handleProductRegistrationConversation(message, 'oitocentos');
     assert.match(replies.at(-1) ?? '', /Preço à vista inválido/);
@@ -131,7 +135,7 @@ test('requires a supplier for initial stock and allows an optional valid locatio
     await handleProductRegistrationConversation(message, 'Alliance Agri Nova 14 lonas');
     await handleProductRegistrationConversation(message, '2');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_supplier');
-    assert.match(replies.at(-1) ?? '', /CADASTRO — FORNECEDOR/);
+    assert.equal(replies.at(-1), '🚚 *FORNECEDOR*\nInforme o fornecedor:');
 
     await handleProductRegistrationConversation(message, 'x');
     assert.match(replies.at(-1) ?? '', /Fornecedor inválido/);

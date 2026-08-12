@@ -120,7 +120,8 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   if (
     activeSale &&
     (activeSale.step === 'awaiting_additional_measure' ||
-      activeSale.step === 'awaiting_additional_item') &&
+      activeSale.step === 'awaiting_additional_item' ||
+      activeSale.step === 'awaiting_additional_quantity') &&
     await handleSaleConversation(message, body)
   ) {
     return;

@@ -23,6 +23,11 @@ import { runPostCommitTask } from '../services/postCommitTask.js';
 import { sendBossTextNotification } from '../services/notificationService.js';
 import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
+import {
+  formatCashPriceQuestion,
+  formatQuantityQuestion,
+  formatSupplierQuestion,
+} from '../utils/operationPrompts.js';
 
 const PRODUCT_REGISTRATION_COMMAND_REGEX = /^(cadastrar|adicionar)\s+pneu$/i;
 const MAX_TEXT_LENGTH = 120;
@@ -174,14 +179,7 @@ async function handleDescriptionStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply(
-    [
-      '📦 *CADASTRO — ESTOQUE INICIAL*',
-      '',
-      'Digite a quantidade atual. Ex.: *0* ou *4*',
-      'Para sair: *cancelar*',
-    ].join('\n')
-  );
+  await message.reply(formatQuantityQuestion());
 }
 
 async function handleInitialStockStep(
@@ -193,7 +191,7 @@ async function handleInitialStockStep(
 
   if (initialStock === null) {
     await message.reply(
-      '❌ Estoque inválido. Digite um inteiro maior ou igual a zero. Ex.: *0*, *1* ou *20*'
+      `❌ Estoque inválido. Digite um inteiro maior ou igual a zero.\n\n${formatQuantityQuestion()}`
     );
     return;
   }
@@ -207,14 +205,7 @@ async function handleInitialStockStep(
   saveProductRegistrationSession(nextSession);
 
   if (initialStock > 0) {
-    await message.reply(
-      [
-        '🚚 *CADASTRO — FORNECEDOR*',
-        '',
-        'Informe o fornecedor. Ex.: *JTR Pneus*',
-        'Para sair: *cancelar*',
-      ].join('\n')
-    );
+    await message.reply(formatSupplierQuestion());
     return;
   }
 
@@ -230,7 +221,7 @@ async function handleSupplierStep(
 
   if (!supplier) {
     await message.reply(
-      `❌ Fornecedor inválido. Use de 2 a ${MAX_TEXT_LENGTH} caracteres. Ex.: *JTR Pneus*`
+      `❌ Fornecedor inválido. Use de 2 a ${MAX_TEXT_LENGTH} caracteres.\n\n${formatSupplierQuestion()}`
     );
     return;
   }
@@ -252,7 +243,7 @@ async function handleCashPriceStep(
   const cashPrice = parseProductRegistrationPrice(body);
 
   if (cashPrice === null) {
-    await message.reply(formatInvalidPriceMessage('à vista', '899,90'));
+    await message.reply(`❌ Preço à vista inválido.\n\n${formatCashPriceQuestion()}`);
     return;
   }
 
@@ -484,20 +475,6 @@ function formatDescriptionQuestion(reference: string): string {
     'Ex.: *PIRELLI MT60 TRASEIRO 60P*',
     'Para sair: *cancelar*',
   ].join('\n');
-}
-
-function formatCashPriceQuestion(): string {
-  return [
-    '💰 *CADASTRO — PREÇO À VISTA*',
-    '',
-    'Digite o valor unitário. Ex.: *899,90* ou *1.299,90*',
-    '_O preço a prazo (+5,8%) será calculado automaticamente._',
-    'Para sair: *cancelar*',
-  ].join('\n');
-}
-
-function formatInvalidPriceMessage(label: string, example: string): string {
-  return `❌ Preço ${label} inválido. Digite somente o valor. Ex.: *${example}*`;
 }
 
 function isCompleteSession(session: ProductRegistrationSession): session is ProductRegistrationSession & {

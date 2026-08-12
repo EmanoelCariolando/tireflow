@@ -34,15 +34,20 @@ import {
   parseCurrencyToCents,
   parseMixedPaymentMethods,
 } from '../utils/salePayment.js';
-import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import {
+  isBackResponse,
+  isCancellationResponse,
+  isConfirmationResponse,
+} from '../utils/operationResponse.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import {
   findActiveProductsByReference,
   findAvailableProductsByReference,
 } from '../services/productService.js';
-import { formatProductList } from './pneuCommand.js';
+import { formatProductChoiceQuestion, formatProductList } from './pneuCommand.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { allocateAmountByWeights } from '../utils/saleAllocation.js';
+import { formatAdditionalTireQuestion, formatQuantityQuestion } from '../utils/operationPrompts.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 const DISCOUNT_PERCENT = 3;
@@ -155,6 +160,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (isBackResponse(normalizedBody) && canReturnFromAdditionalSale(session)) {
+    await returnToPreparedSale(message, session);
+    return true;
+  }
+
   if (isDuplicateReceiptMessage(message, session)) {
     console.log('[SALE] Duplicate receipt media message ignored.');
     return true;
@@ -167,6 +177,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   if (session.step === 'awaiting_additional_item') {
     await handleAdditionalItemStep(message, session, body);
+    return true;
+  }
+
+  if (session.step === 'awaiting_additional_quantity') {
+    await handleAdditionalQuantityStep(message, session, body);
     return true;
   }
 
@@ -248,9 +263,10 @@ async function handlePaymentStep(
       step: 'awaiting_additional_measure',
       additionalMeasure: undefined,
       additionalProducts: undefined,
+      additionalProduct: undefined,
       updatedAt: Date.now(),
     });
-    await message.reply(formatAdditionalMeasureQuestion(session));
+    await message.reply(formatAdditionalTireQuestion());
     return;
   }
 
@@ -356,8 +372,7 @@ async function handleAdditionalMeasureStep(
       [
         'Medida inválida.',
         '',
-        'Digite somente a nova medida.',
-        'Exemplos: 175/70 R14 ou 275 80 22.5',
+        'Digite outra medida ou *voltar* para manter os pneus anteriores.',
       ].join('\n')
     );
     return;
@@ -375,14 +390,14 @@ async function handleAdditionalMeasureStep(
       const hasDatabaseStock = activeProducts.some((product) => product.stock > 0);
       await message.reply(
         hasDatabaseStock
-          ? `Todo o estoque disponível de ${normalizedMeasure} já está nesta compra.\n\nDigite outra medida ou cancelar.`
-          : `Nenhum pneu disponível para ${normalizedMeasure}.\n\nDigite outra medida ou cancelar.`
+          ? `Todo o estoque disponível de ${normalizedMeasure} já está nesta compra.\n\nDigite outra medida ou *voltar*.`
+          : `Nenhum pneu disponível para ${normalizedMeasure}.\n\nDigite outra medida ou *voltar*.`
       );
       return;
     }
   } catch (error) {
     console.error('[SALE] Error searching an additional tire:', error);
-    await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite cancelar.');
+    await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite *voltar*.');
     return;
   }
 
@@ -391,17 +406,11 @@ async function handleAdditionalMeasureStep(
     step: 'awaiting_additional_item',
     additionalMeasure: normalizedMeasure,
     additionalProducts: products,
+    additionalProduct: undefined,
     updatedAt: Date.now(),
   });
-  await message.reply(
-    [
-      formatProductList(products, normalizedMeasure),
-      '',
-      'Para adicionar à mesma compra, digite:',
-      '*venda <número> <quantidade>*',
-      'Exemplo: venda 1 2',
-    ].join('\n')
-  );
+  await message.reply(formatProductList(products, normalizedMeasure));
+  await message.reply(formatProductChoiceQuestion());
 }
 
 async function handleAdditionalItemStep(
@@ -411,15 +420,65 @@ async function handleAdditionalItemStep(
 ): Promise<void> {
   const selection = parseAdditionalItemSelection(body);
   if (!selection) {
-    await message.reply(
-      'Opção inválida. Digite o número e a quantidade.\n\nExemplo: venda 1 2'
-    );
+    await message.reply(`❌ Opção inválida.\n\n${formatProductChoiceQuestion()}`);
     return;
   }
 
   const product = session.additionalProducts?.[selection.optionNumber - 1];
   if (!product) {
-    await message.reply('Opção inválida. Escolha um número da lista mostrada.');
+    await message.reply(`❌ Item inválido.\n\n${formatProductChoiceQuestion()}`);
+    return;
+  }
+
+  const quantitySession: SaleSession = {
+    ...session,
+    step: 'awaiting_additional_quantity',
+    additionalProduct: product,
+    additionalProducts: undefined,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(quantitySession);
+
+  if (selection.quantity === undefined) {
+    await message.reply(formatQuantityQuestion());
+    return;
+  }
+
+  await prepareAdditionalSaleItem(message, quantitySession, selection.quantity);
+}
+
+async function handleAdditionalQuantityStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  const quantity = Number(body.trim());
+  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+    await message.reply(
+      `❌ Quantidade inválida.\n\n${formatQuantityQuestion()}`
+    );
+    return;
+  }
+
+  await prepareAdditionalSaleItem(message, session, quantity);
+}
+
+async function prepareAdditionalSaleItem(
+  message: Message,
+  session: SaleSession,
+  quantity: number
+): Promise<void> {
+  const product = session.additionalProduct;
+  if (!product) {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_additional_measure',
+      additionalMeasure: undefined,
+      additionalProducts: undefined,
+      additionalProduct: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply('Ocorreu um erro na seleção. Digite novamente a medida do pneu.');
     return;
   }
 
@@ -437,6 +496,7 @@ async function handleAdditionalItemStep(
       step: 'awaiting_additional_measure',
       additionalMeasure: undefined,
       additionalProducts: undefined,
+      additionalProduct: undefined,
       updatedAt: Date.now(),
     });
     await message.reply('Este produto não está mais disponível. Digite outra medida.');
@@ -445,7 +505,7 @@ async function handleAdditionalItemStep(
 
   const reservedQuantity = getReservedQuantity(getSaleItems(session), product.id);
   const availableQuantity = Math.max(0, currentStock - reservedQuantity);
-  if (selection.quantity > availableQuantity) {
+  if (quantity > availableQuantity) {
     await message.reply(
       [
         'Quantidade indisponível para esta compra.',
@@ -453,6 +513,8 @@ async function handleAdditionalItemStep(
         `Estoque atual: ${currentStock}`,
         `Já separado nesta compra: ${reservedQuantity}`,
         `Disponível para adicionar: ${availableQuantity}`,
+        '',
+        formatQuantityQuestion(),
       ].join('\n')
     );
     return;
@@ -464,13 +526,14 @@ async function handleAdditionalItemStep(
     productId: product.id,
     reference: product.reference || session.additionalMeasure || '',
     description: product.description,
-    quantity: selection.quantity,
+    quantity,
     cashPrice: product.cashPrice,
     creditPrice: product.creditPrice,
     unitPrice: undefined,
     priceType: undefined,
     additionalMeasure: undefined,
     additionalProducts: undefined,
+    additionalProduct: undefined,
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
@@ -985,21 +1048,65 @@ function isAddItemSelection(value: string): boolean {
 
 function parseAdditionalItemSelection(value: string): {
   optionNumber: number;
-  quantity: number;
+  quantity?: number;
 } | null {
-  const match = value.trim().match(/^(?:venda\s+)?(\d+)\s+(\d+)$/i);
+  const match = value.trim().match(/^(?:venda\s+)?(\d+)(?:\s+(\d+))?$/i);
   if (!match) {
     return null;
   }
 
   const optionNumber = Number(match[1]);
-  const quantity = Number(match[2]);
-  return Number.isInteger(optionNumber) &&
-    optionNumber > 0 &&
-    Number.isInteger(quantity) &&
-    quantity > 0
-    ? { optionNumber, quantity }
-    : null;
+  const quantity = match[2] === undefined ? undefined : Number(match[2]);
+  if (!Number.isInteger(optionNumber) || optionNumber <= 0) {
+    return null;
+  }
+  if (quantity !== undefined && (!Number.isInteger(quantity) || quantity <= 0)) {
+    return null;
+  }
+  return { optionNumber, quantity };
+}
+
+function canReturnFromAdditionalSale(session: SaleSession): boolean {
+  return getExplicitSaleItems(session).length > 0 && [
+    'awaiting_additional_measure',
+    'awaiting_additional_item',
+    'awaiting_additional_quantity',
+    'awaiting_price_type',
+  ].includes(session.step);
+}
+
+async function returnToPreparedSale(
+  message: Message,
+  session: SaleSession
+): Promise<void> {
+  const items = getExplicitSaleItems(session);
+  const lastItem = items.at(-1)!;
+  const sharedPriceType = items.every((item) => item.priceType === items[0]?.priceType)
+    ? items[0]?.priceType
+    : undefined;
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_payment',
+    productId: lastItem.productId,
+    reference: lastItem.reference,
+    description: lastItem.description,
+    quantity: lastItem.quantity,
+    cashPrice: lastItem.cashPrice,
+    creditPrice: lastItem.creditPrice,
+    unitPrice: lastItem.unitPrice,
+    priceType: sharedPriceType,
+    additionalMeasure: undefined,
+    additionalProducts: undefined,
+    additionalProduct: undefined,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply([
+    '↩️ *PNEU ATUAL IGNORADO*',
+    `Os *${items.length}* itens anteriores continuam na venda.`,
+    '',
+    formatPaymentMenu(nextSession),
+  ].join('\n'));
 }
 
 function parsePriceType(value: string): SalePriceType | null {
@@ -1143,7 +1250,7 @@ function formatPaymentMenu(session?: SaleSession): string {
       ? [
           '🛒 *RESUMO DA COMPRA*',
           '',
-          ...formatCompactCartItemLines(items),
+          ...formatConfirmationSaleItemLines(items),
           '',
           ...(discountApplied
             ? [
@@ -1186,17 +1293,6 @@ function formatPriceTypeQuestion(session: SaleSession): string {
     '',
     `1️⃣ 💰 À vista: *${formatCurrency(calculateSaleTotal(session.quantity, session.cashPrice))}*`,
     `2️⃣ 💳 A prazo: *${formatCurrency(calculateSaleTotal(session.quantity, session.creditPrice))}*`,
-  ].join('\n');
-}
-
-function formatAdditionalMeasureQuestion(session: SaleSession): string {
-  return [
-    '➕ *ADICIONAR PNEU*',
-    '',
-    `📦 Itens adicionados: *${getSaleItems(session).length}*`,
-    `💰 Total atual: *${formatCurrency(session.totalValue ?? 0)}*`,
-    '',
-    'Digite a medida. Ex.: *275 80 22.5*',
   ].join('\n');
 }
 
@@ -1244,17 +1340,14 @@ export function formatSaleConfirmation(session: SaleSession): string {
     return [
       '⚠️ *CONFIRMAR VENDA?*',
       '',
-      '🛒 *ITENS DA COMPRA*',
+      ...formatConfirmationSaleItemLines(items),
       '',
-      ...formatCartItemLines(items),
-      '',
-      ...formatConfirmationPaymentLines(session),
+      ...formatCompactPaymentLines(session),
       ...formatDiscountLines(session, true),
       ...formatInvoiceLines(session),
+      `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
       '',
-      `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
-      '',
-      'Digite: confirmar ou cancelar',
+      'Responda: *confirmar* ou *cancelar*.',
     ].join('\n');
   }
 
@@ -1343,20 +1436,6 @@ export function formatBossSaleNotification(
   ].join('\n');
 }
 
-function formatCompactCartItemLines(items: SaleItem[]): string[] {
-  return items.flatMap((item, index) => [
-    `${index + 1}. *${item.reference} — ${item.description}*`,
-    `   *${item.quantity} un.* × ${formatCurrency(item.unitPrice)} = *${formatCurrency(item.totalValue)}* (${item.priceType})`,
-  ]);
-}
-
-function formatCartItemLines(items: SaleItem[]): string[] {
-  return items.flatMap((item, index) => [
-    `${index + 1}. *${item.reference}* — *${item.description}*`,
-    `   *${item.quantity} un.* × ${formatCurrency(item.unitPrice)} = *${formatCurrency(item.totalValue)}* | ${item.priceType}`,
-  ]);
-}
-
 function formatRegisteredMultiItemSale(
   title: string,
   session: SaleSession,
@@ -1368,26 +1447,50 @@ function formatRegisteredMultiItemSale(
   return [
     title,
     '',
-    '🛒 *ITENS DA COMPRA*',
+    ...formatRegisteredSaleItemLines(items, registeredItems),
     '',
-    ...formatCartItemLines(items),
-    '',
-    ...formatPaymentLines(session),
+    ...formatCompactPaymentLines(session),
     ...formatDiscountLines(session, false),
     ...formatInvoiceLines(session),
-    '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    '📦 *ESTOQUE APÓS A VENDA*',
-    ...items.map((item) =>
-      `${item.reference} — ${findFinalRegisteredStock(registeredItems, item.productId) ?? 'confirmado'}`
-    ),
-    `Compra: ${saleGroupCode}`,
-    ...(registeredItems.length > 1
-      ? [`Movimentações: ${registeredItems.map((item) => item.movementCode).join(', ')}`]
-      : []),
-    `Vendedor: ${sellerName}`,
+    `🧾 *${saleGroupCode}* | 👤 *${sellerName}*`,
   ].join('\n');
+}
+
+function formatRegisteredSaleItemLines(
+  items: SaleItem[],
+  registeredItems: RegisteredSaleItem[]
+): string[] {
+  return items.flatMap((item, index) => [
+    `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
+    `📤 *${item.quantity} un.* | 💰 *${formatCurrency(item.totalValue)}* | 📦 Estoque: *${
+      findFinalRegisteredStock(registeredItems, item.productId) ?? 'confirmado'
+    }*`,
+    ...(index < items.length - 1 ? [''] : []),
+  ]);
+}
+
+function formatConfirmationSaleItemLines(items: SaleItem[]): string[] {
+  return items.flatMap((item, index) => [
+    `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
+    `📤 *${item.quantity} un.* | 💰 *${formatCurrency(item.totalValue)}*`,
+    ...(index < items.length - 1 ? [''] : []),
+  ]);
+}
+
+function formatCompactPaymentLines(session: SaleSession): string[] {
+  const priceType = shouldShowPriceType(session) ? ` | ${session.priceType}` : '';
+  if (session.paymentMethod !== 'Misto') {
+    return [`💳 *${session.paymentMethod}*${priceType}`];
+  }
+
+  return [
+    `💳 *Misto*${priceType}`,
+    (session.paymentBreakdown ?? [])
+      .map((part) => `${part.method}: ${formatCurrency(part.amount)}`)
+      .join(' | '),
+  ].filter(Boolean);
 }
 
 function findFinalRegisteredStock(

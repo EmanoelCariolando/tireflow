@@ -52,7 +52,7 @@ test('asks only for cash price and proceeds directly to confirmation', async () 
 
     await handlePriceCommand(message, 'preço 1');
     assert.equal(getPriceSession(userId, chatId)?.step, 'awaiting_cash_price');
-    assert.match(replies.at(-1) ?? '', /preço a prazo \(\+5,8%\).*calculado automaticamente/);
+    assert.equal(replies.at(-1), '💰 *PREÇO À VISTA*\nDigite o preço à vista:');
 
     await handlePriceConversation(message, '1000');
     const confirmation = getPriceSession(userId, chatId);
