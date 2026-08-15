@@ -3,11 +3,14 @@ export type ProductActionSessionStep =
   | 'awaiting_action'
   | 'awaiting_sale_quantity';
 
+export type ProductActionSessionMode = 'standard' | 'zero_stock';
+
 export interface ProductActionSession {
   userId: string;
   chatId: string;
   step: ProductActionSessionStep;
   optionNumber?: number;
+  mode: ProductActionSessionMode;
   expiresAt: number;
 }
 
@@ -23,13 +26,15 @@ export function saveProductActionSession(
   userId: string,
   chatId: string,
   step: ProductActionSessionStep,
-  optionNumber?: number
+  optionNumber?: number,
+  mode: ProductActionSessionMode = 'standard'
 ): void {
   productActionSessions.set(buildKey(userId, chatId), {
     userId,
     chatId,
     step,
     optionNumber,
+    mode,
     expiresAt: Date.now() + PRODUCT_ACTION_SESSION_TTL_MS,
   });
 }

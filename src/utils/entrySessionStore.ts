@@ -8,6 +8,7 @@ export interface EntryItem {
   oldCreditPrice: number;
   quantity: number;
   supplier: string;
+  stockLocation?: string;
   newCashPrice?: number;
   newCreditPrice?: number;
 }
@@ -15,6 +16,7 @@ export interface EntryItem {
 export type EntrySessionStep =
   | 'awaiting_quantity'
   | 'awaiting_supplier'
+  | 'awaiting_location'
   | 'awaiting_price_decision'
   | 'awaiting_cash_price'
   | 'awaiting_additional_decision'
@@ -34,6 +36,7 @@ export interface EntrySession {
   oldCreditPrice: number;
   quantity?: number;
   supplier?: string;
+  stockLocation?: string;
   newCashPrice?: number;
   newCreditPrice?: number;
   items?: EntryItem[];

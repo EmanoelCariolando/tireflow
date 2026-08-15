@@ -74,7 +74,7 @@ test('shows every tire under one confirmation and one total', () => {
   assert.match(confirmation, /275\/80 R22\.5/);
   assert.match(confirmation, /📤 \*1 un\.\* \| 💰 \*R\$350,00\*/);
   assert.match(confirmation, /📤 \*1 un\.\* \| 💰 \*R\$2000,00\*/);
-  assert.match(confirmation, /Desconto: \*3% \(-R\$70,50\)\*/);
+  assert.match(confirmation, /\*Desconto: 3%\* \(-R\$70,50\)/);
   assert.match(confirmation, /💰 \*TOTAL: R\$2279,50\*/);
   assert.doesNotMatch(confirmation, /ITENS DA COMPRA/);
   assert.doesNotMatch(confirmation, /×/);
@@ -93,7 +93,8 @@ test('shows every tire under one confirmation and one total', () => {
   assert.match(notification, /📤 \*1 un\.\* \| 💰 \*R\$350,00\* \| 📦 Estoque: \*4\*/);
   assert.match(notification, /2\. 🛞 \*275\/80 R22\.5 — PNEU PESADO\*/);
   assert.match(notification, /📤 \*1 un\.\* \| 💰 \*R\$2000,00\* \| 📦 Estoque: \*1\*/);
-  assert.match(notification, /🧾 \*#V-000010\* \| 👤 \*Vendedor\*/);
+  assert.match(notification, /Vendedor: Vendedor/);
+  assert.doesNotMatch(notification, /#V-00001[01]/);
   assert.doesNotMatch(notification, /ITENS DA COMPRA/);
   assert.doesNotMatch(notification, /ESTOQUE APÓS A VENDA/);
   assert.doesNotMatch(notification, /Movimentações:/);
@@ -220,6 +221,9 @@ test('applies the discount when cart items use different price types', async () 
   assert.equal(discounted?.step, 'awaiting_discount_confirmation');
   assert.equal(discounted?.originalTotalValue, 2450);
   assert.equal(discounted?.totalValue, 2376.50);
-  assert.match(replies.at(-1) ?? '', /Subtotal: \*R\$2450,00\*/);
+  assert.match(
+    replies.at(-1) ?? '',
+    /Desconto: \*3%\* : R\$2450,00 -R\$73,50\n\n💰 Novo total: \*R\$2376,50\*/
+  );
   clearSaleSession(ids.userId, ids.chatId);
 });

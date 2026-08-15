@@ -18,6 +18,7 @@ import { getCurrentProductStock } from '../services/saleService.js';
 import { sendBossNotification } from '../services/notificationService.js';
 import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
 import { formatQuantityQuestion } from '../utils/operationPrompts.js';
+import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 
 const ADJUSTMENT_COMMAND_REGEX = /^ajuste\s+(\d+)$/i;
 
@@ -286,7 +287,7 @@ function formatRegisteredAdjustment(
     `📦 Estoque: *${previousStock} → ${currentStock}*`,
     `📝 Motivo: *${session.reason}*`,
     '',
-    `🧾 Movimentação: *${movementCode}*`,
+    ...formatMovementNumberMessage(`🧾 Movimentação: *${movementCode}*`),
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
@@ -306,7 +307,7 @@ function formatBossAdjustmentNotification(
     `📦 Estoque: *${previousStock} → ${currentStock}*`,
     `📝 Motivo: *${session.reason}*`,
     '',
-    `🧾 Movimentação: *${movementCode}*`,
+    ...formatMovementNumberMessage(`🧾 Movimentação: *${movementCode}*`),
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }

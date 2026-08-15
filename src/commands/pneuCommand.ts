@@ -139,39 +139,7 @@ function formatInvalidMeasure(suggestions: string[]): string {
 }
 
 export async function handlePneuHelpCommand(message: Message): Promise<void> {
-  await message.reply(formatPneuHelp());
-}
-
-export function formatPneuHelp(
-  inventoryLocationsEnabled = env.inventoryLocationsEnabled
-): string {
-  return [
-    '🛞 *PNEUS — COMANDOS*',
-    '',
-    '🔎 *<medida>* — consultar pneus com estoque',
-    'Ex.: *175 70 14*',
-    '⚠️ *zero <medida>* — consultar somente os zerados',
-    'Ex.: *zero 175 70 14*',
-    '',
-    'Após consultar:',
-    '1️⃣ Escolha o pneu pelo número',
-    '2️⃣ Escolha o que deseja fazer',
-    '',
-    '⚡ *ATALHOS (OPCIONAL)*',
-    '🛒 *venda 1 2* — vender 2 unidades',
-    '📦 *entrada 1* — repor estoque',
-    '🧮 *ajuste 1* — corrigir estoque',
-    ...(inventoryLocationsEnabled
-      ? [
-          '📍 *local 1* — alterar localização',
-        ]
-      : []),
-    '💰 *preco 1* — alterar preços',
-    '📷 *foto 1* — ver foto',
-    '➕ *addfoto 1* — adicionar/substituir foto',
-    '',
-    '_O número corresponde ao item da última consulta._',
-  ].join('\n');
+  await handleLegacyPneuCommandNotice(message);
 }
 
 export async function handlePneuCommand(message: Message, rawMeasure: string): Promise<void> {

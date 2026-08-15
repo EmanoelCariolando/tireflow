@@ -76,8 +76,19 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
     assert.equal(Number(updatedProduct.creditPrice), 126.96);
     assert.equal(updatedProduct.stock, 2);
     assert.equal(await prisma.movement.count(), 4);
+    await prisma.product.create({
+      data: {
+        reference: '175/70/14',
+        description: 'PNEU TESTE ZERADO',
+        stock: 0,
+        minStock: 0,
+        cashPrice: 90,
+        creditPrice: 100,
+      },
+    });
     const availableProducts = await findAvailableProductsByReference('175/70/14');
     assert.equal(availableProducts.length, 1);
+    assert.ok(availableProducts.every((availableProduct) => availableProduct.stock > 0));
     assert.equal(availableProducts[0]?.stockLocation, 'PMAIS');
 
     assert.equal(
@@ -214,18 +225,22 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
         minStock: 0, cashPrice: 250, creditPrice: 264.5,
       },
     });
-    await registerEntry({
+    const entryWithLocation = await registerEntry({
       productId: entryWithPriceProduct.id,
       responsiblePhone: 'entry-price-user',
       responsibleName: 'Entry Price User',
       quantity: 3,
       supplier: 'Fornecedor Preço',
+      stockLocation: 'W3',
       newCashPrice: 275,
     });
     const productAfterEntryWithPrice = await prisma.product.findUniqueOrThrow({
       where: { id: entryWithPriceProduct.id },
     });
     assert.equal(productAfterEntryWithPrice.stock, 4);
+    assert.equal(productAfterEntryWithPrice.stockLocation, 'W3');
+    assert.equal(entryWithLocation.previousLocation, null);
+    assert.equal(entryWithLocation.currentLocation, 'W3');
     assert.equal(Number(productAfterEntryWithPrice.cashPrice), 275);
     assert.equal(Number(productAfterEntryWithPrice.creditPrice), 290.95);
     assert.equal(

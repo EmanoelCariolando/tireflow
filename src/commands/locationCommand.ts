@@ -6,7 +6,6 @@ import {
   registerProductLocation,
 } from '../services/productLocationService.js';
 import { runPostCommitTask } from '../services/postCommitTask.js';
-import { sendBossTextNotification } from '../services/notificationService.js';
 import {
   getLastQuery,
   updateLastQueryProductLocation,
@@ -24,7 +23,7 @@ import {
   hasActiveOperationSession,
 } from '../utils/operationSessionCoordinator.js';
 import { normalizeStockLocation } from '../utils/stockLocation.js';
-import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import { isCancellationResponse } from '../utils/operationResponse.js';
 
 const LOCATION_COMMAND_REGEX = /^local\s+(\d+)$/i;
 
@@ -94,7 +93,7 @@ export async function handleLocationCommand(message: Message, body: string): Pro
   });
 
   await message.reply(
-    formatLocationQuestion(reference, product.description, previousLocation)
+    formatLocationQuestion()
   );
 }
 
@@ -134,11 +133,6 @@ export async function handleLocationConversation(
     return true;
   }
 
-  if (session.step === 'awaiting_confirmation') {
-    await handleConfirmationStep(message, session, normalizedBody);
-    return true;
-  }
-
   if (session.step === 'processing') {
     await message.reply('⏳ *ATUALIZANDO LOCAL...*');
     return true;
@@ -172,37 +166,13 @@ async function handleLocationStep(
     return;
   }
 
-  const nextSession: LocationSession = {
+  const processingSession: LocationSession = {
     ...session,
-    step: 'awaiting_confirmation',
+    step: 'processing',
     newLocation,
     updatedAt: Date.now(),
   };
-  saveLocationSession(nextSession);
-  await message.reply(formatLocationConfirmation(nextSession));
-}
-
-async function handleConfirmationStep(
-  message: Message,
-  session: LocationSession,
-  normalizedBody: string
-): Promise<void> {
-  if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Responda: *confirmar* ou *cancelar*.');
-    return;
-  }
-
-  if (!session.newLocation) {
-    clearLocationSession(session.userId, session.chatId);
-    await message.reply('Ocorreu um erro na sessão de local. Faça a consulta novamente.');
-    return;
-  }
-
-  saveLocationSession({
-    ...session,
-    step: 'processing',
-    updatedAt: Date.now(),
-  });
+  saveLocationSession(processingSession);
 
   let registeredLocation: Awaited<ReturnType<typeof registerProductLocation>>;
 
@@ -210,7 +180,7 @@ async function handleConfirmationStep(
     registeredLocation = await registerProductLocation({
       productId: session.productId,
       expectedLocation: session.previousLocation,
-      newLocation: session.newLocation,
+      newLocation,
     });
   } catch (error) {
     clearLocationSession(session.userId, session.chatId);
@@ -243,54 +213,15 @@ async function handleConfirmationStep(
     session.productId,
     registeredLocation.currentLocation
   );
-  const responsibleName = await getResponsibleName(message, session.userId);
-
-  await Promise.all([
-    runPostCommitTask('location group confirmation', () =>
-      message.reply(formatRegisteredLocation(session, registeredLocation.currentLocation))
-    ),
-    runPostCommitTask('location private owner notification', () =>
-      sendBossTextNotification(
-        formatBossLocationNotification(
-          session,
-          registeredLocation.previousLocation,
-          registeredLocation.currentLocation,
-          responsibleName
-        )
-      )
-    ),
-  ]);
+  await runPostCommitTask('location group confirmation', () =>
+    message.reply(formatRegisteredLocation(session, registeredLocation.currentLocation))
+  );
 
   clearLocationSession(session.userId, session.chatId);
 }
 
-function formatLocationQuestion(
-  reference: string,
-  description: string,
-  previousLocation: string | null
-): string {
-  return [
-    '📍 *LOCALIZAÇÃO — NOVO LOCAL*',
-    '',
-    `🛞 *${reference} — ${description}*`,
-    '',
-    `📍 Local atual: *${formatLocation(previousLocation)}*`,
-    '',
-    'Digite o novo local. Ex.: *CG*, *W3* ou *PMAIS*',
-    'Para sair: *cancelar*',
-  ].join('\n');
-}
-
-export function formatLocationConfirmation(session: LocationSession): string {
-  return [
-    '📍 *LOCALIZAÇÃO — CONFIRMAR*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `📍 Local: *${formatLocation(session.previousLocation)} → ${formatLocation(session.newLocation ?? null)}*`,
-    '',
-    'Responda: *confirmar* ou *cancelar*.',
-  ].join('\n');
+export function formatLocationQuestion(): string {
+  return '📍 *LOCALIZAÇÃO*\nInforme o local:';
 }
 
 function formatRegisteredLocation(session: LocationSession, currentLocation: string): string {
@@ -303,36 +234,10 @@ function formatRegisteredLocation(session: LocationSession, currentLocation: str
   ].join('\n');
 }
 
-function formatBossLocationNotification(
-  session: LocationSession,
-  previousLocation: string | null,
-  currentLocation: string,
-  responsibleName: string
-): string {
-  return [
-    '📍 *LOCALIZAÇÃO ATUALIZADA*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `📍 Local: *${formatLocation(previousLocation)} → ${currentLocation}*`,
-    '',
-    `👤 Responsável: *${responsibleName}*`,
-  ].join('\n');
-}
-
 function formatLocation(location: string | null): string {
   return location ?? 'não cadastrado';
 }
 
 function isNewOperationCommand(normalizedBody: string): boolean {
   return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
-}
-
-async function getResponsibleName(message: Message, fallback: string): Promise<string> {
-  try {
-    const contact = await message.getContact();
-    return contact.pushname || contact.name || contact.number || fallback;
-  } catch {
-    return fallback;
-  }
 }

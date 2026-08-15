@@ -1,6 +1,5 @@
 export type LocationSessionStep =
   | 'awaiting_location'
-  | 'awaiting_confirmation'
   | 'processing';
 
 export interface LocationSession {

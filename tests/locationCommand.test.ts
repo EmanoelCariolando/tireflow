@@ -3,13 +3,13 @@ import test from 'node:test';
 import type { Message } from 'whatsapp-web.js';
 import env from '../src/config/env.js';
 import {
-  formatLocationConfirmation,
+  formatLocationQuestion,
   handleLocationCommand,
   handleLocationConversation,
   isLocationCommand,
 } from '../src/commands/locationCommand.js';
 import { formatZeroStockProductList } from '../src/commands/menuCommand.js';
-import { formatPneuHelp, formatProductList } from '../src/commands/pneuCommand.js';
+import { formatProductList } from '../src/commands/pneuCommand.js';
 import {
   clearLastQuery,
   getLastQuery,
@@ -61,7 +61,7 @@ test('renders missing locations and instructions only for Monteiro', () => {
   assert.doesNotMatch(congoList, /local <número>/);
 });
 
-test('offers local registration in the zero-stock list without changing entry guidance', () => {
+test('zero-stock list omits direct entry and location instructions', () => {
   const text = formatZeroStockProductList(
     [{ ...product, stock: 0 }],
     '175/70 R14',
@@ -69,19 +69,11 @@ test('offers local registration in the zero-stock list without changing entry gu
   );
 
   assert.match(text, /📦 Estoque: \*0\*\n📍 Local: \*não cadastrado\*/);
-  assert.match(text, /Para repor: \*entrada 1\*/);
-  assert.match(text, /Para cadastrar local: \*local 1\*/);
+  assert.doesNotMatch(text, /Para repor|entrada 1/);
+  assert.doesNotMatch(text, /Para cadastrar local|local 1/);
 });
 
-test('shows the local command in help only when inventory locations are enabled', () => {
-  assert.match(
-    formatPneuHelp(true),
-    /\*local 1\* — alterar localização/
-  );
-  assert.doesNotMatch(formatPneuHelp(false), /local <número>/);
-});
-
-test('starts a clean location flow and validates the new location before confirmation', async () => {
+test('starts a compact location flow and validates the new location', async () => {
   const previousFlag = env.inventoryLocationsEnabled;
   const replies: string[] = [];
 
@@ -91,28 +83,12 @@ test('starts a clean location flow and validates the new location before confirm
 
     await handleLocationCommand(createMessage(replies), 'local 1');
     assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_location');
-    assert.match(replies.at(-1) ?? '', /Local atual: \*não cadastrado\*/);
+    assert.equal(replies.at(-1), formatLocationQuestion());
+    assert.equal(replies.at(-1), '📍 *LOCALIZAÇÃO*\nInforme o local:');
 
     await handleLocationConversation(createMessage(replies), 'corredor 1');
     assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_location');
     assert.match(replies.at(-1) ?? '', /Local inválido/);
-
-    await handleLocationConversation(createMessage(replies), 'w3');
-    const session = getLocationSession(userId, chatId);
-    assert.equal(session?.step, 'awaiting_confirmation');
-    assert.equal(session?.newLocation, 'W3');
-    assert.equal(
-      formatLocationConfirmation(session!),
-      [
-        '📍 *LOCALIZAÇÃO — CONFIRMAR*',
-        '',
-        '🛞 *175/70 R14 — PNEU SEM LOCAL*',
-        '',
-        '📍 Local: *não cadastrado → W3*',
-        '',
-        'Responda: *confirmar* ou *cancelar*.',
-      ].join('\n')
-    );
 
     await handleLocationConversation(createMessage(replies), 'cancela');
     assert.equal(getLocationSession(userId, chatId), null);

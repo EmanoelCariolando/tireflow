@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Message } from 'whatsapp-web.js';
 import { handleSaleConversation } from '../src/commands/saleCommand.js';
+import env from '../src/config/env.js';
 import {
   clearSaleSession,
   getSaleSession,
@@ -46,7 +47,18 @@ function createMessage(
   } as unknown as Message;
 }
 
+async function runInBranch(branchName: string, operation: () => Promise<void>): Promise<void> {
+  const previousBranchName = env.branchName;
+  env.branchName = branchName;
+  try {
+    await operation();
+  } finally {
+    env.branchName = previousBranchName;
+  }
+}
+
 test('applies one confirmed 3% discount and returns to the payment menu', async () => {
+  await runInBranch('ATC PNEUS MONTEIRO', async () => {
   const ids = startSale('confirmed');
   const replies: string[] = [];
   const message = createMessage(ids, replies);
@@ -62,7 +74,10 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
   assert.equal(previewSession?.originalTotalValue, 1000);
   assert.equal(previewSession?.totalValue, 970);
   assert.equal(previewSession?.discountPercent, 3);
-  assert.match(replies.at(-1) ?? '', /Desconto: \*3% \(-R\$30,00\)\*/);
+  assert.match(
+    replies.at(-1) ?? '',
+    /DESCONTO — CONFIRMAR\*\n🏷️ Desconto: \*3%\* : R\$1000,00 -R\$30,00\n\n💰 Novo total: \*R\$970,00\*/
+  );
   assert.match(replies.at(-1) ?? '', /Novo total: \*R\$970,00\*/);
 
   await handleSaleConversation(message, 'confirma');
@@ -89,10 +104,31 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
   assert.equal(confirmationSession?.paymentMethod, 'Dinheiro');
   assert.equal(confirmationSession?.totalValue, 970);
   assert.equal(confirmationSession?.receipts?.[0]?.paymentMethod, 'Dinheiro');
-  assert.match(replies.at(-1) ?? '', /Desconto: \*3% \(-R\$30,00\)\*/);
+  assert.match(replies.at(-1) ?? '', /\*Desconto: 3%\* \(-R\$30,00\)/);
   assert.match(replies.at(-1) ?? '', /Total: \*R\$970,00\*/);
 
   clearSaleSession(ids.userId, ids.chatId);
+  });
+});
+
+test('confirms a cash sale without requesting a photo outside Monteiro', async () => {
+  await runInBranch('ATC PNEUS CONGO', async () => {
+    const ids = startSale('congo-cash');
+    const replies: string[] = [];
+    const message = createMessage(ids, replies);
+
+    await handleSaleConversation(message, '1');
+    await handleSaleConversation(message, '1');
+
+    const confirmationSession = getSaleSession(ids.userId, ids.chatId);
+    assert.equal(confirmationSession?.step, 'awaiting_confirmation');
+    assert.deepEqual(confirmationSession?.pendingReceiptMethods, []);
+    assert.deepEqual(confirmationSession?.receipts, []);
+    assert.match(replies.at(-1) ?? '', /CONFIRMAR VENDA/);
+    assert.doesNotMatch(replies.at(-1) ?? '', /COMPROVANTE|depósito\/dinheiro/);
+
+    clearSaleSession(ids.userId, ids.chatId);
+  });
 });
 
 test('selects the price once before any direct payment method', async () => {

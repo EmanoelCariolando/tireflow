@@ -28,6 +28,7 @@ import {
   formatQuantityQuestion,
   formatSupplierQuestion,
 } from '../utils/operationPrompts.js';
+import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 
 const PRODUCT_REGISTRATION_COMMAND_REGEX = /^(cadastrar|adicionar)\s+pneu$/i;
 const MAX_TEXT_LENGTH = 120;
@@ -506,7 +507,9 @@ function formatRegisteredProduct(
     `🛞 *${session.reference} — ${session.description}*`,
     '',
     `📦 Estoque inicial: *${session.initialStock}*`,
-    ...(movementCode ? [`🧾 Entrada inicial: *${movementCode}*`] : []),
+    ...(movementCode
+      ? formatMovementNumberMessage(`🧾 Entrada inicial: *${movementCode}*`)
+      : []),
     '',
     `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
     `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
@@ -532,7 +535,9 @@ function formatBossProductRegistrationNotification(
     `🛞 *${session.reference} — ${session.description}*`,
     '',
     `📦 Estoque inicial: *${session.initialStock}*`,
-    ...(movementCode ? [`🧾 Entrada inicial: *${movementCode}*`] : []),
+    ...(movementCode
+      ? formatMovementNumberMessage(`🧾 Entrada inicial: *${movementCode}*`)
+      : []),
     `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
     `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
     '',

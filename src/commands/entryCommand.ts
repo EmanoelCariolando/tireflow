@@ -1,5 +1,6 @@
 import { Message } from 'whatsapp-web.js';
-import { getLastQuery } from '../utils/lastQueryStore.js';
+import { getLastQuery, updateLastQueryProductLocation } from '../utils/lastQueryStore.js';
+import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
   clearEntrySession,
@@ -33,9 +34,38 @@ import {
   formatQuantityQuestion,
   formatSupplierQuestion,
 } from '../utils/operationPrompts.js';
+import env from '../config/env.js';
+import { normalizeStockLocation } from '../utils/stockLocation.js';
+import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 
 const ENTRY_COMMAND_REGEX = /^entrada\s+(\d+)$/i;
 const MAX_ENTRY_ITEMS = 20;
+const ADDITIONAL_ENTRY_HELP_DELAY_MS = 30_000;
+const additionalEntryHelpTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+export function orderEntryProductsByStock(
+  products: QueriedProduct[]
+): QueriedProduct[] {
+  const available: QueriedProduct[] = [];
+  const zeroStock: QueriedProduct[] = [];
+
+  for (const product of products) {
+    (product.stock > 0 ? available : zeroStock).push(product);
+  }
+
+  return [...available, ...zeroStock];
+}
+
+export function formatAdditionalEntryProductChoiceQuestion(): string {
+  return formatProductChoiceQuestion();
+}
+
+export function formatAdditionalEntryHelp(): string {
+  return [
+    'Não achou o Pneu?',
+    'Digite: *novo* para adicionar um pneu ou *voltar* para pesquisar uma medida diferente',
+  ].join('\n');
+}
 
 export function isEntryCommand(body: string): boolean {
   return ENTRY_COMMAND_REGEX.test(body.trim());
@@ -97,6 +127,7 @@ export async function handleEntryCommand(message: Message, body: string): Promis
 export async function handleEntryConversation(message: Message, body: string): Promise<boolean> {
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
+  clearAdditionalEntryHelpTimer(userId, chatId);
 
   if (hasExpiredEntrySession(userId, chatId)) {
     await message.reply('⌛ *OPERAÇÃO EXPIRADA*\nInicie novamente.');
@@ -113,6 +144,11 @@ export async function handleEntryConversation(message: Message, body: string): P
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return true;
+  }
+
+  if (isBackResponse(normalizedBody) && session.step === 'awaiting_additional_item') {
+    await requestAnotherEntryMeasure(message, session);
     return true;
   }
 
@@ -143,6 +179,11 @@ export async function handleEntryConversation(message: Message, body: string): P
 
   if (session.step === 'awaiting_supplier') {
     await handleSupplierStep(message, session, body);
+    return true;
+  }
+
+  if (session.step === 'awaiting_location') {
+    await handleEntryLocationStep(message, session, body);
     return true;
   }
 
@@ -192,12 +233,16 @@ async function handleQuantityStep(
   if (noteSupplier) {
     saveEntrySession({
       ...session,
-      step: 'awaiting_price_decision',
+      step: env.inventoryLocationsEnabled ? 'awaiting_location' : 'awaiting_price_decision',
       quantity,
       supplier: noteSupplier,
       updatedAt: Date.now(),
     });
-    await message.reply(formatPriceDecisionQuestion());
+    await message.reply(
+      env.inventoryLocationsEnabled
+        ? formatEntryLocationQuestion()
+        : formatPriceDecisionQuestion()
+    );
     return;
   }
 
@@ -225,12 +270,37 @@ async function handleSupplierStep(
 
   const nextSession: EntrySession = {
     ...session,
-    step: 'awaiting_price_decision',
+    step: env.inventoryLocationsEnabled ? 'awaiting_location' : 'awaiting_price_decision',
     supplier,
     updatedAt: Date.now(),
   };
 
   saveEntrySession(nextSession);
+  await message.reply(
+    env.inventoryLocationsEnabled
+      ? formatEntryLocationQuestion()
+      : formatPriceDecisionQuestion()
+  );
+}
+
+async function handleEntryLocationStep(
+  message: Message,
+  session: EntrySession,
+  body: string
+): Promise<void> {
+  const stockLocation = normalizeStockLocation(body);
+
+  if (!stockLocation) {
+    await message.reply(`❌ *LOCAL INVÁLIDO*\n\n${formatEntryLocationQuestion()}`);
+    return;
+  }
+
+  saveEntrySession({
+    ...session,
+    step: 'awaiting_price_decision',
+    stockLocation,
+    updatedAt: Date.now(),
+  });
   await message.reply(formatPriceDecisionQuestion());
 }
 
@@ -369,7 +439,9 @@ async function handleAdditionalMeasureStep(
   }
 
   try {
-    const products = await findActiveProductsByReference(normalizedMeasure);
+    const products = orderEntryProductsByStock(
+      await findActiveProductsByReference(normalizedMeasure)
+    );
 
     if (products.length === 0) {
       await message.reply(
@@ -386,11 +458,54 @@ async function handleAdditionalMeasureStep(
       updatedAt: Date.now(),
     });
     await message.reply(formatProductList(products, normalizedMeasure));
-    await message.reply(formatProductChoiceQuestion());
+    await message.reply(formatAdditionalEntryProductChoiceQuestion());
+    scheduleAdditionalEntryHelp(message, session.userId, session.chatId, normalizedMeasure);
   } catch (error) {
     console.error('[ENTRY] Error searching an additional tire:', error);
     await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite *voltar*.');
   }
+}
+
+export function scheduleAdditionalEntryHelp(
+  message: Message,
+  userId: string,
+  chatId: string,
+  measure: string,
+  delayMs = ADDITIONAL_ENTRY_HELP_DELAY_MS
+): void {
+  clearAdditionalEntryHelpTimer(userId, chatId);
+  const key = buildAdditionalEntryHelpTimerKey(userId, chatId);
+  const timer = setTimeout(() => {
+    additionalEntryHelpTimers.delete(key);
+    const currentSession = getEntrySession(userId, chatId);
+
+    if (
+      currentSession?.step !== 'awaiting_additional_item' ||
+      currentSession.additionalMeasure !== measure
+    ) {
+      return;
+    }
+
+    void message.reply(formatAdditionalEntryHelp()).catch((error) => {
+      console.error('[ENTRY] Error sending additional tire help:', error);
+    });
+  }, delayMs);
+  timer.unref?.();
+  additionalEntryHelpTimers.set(key, timer);
+}
+
+function clearAdditionalEntryHelpTimer(userId: string, chatId: string): void {
+  const key = buildAdditionalEntryHelpTimerKey(userId, chatId);
+  const timer = additionalEntryHelpTimers.get(key);
+
+  if (timer) {
+    clearTimeout(timer);
+    additionalEntryHelpTimers.delete(key);
+  }
+}
+
+function buildAdditionalEntryHelpTimerKey(userId: string, chatId: string): string {
+  return `${chatId}:${userId}`;
 }
 
 async function handleAdditionalItemStep(
@@ -398,16 +513,21 @@ async function handleAdditionalItemStep(
   session: EntrySession,
   body: string
 ): Promise<void> {
+  if (/^novo$/i.test(body.trim())) {
+    await requestAnotherEntryMeasure(message, session);
+    return;
+  }
+
   const optionNumber = parseAdditionalItemSelection(body);
 
   if (optionNumber === null) {
-    await message.reply(`❌ Opção inválida.\n\n${formatProductChoiceQuestion()}`);
+    await message.reply(`❌ Opção inválida.\n\n${formatAdditionalEntryProductChoiceQuestion()}`);
     return;
   }
 
   const product = session.additionalProducts?.[optionNumber - 1];
   if (!product) {
-    await message.reply(`❌ Item inválido.\n\n${formatProductChoiceQuestion()}`);
+    await message.reply(`❌ Item inválido.\n\n${formatAdditionalEntryProductChoiceQuestion()}`);
     return;
   }
 
@@ -422,6 +542,7 @@ async function handleAdditionalItemStep(
     oldCreditPrice: product.creditPrice,
     quantity: undefined,
     supplier: noteSupplier,
+    stockLocation: undefined,
     newCashPrice: undefined,
     newCreditPrice: undefined,
     additionalMeasure: undefined,
@@ -429,6 +550,20 @@ async function handleAdditionalItemStep(
     updatedAt: Date.now(),
   });
   await message.reply(formatQuantityQuestion());
+}
+
+async function requestAnotherEntryMeasure(
+  message: Message,
+  session: EntrySession
+): Promise<void> {
+  saveEntrySession({
+    ...session,
+    step: 'awaiting_additional_measure',
+    additionalMeasure: undefined,
+    additionalProducts: undefined,
+    updatedAt: Date.now(),
+  });
+  await message.reply(formatAdditionalTireQuestion());
 }
 
 async function handleConfirmationStep(
@@ -464,12 +599,24 @@ async function handleConfirmationStep(
         productId: item.productId,
         quantity: item.quantity,
         supplier: item.supplier,
+        stockLocation: item.stockLocation,
         newCashPrice: item.newCashPrice,
       })),
       responsiblePhone: session.userId,
       responsibleName,
     });
     registeredItems = registeredGroup.items;
+
+    for (const item of items) {
+      if (item.stockLocation) {
+        updateLastQueryProductLocation(
+          session.userId,
+          session.chatId,
+          item.productId,
+          item.stockLocation
+        );
+      }
+    }
   } catch (error) {
     clearEntrySession(session.userId, session.chatId);
 
@@ -518,6 +665,7 @@ function canReturnFromAdditionalEntry(session: EntrySession): boolean {
     'awaiting_additional_item',
     'awaiting_quantity',
     'awaiting_supplier',
+    'awaiting_location',
     'awaiting_price_decision',
     'awaiting_cash_price',
   ].includes(session.step);
@@ -539,6 +687,7 @@ async function returnToPreparedEntry(
     oldCreditPrice: lastItem.oldCreditPrice,
     quantity: lastItem.quantity,
     supplier: lastItem.supplier,
+    stockLocation: lastItem.stockLocation,
     newCashPrice: lastItem.newCashPrice,
     newCreditPrice: lastItem.newCreditPrice,
     items,
@@ -582,6 +731,7 @@ function buildCurrentEntryItem(session: EntrySession): EntryItem | null {
     oldCreditPrice: session.oldCreditPrice,
     quantity: session.quantity,
     supplier: session.supplier,
+    stockLocation: session.stockLocation,
     newCashPrice: session.newCashPrice,
     newCreditPrice: session.newCreditPrice,
   };
@@ -615,6 +765,10 @@ function formatPriceDecisionQuestion(): string {
   return '💰 *VOCÊ QUER ALTERAR O PREÇO?*\nDigite *s* ou *n*.';
 }
 
+export function formatEntryLocationQuestion(): string {
+  return '📍 *LOCALIZAÇÃO*\nInforme o local:';
+}
+
 export function formatEntryConfirmation(session: EntrySession): string {
   const items = getEntryItems(session);
   if (items.length > 1) {
@@ -640,6 +794,7 @@ export function formatEntryConfirmation(session: EntrySession): string {
     '',
     `📥 Quantidade: *+${item.quantity}*`,
     `🚚 Fornecedor: *${item.supplier}*`,
+    ...(item.stockLocation ? [`📍 Local: *${item.stockLocation}*`] : []),
     ...(item.newCashPrice !== undefined && item.newCreditPrice !== undefined
       ? [
           '',
@@ -663,7 +818,8 @@ export function formatRegisteredEntry(
       '✅ *ENTRADAS REGISTRADAS*',
       items,
       responsibleName,
-      registeredItems
+      registeredItems,
+      false
     );
   }
 
@@ -685,12 +841,12 @@ export function formatRegisteredEntry(
         ]
       : []),
     '',
-    `🧾 Movimentação: *${registered.movementCode}*`,
+    ...formatMovementNumberMessage(`🧾 Movimentação: *${registered.movementCode}*`),
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
 
-function formatBossEntryNotification(
+export function formatBossEntryNotification(
   session: EntrySession,
   responsibleName: string,
   registeredItems: RegisteredEntry[]
@@ -701,7 +857,8 @@ function formatBossEntryNotification(
       '📦 *NOVAS ENTRADAS*',
       items,
       responsibleName,
-      registeredItems
+      registeredItems,
+      true
     );
   }
 
@@ -722,8 +879,9 @@ function formatBossEntryNotification(
           `💳 A prazo: ${formatCurrency(item.oldCreditPrice)} → *${formatCurrency(item.newCreditPrice)}*`,
         ]
       : []),
+    ...formatEntryLocationChange(registered),
     '',
-    `🧾 Movimentação: *${registered.movementCode}*`,
+    ...formatMovementNumberMessage(`🧾 Movimentação: *${registered.movementCode}*`),
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
@@ -732,7 +890,11 @@ function formatCompactEntryItemLines(items: EntryItem[]): string[] {
   return items.flatMap((item, index) => formatCompactEntryItem(item, index));
 }
 
-function formatCompactEntryItem(item: EntryItem, index: number): string[] {
+function formatCompactEntryItem(
+  item: EntryItem,
+  index: number,
+  includeLocation = true
+): string[] {
   const itemHeader = `${index + 1}. *${item.reference} — ${item.description}*`;
 
   if (item.newCashPrice !== undefined && item.newCreditPrice !== undefined) {
@@ -740,12 +902,18 @@ function formatCompactEntryItem(item: EntryItem, index: number): string[] {
       itemHeader,
       `📥 Adicionou: *+${item.quantity}* | 💰 À vista: ${formatCurrency(item.newCashPrice)}`,
       `📃 A prazo: ${formatCurrency(item.newCreditPrice)}`,
+      ...(includeLocation && item.stockLocation
+        ? [`📍 Local: *${item.stockLocation}*`]
+        : []),
     ];
   }
 
   return [
     itemHeader,
     `📥 Adicionou: *+${item.quantity}* | 🏷️ sem alteração`,
+    ...(includeLocation && item.stockLocation
+      ? [`📍 Local: *${item.stockLocation}*`]
+      : []),
   ];
 }
 
@@ -753,13 +921,20 @@ function formatRegisteredEntryItems(
   title: string,
   items: EntryItem[],
   responsibleName: string,
-  registeredItems: RegisteredEntry[]
+  registeredItems: RegisteredEntry[],
+  includeLocationChange: boolean
 ): string {
   const lines = items.flatMap((item, index) => {
     const registered = registeredItems[index];
     return [
-      ...formatCompactEntryItem(item, index),
-      `📦 Estoque atual: *${registered?.currentStock ?? '?'}* | 🧾 *${registered?.movementCode ?? '?'}*`,
+      ...formatCompactEntryItem(item, index, false),
+      ...(includeLocationChange && registered
+        ? formatEntryLocationChange(registered)
+        : []),
+      ...formatMovementNumberMessage(
+        `📦 Estoque atual: *${registered?.currentStock ?? '?'}* | 🧾 *${registered?.movementCode ?? '?'}*`,
+        `📦 Estoque atual: *${registered?.currentStock ?? '?'}*`
+      ),
     ];
   });
 
@@ -770,6 +945,18 @@ function formatRegisteredEntryItems(
     '',
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
+}
+
+function formatEntryLocationChange(registered: RegisteredEntry): string[] {
+  if (!registered.currentLocation) return [];
+
+  const location =
+    registered.previousLocation &&
+    registered.previousLocation !== registered.currentLocation
+      ? `${registered.previousLocation} → ${registered.currentLocation}`
+      : registered.currentLocation;
+
+  return ['', `📍 Local: *${location}*`];
 }
 
 async function getResponsibleName(message: Message, fallback: string): Promise<string> {

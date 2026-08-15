@@ -1,9 +1,12 @@
 import { Message } from 'whatsapp-web.js';
 import { handleBestSellersCommand } from './bestSellersCommand.js';
 import { handleTodayReportCommand } from './todayReportCommand.js';
-import { findActiveProductsByReference } from '../services/productService.js';
+import {
+  findActiveProductsByReference,
+  findSuggestedActiveReferences,
+} from '../services/productService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
-import { formatStockLocationLine, normalizeStockLocation } from '../utils/stockLocation.js';
+import { formatStockLocationLine } from '../utils/stockLocation.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { saveLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
@@ -19,8 +22,9 @@ import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.
 import {
   formatReferenceSuggestions,
   formatResolvedReferenceNotice,
+  formatProductChoiceQuestion,
 } from './pneuCommand.js';
-import { findSuggestedActiveReferences } from '../services/productService.js';
+import { saveProductActionSession } from '../utils/productActionSessionStore.js';
 
 const MENU_TEXT = [
   '🤖 *TIREFLOW — MENU*',
@@ -137,6 +141,8 @@ async function replyWithZeroStockProducts(
     (referenceNotice ? `${referenceNotice}\n\n` : '') +
       formatZeroStockProductList(zeroStockProducts, normalized)
   );
+  saveProductActionSession(userId, chatId, 'awaiting_product', undefined, 'zero_stock');
+  await message.reply(formatProductChoiceQuestion());
 }
 
 export function formatZeroStockProductList(
@@ -159,15 +165,6 @@ export function formatZeroStockProductList(
     text += `💳 A prazo: *${formatCurrency(product.creditPrice)}*`;
     if (index < products.length - 1) text += '\n';
   });
-
-  text += '\n\n📥 Para repor: *entrada 1*';
-
-  if (
-    inventoryLocationsEnabled &&
-    products.some((product) => !normalizeStockLocation(product.stockLocation))
-  ) {
-    text += '\n📍 Para cadastrar local: *local 1*';
-  }
 
   return text;
 }

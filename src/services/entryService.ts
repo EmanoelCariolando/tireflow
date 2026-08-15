@@ -6,6 +6,7 @@ import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
+import { normalizeStockLocation } from '../utils/stockLocation.js';
 
 export class EntryProductNotFoundError extends Error {
   constructor() {
@@ -17,6 +18,7 @@ export interface RegisterEntryItemInput {
   productId: string;
   quantity: number;
   supplier: string;
+  stockLocation?: string;
   newCashPrice?: number;
 }
 
@@ -36,6 +38,8 @@ export interface RegisteredEntry {
   movementCode: string;
   previousStock: number;
   currentStock: number;
+  previousLocation: string | null;
+  currentLocation: string | null;
 }
 
 export interface RegisteredEntryGroup {
@@ -48,6 +52,7 @@ export async function registerEntry(input: RegisterEntryInput): Promise<Register
       productId: input.productId,
       quantity: input.quantity,
       supplier: input.supplier,
+      stockLocation: input.stockLocation,
       newCashPrice: input.newCashPrice,
     }],
     responsiblePhone: input.responsiblePhone,
@@ -82,6 +87,18 @@ export async function registerEntryItems(
       }
 
       const previousStock = product.stock;
+
+      if (item.stockLocation !== undefined) {
+        const locationUpdate = await productRepository.updateStockLocationIfActive(
+          item.productId,
+          item.stockLocation,
+          tx
+        );
+
+        if (locationUpdate.count === 0) {
+          throw new EntryProductNotFoundError();
+        }
+      }
 
       if (item.newCashPrice !== undefined) {
         const newCreditPrice = calculateCreditPrice(item.newCashPrice);
@@ -163,6 +180,8 @@ export async function registerEntryItems(
         movementCode,
         previousStock,
         currentStock: updatedProduct.stock,
+        previousLocation: normalizeStockLocation(product.stockLocation),
+        currentLocation: normalizeStockLocation(updatedProduct.stockLocation),
       });
     }
 
@@ -176,6 +195,8 @@ function hasValidEntryItems(items: RegisterEntryItemInput[]): boolean {
     Number.isInteger(item.quantity) &&
     item.quantity > 0 &&
     Boolean(item.supplier.trim()) &&
+    (item.stockLocation === undefined ||
+      normalizeStockLocation(item.stockLocation) === item.stockLocation) &&
     (item.newCashPrice === undefined ||
       (Number.isFinite(item.newCashPrice) && item.newCashPrice >= 0))
   );

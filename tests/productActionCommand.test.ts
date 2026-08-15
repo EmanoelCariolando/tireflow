@@ -3,6 +3,7 @@ import test from 'node:test';
 import type { Message } from 'whatsapp-web.js';
 import {
   formatProductActionMenu,
+  formatZeroStockActionMenu,
   formatSaleQuantityQuestion,
   handleProductActionConversation,
   type ProductActionDependencies,
@@ -97,6 +98,17 @@ test('formats the three new instructional messages exactly', () => {
   );
 
   assert.equal(
+    formatZeroStockActionMenu(true),
+    [
+      '⚙️ *ESCOLHA O QUE DESEJA FAZER*',
+      '',
+      '1️⃣ Entrada',
+      '2️⃣ Preço',
+      '3️⃣ Localização',
+    ].join('\n')
+  );
+
+  assert.equal(
     formatSaleQuantityQuestion(),
     [
       '📦 *QUANTIDADE*',
@@ -164,6 +176,62 @@ test('routes every additional product action to the selected tire', async () => 
       );
       assert.deepEqual(calls, [expectedCall]);
       assert.equal(getProductActionSession(userId, chatId), null);
+    }
+  } finally {
+    clearProductActionSession(userId, chatId);
+    clearLastQuery(userId, chatId);
+  }
+});
+
+test('zero-stock selection offers and routes only entry, price and location', async () => {
+  const expected = new Map([
+    ['1', 'entry:entrada 2'],
+    ['2', 'price:preco 2'],
+    ['3', 'location:local 2'],
+  ]);
+
+  try {
+    saveQuery();
+    const replies: string[] = [];
+    const calls: string[] = [];
+    saveProductActionSession(
+      userId,
+      chatId,
+      'awaiting_product',
+      undefined,
+      'zero_stock'
+    );
+
+    assert.equal(
+      await handleProductActionConversation(
+        createMessage(replies),
+        '2',
+        createDependencies(calls)
+      ),
+      true
+    );
+    assert.equal(replies.at(-1), formatZeroStockActionMenu(true));
+    assert.equal(getProductActionSession(userId, chatId)?.mode, 'zero_stock');
+
+    for (const [selection, expectedCall] of expected) {
+      calls.length = 0;
+      saveProductActionSession(
+        userId,
+        chatId,
+        'awaiting_action',
+        2,
+        'zero_stock'
+      );
+
+      assert.equal(
+        await handleProductActionConversation(
+          createMessage(replies),
+          selection,
+          createDependencies(calls)
+        ),
+        true
+      );
+      assert.deepEqual(calls, [expectedCall]);
     }
   } finally {
     clearProductActionSession(userId, chatId);

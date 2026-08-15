@@ -43,8 +43,9 @@ test('highlights and separates the total after a registered sale', () => {
   assert.match(message, /^✅ \*VENDA REGISTRADA\*/);
   assert.match(
     message,
-    /\*175\/70 R14\* — \*PNEU TESTE\*\n\*2 unidades\* × R\$300,00\nPagamento: PIX\n\n💰 \*TOTAL: R\$600,00\*\n\n📦 Estoque: 8\nMovimentação: VEN-001\nVendedor: Vendedor$/
+    /\*175\/70 R14\* — \*PNEU TESTE\*\n\*2 unidades\* × R\$300,00\nPagamento: \*PIX\*\n\n💰 \*TOTAL: R\$600,00\*\n\n📦 Estoque: \*8\*\nVendedor: Vendedor$/
   );
+  assert.doesNotMatch(message, /VEN-001|Movimentação:/);
   assert.doesNotMatch(message, /━/);
 });
 
@@ -58,15 +59,15 @@ test('uses the restored detailed format in the private boss notification', () =>
       '',
       '*175/70 R14* — *PNEU TESTE*',
       '*2 unidades* × R$300,00',
-      'Pagamento: PIX',
+      'Pagamento: *PIX*',
       '',
       '💰 *TOTAL: R$600,00*',
       '',
-      '📦 Estoque: 8',
-      'Movimentação: VEN-001',
+      '📦 Estoque: *8*',
       'Vendedor: Vendedor',
     ].join('\n')
   );
+  assert.doesNotMatch(message, /VEN-001|Movimentação:/);
 });
 
 test('shows both mixed payment amounts in the confirmation', () => {
@@ -81,7 +82,7 @@ test('shows both mixed payment amounts in the confirmation', () => {
 
   assert.match(
     message,
-    /Pagamento: \*Misto\*\nPIX: \*R\$300,00\* \| Dinheiro: \*R\$300,00\*/
+    /Pagamento: \*Misto\*\n\*PIX\*: \*R\$300,00\* \| \*Dinheiro\*: \*R\$300,00\*/
   );
   assert.match(message, /💰 Total: \*R\$600,00\*/);
 });
@@ -107,8 +108,8 @@ test('accepts s or n for the city hall question and shows the commission rule', 
     isCityHallSale: false,
   });
 
-  assert.match(cityHallConfirmation, /Destino da nota: Prefeitura \(sem comissão\)/);
-  assert.match(customerConfirmation, /Destino da nota: Cliente \(com comissão\)/);
+  assert.match(cityHallConfirmation, /Destino da nota: \*Prefeitura \(sem comissão\)\*/);
+  assert.match(customerConfirmation, /Destino da nota: \*Cliente \(com comissão\)\*/);
 });
 
 test('shows the discount and chosen price clearly to the seller and owner', () => {
@@ -131,9 +132,40 @@ test('shows the discount and chosen price clearly to the seller and owner', () =
 
   assert.match(confirmation, /Pagamento: \*PIX\* \| Valor: \*À vista\*/);
   assert.match(confirmation, /Valor original: R\$600,00/);
-  assert.match(confirmation, /Desconto: \*3% \(-R\$18,00\)\*/);
+  assert.match(confirmation, /\*Desconto: 3%\* \(-R\$18,00\)/);
   assert.match(confirmation, /💰 Total: \*R\$582,00\*/);
-  assert.match(ownerNotification, /Pagamento: PIX \| Valor: À vista/);
-  assert.match(ownerNotification, /Desconto: 3% \(-R\$18,00\)/);
+  assert.match(ownerNotification, /Pagamento: \*PIX\* \| Valor: \*À vista\*/);
+  assert.match(ownerNotification, /\*Desconto: 3%\* \(-R\$18,00\)/);
   assert.match(ownerNotification, /💰 \*TOTAL: R\$582,00\*/);
+});
+
+test('highlights every payment method in registered and private sale messages', () => {
+  for (const paymentMethod of ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const) {
+    const sale = { ...session, paymentMethod, priceType: 'À vista' as const };
+
+    for (const message of [
+      formatRegisteredSale(sale, 'VEN-010', 'Vendedor', 8),
+      formatBossSaleNotification(sale, 'VEN-010', 'Vendedor', 8),
+    ]) {
+      assert.match(message, new RegExp(`Pagamento: \\*${paymentMethod}\\* \\| Valor: \\*À vista\\*`));
+    }
+  }
+
+  const mixedSale: SaleSession = {
+    ...session,
+    paymentMethod: 'Misto',
+    priceType: 'À vista',
+    paymentBreakdown: [
+      { method: 'PIX', amount: 300 },
+      { method: 'Dinheiro', amount: 300 },
+    ],
+  };
+
+  for (const message of [
+    formatRegisteredSale(mixedSale, 'VEN-011', 'Vendedor', 8),
+    formatBossSaleNotification(mixedSale, 'VEN-011', 'Vendedor', 8),
+  ]) {
+    assert.match(message, /Pagamento: \*Misto\* \| Valor: \*À vista\*/);
+    assert.match(message, /\*PIX\*: \*R\$300,00\* \| \*Dinheiro\*: \*R\$300,00\*/);
+  }
 });

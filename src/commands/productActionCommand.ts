@@ -62,6 +62,18 @@ export function formatProductActionMenu(
   ].join('\n');
 }
 
+export function formatZeroStockActionMenu(
+  inventoryLocationsEnabled = env.inventoryLocationsEnabled
+): string {
+  return [
+    '⚙️ *ESCOLHA O QUE DESEJA FAZER*',
+    '',
+    '1️⃣ Entrada',
+    '2️⃣ Preço',
+    ...(inventoryLocationsEnabled ? ['3️⃣ Localização'] : []),
+  ].join('\n');
+}
+
 export function formatSaleQuantityQuestion(): string {
   return formatQuantityQuestion();
 }
@@ -115,8 +127,18 @@ export async function handleProductActionConversation(
       return true;
     }
 
-    saveProductActionSession(userId, chatId, 'awaiting_action', selection);
-    await message.reply(formatProductActionMenu(dependencies.inventoryLocationsEnabled));
+    saveProductActionSession(
+      userId,
+      chatId,
+      'awaiting_action',
+      selection,
+      session.mode
+    );
+    await message.reply(
+      session.mode === 'zero_stock'
+        ? formatZeroStockActionMenu(dependencies.inventoryLocationsEnabled)
+        : formatProductActionMenu(dependencies.inventoryLocationsEnabled)
+    );
     return true;
   }
 
@@ -124,6 +146,40 @@ export async function handleProductActionConversation(
   if (!optionNumber || !lastQuery.products[optionNumber - 1]) {
     clearProductActionSession(userId, chatId);
     await message.reply('⌛ CONSULTA EXPIRADA\nDigite novamente a medida do pneu.');
+    return true;
+  }
+
+  if (session.mode === 'zero_stock') {
+    const zeroStockActionHandlers: Record<
+      number,
+      { handler: IndexedCommandHandler; command: string }
+    > = {
+      1: { handler: dependencies.entry, command: 'entrada' },
+      2: { handler: dependencies.price, command: 'preco' },
+    };
+
+    if (dependencies.inventoryLocationsEnabled) {
+      zeroStockActionHandlers[3] = {
+        handler: dependencies.location,
+        command: 'local',
+      };
+    }
+
+    const zeroStockAction = zeroStockActionHandlers[selection];
+    if (!zeroStockAction) {
+      await message.reply(
+        `❌ Opção inválida.\n\n${formatZeroStockActionMenu(
+          dependencies.inventoryLocationsEnabled
+        )}`
+      );
+      return true;
+    }
+
+    clearProductActionSession(userId, chatId);
+    await zeroStockAction.handler(
+      message,
+      `${zeroStockAction.command} ${optionNumber}`
+    );
     return true;
   }
 
@@ -155,7 +211,13 @@ export async function handleProductActionConversation(
   }
 
   if (selection === 1) {
-    saveProductActionSession(userId, chatId, 'awaiting_sale_quantity', optionNumber);
+    saveProductActionSession(
+      userId,
+      chatId,
+      'awaiting_sale_quantity',
+      optionNumber,
+      session.mode
+    );
     await message.reply(formatSaleQuantityQuestion());
     return true;
   }

@@ -16,6 +16,7 @@ import { sendBossNotification } from '../services/notificationService.js';
 import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import { formatCashPriceQuestion } from '../utils/operationPrompts.js';
+import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 
 const PRICE_COMMAND_REGEX = /^pre[cç]o\s+(\d+)$/i;
 
@@ -260,7 +261,7 @@ function formatRegisteredPriceChange(
     `💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
     '',
     `📦 Estoque: *${currentStock}*`,
-    `🧾 Movimentação: *${movementCode}*`,
+    ...formatMovementNumberMessage(`🧾 Movimentação: *${movementCode}*`),
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }
@@ -278,7 +279,7 @@ function formatBossPriceNotification(
     `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
     `💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
     '',
-    `🧾 Movimentação: *${movementCode}*`,
+    ...formatMovementNumberMessage(`🧾 Movimentação: *${movementCode}*`),
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
 }

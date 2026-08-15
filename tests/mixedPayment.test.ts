@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Message } from 'whatsapp-web.js';
-import { handleSaleConversation } from '../src/commands/saleCommand.js';
+import {
+  handleSaleConversation,
+  isCashReceiptRequired,
+} from '../src/commands/saleCommand.js';
+import env from '../src/config/env.js';
 import { calculatePaymentTotals } from '../src/services/reportService.js';
 import {
   buildPaymentBreakdown,
@@ -60,6 +64,21 @@ function createMessage(
   return message as unknown as Message;
 }
 
+async function runInBranch(branchName: string, operation: () => Promise<void>): Promise<void> {
+  const previousBranchName = env.branchName;
+  env.branchName = branchName;
+  try {
+    await operation();
+  } finally {
+    env.branchName = previousBranchName;
+  }
+}
+
+test('requires a cash receipt only in Monteiro', () => {
+  assert.equal(isCashReceiptRequired('ATC PNEUS MONTEIRO'), true);
+  assert.equal(isCashReceiptRequired('ATC PNEUS CONGO'), false);
+});
+
 test('accepts exactly two supported and distinct mixed payment methods', () => {
   assert.deepEqual(parseMixedPaymentMethods('1 e 2'), ['Dinheiro', 'PIX']);
   assert.deepEqual(parseMixedPaymentMethods('PIX + cartão'), ['PIX', 'Cartão']);
@@ -97,7 +116,8 @@ test('builds an exact two-part split and rejects zero, total or excess values', 
   assert.equal(buildPaymentBreakdown(['Dinheiro', 'PIX'], 'PIX', 60_000, 50_000), null);
 });
 
-test('requires PIX and cash receipts for Dinheiro + PIX', async () => {
+test('requires PIX and cash receipts for Dinheiro + PIX in Monteiro', async () => {
+  await runInBranch('ATC PNEUS MONTEIRO', async () => {
   const ids = startSale('cash-pix');
   const replies: string[] = [];
 
@@ -144,10 +164,37 @@ test('requires PIX and cash receipts for Dinheiro + PIX', async () => {
   assert.equal(confirmationSession?.receipts?.length, 2);
   assert.match(
     replies.at(-1) ?? '',
-    /Pagamento: \*Misto\*\nPIX: \*R\$300,00\* \| Dinheiro: \*R\$200,00\*/
+    /Pagamento: \*Misto\* \| Valor: \*À vista\*\n\*PIX\*: \*R\$300,00\* \| \*Dinheiro\*: \*R\$200,00\*/
   );
 
   clearSaleSession(ids.userId, ids.chatId);
+  });
+});
+
+test('skips only the cash receipt in a mixed payment outside Monteiro', async () => {
+  await runInBranch('ATC PNEUS CONGO', async () => {
+    const ids = startSale('congo-cash-pix');
+    const replies: string[] = [];
+
+    await handleSaleConversation(createMessage(ids, replies), '5');
+    await handleSaleConversation(createMessage(ids, replies), '1 e 2');
+    await handleSaleConversation(createMessage(ids, replies), '300,00');
+
+    assert.deepEqual(
+      getSaleSession(ids.userId, ids.chatId)?.pendingReceiptMethods,
+      ['PIX']
+    );
+    assert.match(replies.at(-1) ?? '', /COMPROVANTE — PIX/);
+
+    await handleSaleConversation(createMessage(ids, replies, 'congo-pix-receipt'), '');
+    const confirmationSession = getSaleSession(ids.userId, ids.chatId);
+    assert.equal(confirmationSession?.step, 'awaiting_confirmation');
+    assert.equal(confirmationSession?.receipts?.length, 1);
+    assert.doesNotMatch(replies.at(-1) ?? '', /depósito\/dinheiro/);
+    assert.match(replies.at(-1) ?? '', /CONFIRMAR VENDA/);
+
+    clearSaleSession(ids.userId, ids.chatId);
+  });
 });
 
 test('requires PIX and card receipts in sequence for PIX + Cartão', async () => {
@@ -178,13 +225,14 @@ test('requires PIX and card receipts in sequence for PIX + Cartão', async () =>
   assert.equal(confirmationSession?.receipts?.length, 2);
   assert.match(
     replies.at(-1) ?? '',
-    /PIX: \*R\$200,00\* \| Cartão: \*R\$300,00\*/
+    /\*PIX\*: \*R\$200,00\* \| \*Cartão\*: \*R\$300,00\*/
   );
 
   clearSaleSession(ids.userId, ids.chatId);
 });
 
-test('requires card and cash receipts for Dinheiro + Cartão', async () => {
+test('requires card and cash receipts for Dinheiro + Cartão in Monteiro', async () => {
+  await runInBranch('ATC PNEUS MONTEIRO', async () => {
   const ids = startSale('cash-card');
   const replies: string[] = [];
 
@@ -213,6 +261,7 @@ test('requires card and cash receipts for Dinheiro + Cartão', async () => {
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.receipts?.length, 2);
 
   clearSaleSession(ids.userId, ids.chatId);
+  });
 });
 
 test('attributes persisted mixed amounts to each method in the daily report', () => {

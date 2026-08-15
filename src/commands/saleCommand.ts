@@ -48,6 +48,8 @@ import { formatProductChoiceQuestion, formatProductList } from './pneuCommand.js
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { allocateAmountByWeights } from '../utils/saleAllocation.js';
 import { formatAdditionalTireQuestion, formatQuantityQuestion } from '../utils/operationPrompts.js';
+import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
+import env from '../config/env.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 const DISCOUNT_PERCENT = 3;
@@ -336,6 +338,19 @@ async function continueDirectPayment(
     ...pricedSession,
     paymentMethod,
   };
+
+  if (!isPaymentReceiptRequired(paymentMethod)) {
+    const confirmationSession: SaleSession = {
+      ...cleanSession,
+      step: 'awaiting_confirmation',
+      pendingReceiptMethods: [],
+      receipts: [],
+      updatedAt: Date.now(),
+    };
+    saveSaleSession(confirmationSession);
+    await message.reply(formatSaleConfirmation(confirmationSession));
+    return;
+  }
 
   const nextSession: SaleSession = {
     ...cleanSession,
@@ -687,7 +702,8 @@ async function handleMixedAmountStep(
   const pendingReceiptMethods = paymentBreakdown
     .map((part) => part.method)
     .filter((method): method is MixedPaymentMethod =>
-      method === 'Dinheiro' || method === 'PIX' || method === 'Cartão'
+      (method === 'Dinheiro' || method === 'PIX' || method === 'Cartão') &&
+      isPaymentReceiptRequired(method)
     );
   const nextSession: SaleSession = {
     ...session,
@@ -715,7 +731,7 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
       receiptMethod === 'Dinheiro'
         ? formatMissingReceiptMessage(receiptMethod)
         : session.paymentMethod === 'Misto'
-        ? `Envie a imagem do comprovante do ${formatMethodForSentence(receiptMethod)} para continuar.`
+        ? `Envie a imagem do comprovante do *${formatMethodForSentence(receiptMethod)}* para continuar.`
         : formatMissingReceiptMessage(receiptMethod)
     );
     return;
@@ -770,7 +786,7 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
     });
     await message.reply(
       [
-        `✅ Comprovante do ${formatMethodForSentence(receiptMethod)} recebido.`,
+        `✅ Comprovante do *${formatMethodForSentence(receiptMethod)}* recebido.`,
         '',
         formatReceiptRequest(nextReceiptMethod, true),
       ].join('\n')
@@ -787,7 +803,7 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
   };
   saveSaleSession(nextSession);
   const receiptConfirmation = session.paymentMethod === 'Misto'
-    ? `✅ Comprovante do ${formatMethodForSentence(receiptMethod)} recebido.`
+    ? `✅ Comprovante do *${formatMethodForSentence(receiptMethod)}* recebido.`
     : '✅ Comprovante recebido.';
   await message.reply(`${receiptConfirmation}\n\n${formatSaleConfirmation(nextSession)}`);
 }
@@ -1311,23 +1327,19 @@ function formatInvoiceLines(session: SaleSession): string[] {
 
   return [
     session.isCityHallSale
-      ? 'Destino da nota: Prefeitura (sem comissão)'
-      : 'Destino da nota: Cliente (com comissão)',
-    `Nome da nota: ${session.invoiceName}`,
+      ? 'Destino da nota: *Prefeitura (sem comissão)*'
+      : 'Destino da nota: *Cliente (com comissão)*',
+    `Nome da nota: *${session.invoiceName}*`,
   ];
 }
 
 function formatDiscountPreview(session: SaleSession): string {
   const originalTotal = session.originalTotalValue ?? 0;
   const discountValue = originalTotal - (session.totalValue ?? 0);
-  const multipleItems = getSaleItems(session).length > 1;
   return [
     '🏷️ *DESCONTO — CONFIRMAR*',
+    `🏷️ Desconto: *${session.discountPercent}%* : ${formatCurrency(originalTotal)} -${formatCurrency(discountValue)}`,
     '',
-    multipleItems
-      ? `🧾 Subtotal: *${formatCurrency(originalTotal)}*`
-      : `🏷️ ${session.priceType}: *${formatCurrency(originalTotal)}*`,
-    `🏷️ Desconto: *${session.discountPercent}% (-${formatCurrency(discountValue)})*`,
     `💰 Novo total: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
     'Responda: *confirmar* ou *cancelar*.',
@@ -1343,7 +1355,7 @@ export function formatSaleConfirmation(session: SaleSession): string {
       ...formatConfirmationSaleItemLines(items),
       '',
       ...formatCompactPaymentLines(session),
-      ...formatDiscountLines(session, true),
+      ...formatDiscountLines(session),
       ...formatInvoiceLines(session),
       `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
       '',
@@ -1357,7 +1369,7 @@ export function formatSaleConfirmation(session: SaleSession): string {
     `*${session.reference}* — *${session.description}*`,
     formatSaleItemLine(session, false),
     ...formatConfirmationPaymentLines(session),
-    ...formatDiscountLines(session, true),
+    ...formatDiscountLines(session),
     ...formatInvoiceLines(session),
     '',
     `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
@@ -1390,13 +1402,13 @@ export function formatRegisteredSale(
     `*${session.reference}* — *${session.description}*`,
     formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
-    ...formatDiscountLines(session, false),
+    ...formatDiscountLines(session),
     ...formatInvoiceLines(session),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    `📦 Estoque: ${currentStock}`,
-    `Movimentação: ${movementCode}`,
+    `📦 Estoque: *${currentStock}*`,
+    ...formatMovementNumberMessage(`Movimentação: ${movementCode}`),
     `Vendedor: ${sellerName}`,
   ].join('\n');
 }
@@ -1425,13 +1437,13 @@ export function formatBossSaleNotification(
     `*${session.reference}* — *${session.description}*`,
     formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
-    ...formatDiscountLines(session, false),
+    ...formatDiscountLines(session),
     ...formatInvoiceLines(session),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    `📦 Estoque: ${currentStock}`,
-    `Movimentação: ${movementCode}`,
+    `📦 Estoque: *${currentStock}*`,
+    ...formatMovementNumberMessage(`Movimentação: ${movementCode}`),
     `Vendedor: ${sellerName}`,
   ].join('\n');
 }
@@ -1450,11 +1462,14 @@ function formatRegisteredMultiItemSale(
     ...formatRegisteredSaleItemLines(items, registeredItems),
     '',
     ...formatCompactPaymentLines(session),
-    ...formatDiscountLines(session, false),
+    ...formatDiscountLines(session),
     ...formatInvoiceLines(session),
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    `🧾 *${saleGroupCode}* | 👤 *${sellerName}*`,
+    ...formatMovementNumberMessage(
+      `🧾 *${saleGroupCode}* | Vendedor: ${sellerName}`,
+      `Vendedor: ${sellerName}`
+    ),
   ].join('\n');
 }
 
@@ -1480,17 +1495,7 @@ function formatConfirmationSaleItemLines(items: SaleItem[]): string[] {
 }
 
 function formatCompactPaymentLines(session: SaleSession): string[] {
-  const priceType = shouldShowPriceType(session) ? ` | ${session.priceType}` : '';
-  if (session.paymentMethod !== 'Misto') {
-    return [`💳 *${session.paymentMethod}*${priceType}`];
-  }
-
-  return [
-    `💳 *Misto*${priceType}`,
-    (session.paymentBreakdown ?? [])
-      .map((part) => `${part.method}: ${formatCurrency(part.amount)}`)
-      .join(' | '),
-  ].filter(Boolean);
+  return formatPaymentLines(session);
 }
 
 function findFinalRegisteredStock(
@@ -1546,6 +1551,17 @@ function formatMethodForSentence(paymentMethod: ReceiptPaymentMethod): string {
   return paymentMethod === 'PIX' ? 'PIX' : paymentMethod.toLowerCase();
 }
 
+export function isCashReceiptRequired(branchName = env.branchName): boolean {
+  return /\bMONTEIRO\b/i.test(branchName);
+}
+
+function isPaymentReceiptRequired(
+  paymentMethod: ReceiptPaymentMethod,
+  branchName = env.branchName
+): boolean {
+  return paymentMethod !== 'Dinheiro' || isCashReceiptRequired(branchName);
+}
+
 function formatMissingReceiptMessage(paymentMethod: ReceiptPaymentMethod): string {
   if (paymentMethod === 'Dinheiro') {
     return '📎 Envie a foto do *depósito/dinheiro* para continuar.';
@@ -1556,31 +1572,20 @@ function formatMissingReceiptMessage(paymentMethod: ReceiptPaymentMethod): strin
 function formatPaymentLines(session: SaleSession): string[] {
   if (session.paymentMethod !== 'Misto') {
     return [
-      `Pagamento: ${session.paymentMethod}${formatPriceTypeSuffix(session, false)}`,
+      `Pagamento: *${session.paymentMethod}*${formatPriceTypeSuffix(session)}`,
     ];
   }
 
   return [
-    `Pagamento: Misto${formatPriceTypeSuffix(session, false)}`,
-    ...(session.paymentBreakdown ?? []).map(
-      (part) => `${part.method}: ${formatCurrency(part.amount)}`
-    ),
-  ];
+    `Pagamento: *Misto*${formatPriceTypeSuffix(session)}`,
+    (session.paymentBreakdown ?? [])
+      .map((part) => `*${part.method}*: *${formatCurrency(part.amount)}*`)
+      .join(' | '),
+  ].filter(Boolean);
 }
 
 function formatConfirmationPaymentLines(session: SaleSession): string[] {
-  if (session.paymentMethod !== 'Misto') {
-    return [
-      `Pagamento: *${session.paymentMethod}*${formatPriceTypeSuffix(session, true)}`,
-    ];
-  }
-
-  return [
-    `Pagamento: *Misto*${formatPriceTypeSuffix(session, true)}`,
-    (session.paymentBreakdown ?? [])
-      .map((part) => `${part.method}: *${formatCurrency(part.amount)}*`)
-      .join(' | '),
-  ].filter(Boolean);
+  return formatPaymentLines(session);
 }
 
 function formatSaleItemLine(session: SaleSession, registered: boolean): string {
@@ -1591,28 +1596,24 @@ function formatSaleItemLine(session: SaleSession, registered: boolean): string {
   return `*${session.quantity} ${quantityLabel}* × ${formatCurrency(session.unitPrice ?? 0)}`;
 }
 
-function formatPriceTypeSuffix(session: SaleSession, bold: boolean): string {
-  if (!shouldShowPriceType(session)) {
-    return '';
+function formatPriceTypeSuffix(session: SaleSession): string {
+  const priceType = getDisplayedPriceType(session);
+  return priceType ? ` | Valor: *${priceType}*` : '';
+}
+
+function getDisplayedPriceType(session: SaleSession): string | undefined {
+  const itemPriceTypes = [
+    ...new Set(getExplicitSaleItems(session).map((item) => item.priceType)),
+  ];
+
+  if (itemPriceTypes.length > 1) {
+    return 'Misto (acordo com cada item)';
   }
-  return bold
-    ? ` | Valor: *${session.priceType}*`
-    : ` | Valor: ${session.priceType}`;
+
+  return itemPriceTypes[0] ?? session.priceType;
 }
 
-function shouldShowPriceType(session: SaleSession): boolean {
-  return Boolean(
-    session.priceType &&
-    (
-      session.discountPercent ||
-      session.paymentMethod === 'Cartão' ||
-      session.paymentMethod === 'Nota' ||
-      (session.paymentMethod === 'Misto' && session.mixedPaymentMethods?.includes('Cartão'))
-    )
-  );
-}
-
-function formatDiscountLines(session: SaleSession, bold: boolean): string[] {
+function formatDiscountLines(session: SaleSession): string[] {
   if (
     !session.discountPercent ||
     session.originalTotalValue === undefined ||
@@ -1624,8 +1625,6 @@ function formatDiscountLines(session: SaleSession, bold: boolean): string[] {
   const discountValue = session.originalTotalValue - session.totalValue;
   return [
     `Valor original: ${formatCurrency(session.originalTotalValue)}`,
-    bold
-      ? `Desconto: *${session.discountPercent}% (-${formatCurrency(discountValue)})*`
-      : `Desconto: ${session.discountPercent}% (-${formatCurrency(discountValue)})`,
+    `*Desconto: ${session.discountPercent}%* (-${formatCurrency(discountValue)})`,
   ];
 }

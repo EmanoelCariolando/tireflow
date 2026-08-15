@@ -125,7 +125,7 @@ test('reports the registered reference when an equivalent spelling was used', ()
   assert.equal(notice, '🔎 Medida encontrada como: *14.00/16*');
 });
 
-test('explains foto and addfoto in the tire command help', async () => {
+test('pneu without a measure shows only the short migration notice', async () => {
   let replyText = '';
   const message = {
     reply: async (text: string) => {
@@ -135,15 +135,11 @@ test('explains foto and addfoto in the tire command help', async () => {
 
   await handlePneuHelpCommand(message);
 
-  assert.match(replyText, /\*foto 1\* — ver foto/);
-  assert.match(replyText, /\*addfoto 1\* — adicionar\/substituir foto/);
-  assert.match(replyText, /consultar pneus com estoque[\s\S]*\*175 70 14\*/);
-  assert.match(replyText, /\*zero 175 70 14\*/);
-  assert.doesNotMatch(replyText, /pneu <medida>/);
-  assert.match(replyText, /Escolha o pneu pelo número/);
-  assert.match(replyText, /Escolha o que deseja fazer/);
-  assert.match(replyText, /ATALHOS \(OPCIONAL\)/);
-  assert.match(replyText, /O número corresponde ao item da última consulta/);
+  assert.equal(
+    replyText,
+    'ℹ️ A consulta mudou. Agora, digite apenas a medida.\nEx.: *175 70 14*'
+  );
+  assert.doesNotMatch(replyText, /COMANDOS|ATALHOS|foto|entrada|venda/);
 });
 
 test('zero query lists and caches only products without stock', async () => {
@@ -189,15 +185,20 @@ test('zero query lists and caches only products without stock', async () => {
 
     await handleZeroStockCommand(message, 'zero 175 75 13');
 
-    assert.match(replies.at(-1) ?? '', /PNEU ZERADO/);
-    assert.doesNotMatch(replies.at(-1) ?? '', /PNEU COM ESTOQUE/);
-    assert.match(replies.at(-1) ?? '', /ESTOQUE ZERO — 1 modelo/);
+    assert.equal(replies.length, 2);
+    assert.match(replies[0] ?? '', /PNEU ZERADO/);
+    assert.doesNotMatch(replies[0] ?? '', /PNEU COM ESTOQUE/);
+    assert.match(replies[0] ?? '', /ESTOQUE ZERO — 1 modelo/);
+    assert.doesNotMatch(replies[0] ?? '', /Para repor|cadastrar local/);
+    assert.equal(replies[1], formatProductChoiceQuestion());
+    assert.equal(getProductActionSession(userId, chatId)?.step, 'awaiting_product');
     assert.deepEqual(
       getLastQuery(userId, chatId)?.products.map((product) => product.id),
       ['zero-product']
     );
   } finally {
     mutableRepository.findActiveByReferences = originalFindActiveByReferences;
+    clearProductActionSession(userId, chatId);
     clearLastQuery(userId, chatId);
   }
 });
