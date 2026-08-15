@@ -106,8 +106,10 @@ test('asks whether to change prices before confirming an entry', async () => {
   const chatId = 'entry-price-group@g.us';
   const replies: string[] = [];
   const message = createMessage(userId, chatId, replies);
+  const previousLocationsFlag = env.inventoryLocationsEnabled;
 
   try {
+    env.inventoryLocationsEnabled = false;
     saveLastQuery(userId, chatId, '175/70 R14', [{
       id: 'entry-price-product',
       reference: '175/70 R14',
@@ -147,6 +149,7 @@ test('asks whether to change prices before confirming an entry', async () => {
     assert.match(replies.at(-1) ?? '', /À vista: R\$250,00 → \*R\$275,00\*/);
     assert.match(replies.at(-1) ?? '', /A prazo \(\+5,8%\): R\$264,50 → \*R\$290,95\*/);
   } finally {
+    env.inventoryLocationsEnabled = previousLocationsFlag;
     clearEntrySession(userId, chatId);
     clearLastQuery(userId, chatId);
   }
@@ -243,8 +246,10 @@ test('keeps current prices when the entry price answer is n', async () => {
   const chatId = 'entry-no-price-group@g.us';
   const replies: string[] = [];
   const message = createMessage(userId, chatId, replies);
+  const previousLocationsFlag = env.inventoryLocationsEnabled;
 
   try {
+    env.inventoryLocationsEnabled = false;
     saveLastQuery(userId, chatId, '185/65 R15', [{
       id: 'entry-no-price-product',
       reference: '185/65 R15',
@@ -272,6 +277,7 @@ test('keeps current prices when the entry price answer is n', async () => {
     assert.equal(confirmation?.newCreditPrice, undefined);
     assert.match(replies.at(-1) ?? '', /Preços: \*sem alteração\*/);
   } finally {
+    env.inventoryLocationsEnabled = previousLocationsFlag;
     clearEntrySession(userId, chatId);
     clearLastQuery(userId, chatId);
   }
@@ -282,8 +288,10 @@ test('adds another tire and keeps the final confirmation compact', async () => {
   const chatId = 'entry-multi-group@g.us';
   const replies: string[] = [];
   const message = createMessage(userId, chatId, replies);
+  const previousLocationsFlag = env.inventoryLocationsEnabled;
 
   try {
+    env.inventoryLocationsEnabled = false;
     saveLastQuery(userId, chatId, '175/70 R14', [{
       id: 'entry-multi-one',
       reference: '175/70 R14',
@@ -429,6 +437,7 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.match(registered, /📦 Estoque atual: \*3\*/);
     assert.doesNotMatch(registered, /#E-00000[12]/);
   } finally {
+    env.inventoryLocationsEnabled = previousLocationsFlag;
     clearEntrySession(userId, chatId);
     clearLastQuery(userId, chatId);
   }
