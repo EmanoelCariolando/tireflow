@@ -1,0 +1,141 @@
+diff --git a/node_modules/whatsapp-web.js/src/Client.js b/node_modules/whatsapp-web.js/src/Client.js
+index 800109e..ac80f62 100644
+--- a/node_modules/whatsapp-web.js/src/Client.js
++++ b/node_modules/whatsapp-web.js/src/Client.js
+@@ -113,6 +113,12 @@ class Client extends EventEmitter {
+      * Private function
+      */
+     async inject() {
++        // A top-level WhatsApp navigation can supersede an injection that is
++        // still using the previous execution context.
++        const injection = {};
++        this._activeInjection = injection;
++
++        try {
+         if (
+             this.options.authTimeoutMs === undefined ||
+             this.options.authTimeoutMs == 0
+@@ -398,29 +404,73 @@ class Client extends EventEmitter {
+             },
+         );
+         await this.pupPage.evaluate(() => {
+-            window
+-                .require('WAWebSocketModel')
+-                .Socket.on('change:state', (_AppState, state) => {
+-                    window.onAuthAppStateChangedEvent(state);
+-                });
+-            window
+-                .require('WAWebSocketModel')
+-                .Socket.on('change:hasSynced', () => {
+-                    window.onAppStateHasSyncedEvent();
+-                });
++            const Socket = window.require('WAWebSocketModel').Socket;
+             const Cmd = window.require('WAWebCmd').Cmd;
+-            Cmd.on('offline_progress_update_from_bridge', () => {
+-                window.onOfflineProgressUpdateEvent(
+-                    window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress(),
+-                );
+-            });
+-            Cmd.on('logout', async () => {
+-                await window.onLogoutEvent();
+-            });
+-            Cmd.on('logout_from_bridge', async () => {
+-                await window.onLogoutEvent();
+-            });
++            const listeners = [
++                [
++                    Socket,
++                    'change:state',
++                    (_AppState, state) => {
++                        window.onAuthAppStateChangedEvent(state);
++                    },
++                ],
++                [
++                    Socket,
++                    'change:hasSynced',
++                    () => {
++                        window.onAppStateHasSyncedEvent();
++                    },
++                ],
++                [
++                    Cmd,
++                    'offline_progress_update_from_bridge',
++                    () => {
++                        window.onOfflineProgressUpdateEvent(
++                            window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress(),
++                        );
++                    },
++                ],
++                [
++                    Cmd,
++                    'logout',
++                    async () => {
++                        await window.onLogoutEvent();
++                    },
++                ],
++                [
++                    Cmd,
++                    'logout_from_bridge',
++                    async () => {
++                        await window.onLogoutEvent();
++                    },
++                ],
++            ];
++
++            if (window._wwjsListeners) {
++                for (const [target, event, handler] of window._wwjsListeners) {
++                    target.off(event, handler);
++                }
++            }
++
++            for (const [target, event, handler] of listeners) {
++                target.on(event, handler);
++            }
++            window._wwjsListeners = listeners;
++
++            // Registering the listener after WhatsApp has already synchronized
++            // misses the Backbone change event. Complete initialization now.
++            if (Socket.hasSynced === true && typeof window.WWebJS === 'undefined') {
++                window.onAppStateHasSyncedEvent();
++            }
+         });
++        } catch (err) {
++            if (this._activeInjection !== injection) return;
++            throw err;
++        } finally {
++            if (this._activeInjection === injection) {
++                this._activeInjection = null;
++            }
++        }
+     }
+ 
+     /**
+@@ -490,9 +540,9 @@ class Client extends EventEmitter {
+             referer: 'https://whatsapp.com/',
+         });
+ 
+-        await this.inject();
+-
+         this.pupPage.on('framenavigated', async (frame) => {
++            if (frame.parentFrame() !== null) return;
++
+             if (frame.url().includes('post_logout=1') || this.lastLoggedOut) {
+                 this.emit(Events.DISCONNECTED, 'LOGOUT');
+                 await this.authStrategy.logout();
+@@ -500,8 +550,16 @@ class Client extends EventEmitter {
+                 await this.authStrategy.afterBrowserInitialized();
+                 this.lastLoggedOut = false;
+             }
++
++            const storeAvailable = await this.pupPage.evaluate(() => {
++                return typeof window.WWebJS !== 'undefined';
++            });
++            if (storeAvailable) return;
++
+             await this.inject();
+         });
++
++        await this.inject();
+     }
+ 
+     /**
