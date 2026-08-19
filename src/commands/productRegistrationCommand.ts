@@ -21,7 +21,11 @@ import {
 } from '../services/productRegistrationService.js';
 import { runPostCommitTask } from '../services/postCommitTask.js';
 import { sendBossTextNotification } from '../services/notificationService.js';
-import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import {
+  formatConfirmationOptions,
+  isCancellationResponse,
+  parseConfirmationAction,
+} from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import {
   formatCashPriceQuestion,
@@ -150,7 +154,7 @@ async function handleMeasureStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatDescriptionQuestion(reference));
+  await message.reply(formatDescriptionQuestion());
 }
 
 async function handleDescriptionStep(
@@ -259,15 +263,7 @@ async function handleCashPriceStep(
   saveProductRegistrationSession(nextSession);
 
   if (env.inventoryLocationsEnabled) {
-    await message.reply(
-      [
-        '📍 *CADASTRO — LOCAL*',
-        '',
-        'Use 1 a 20 letras/números, sem espaços.',
-        'Ex.: *CG*, *W3* ou *PMAIS*',
-        'Sem local definido: *pular* | Sair: *cancelar*',
-      ].join('\n')
-    );
+    await message.reply(formatProductRegistrationLocationQuestion());
     return;
   }
 
@@ -309,10 +305,33 @@ async function handleConfirmationStep(
   session: ProductRegistrationSession,
   normalizedBody: string
 ): Promise<void> {
-  if (!isConfirmationResponse(normalizedBody)) {
+  const action = parseConfirmationAction(normalizedBody);
+
+  if (action === 'cancel') {
+    clearAllOperationSessions(session.userId, session.chatId);
+    await message.reply('❌ *CADASTRO CANCELADO*\nNenhuma informação foi salva.');
+    return;
+  }
+
+  if (action === 'back') {
+    const previousStep = env.inventoryLocationsEnabled
+      ? 'awaiting_location'
+      : 'awaiting_cash_price';
+    saveProductRegistrationSession({
+      ...session,
+      step: previousStep,
+      updatedAt: Date.now(),
+    });
     await message.reply(
-      'Responda: *confirmar* para salvar ou *cancelar* para sair.'
+      env.inventoryLocationsEnabled
+        ? formatProductRegistrationLocationQuestion()
+        : formatCashPriceQuestion()
     );
+    return;
+  }
+
+  if (action !== 'confirm') {
+    await message.reply(`❌ Opção inválida.\n\n${formatConfirmationOptions()}`);
     return;
   }
 
@@ -452,29 +471,34 @@ export function formatProductRegistrationConfirmation(
       ? ['', `📍 Local: *${session.stockLocation ?? 'não cadastrado'}*`]
       : []),
     '',
-    'Responda: *confirmar* ou *cancelar*.',
+    formatConfirmationOptions(),
+  ].join('\n');
+}
+
+function formatProductRegistrationLocationQuestion(): string {
+  return [
+    '📍 *CADASTRO — LOCAL*',
+    '',
+    'Use 1 a 20 letras/números, sem espaços.',
+    'Ex.: *CG*, *W3* ou *PMAIS*',
+    'Sem local definido: *pular* | Sair: *cancelar*',
   ].join('\n');
 }
 
 function formatMeasureQuestion(): string {
   return [
     '🆕 *CADASTRO — MEDIDA*',
-    '',
     'Digite apenas a medida, sem marca/modelo ou especificações.',
-    'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*',
     '',
-    'Para sair: *cancelar*',
+    'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*',
   ].join('\n');
 }
 
-function formatDescriptionQuestion(reference: string): string {
+function formatDescriptionQuestion(): string {
   return [
     '🏷️ *CADASTRO — DESCRIÇÃO*',
-    '',
-    `Medida: *${reference}*`,
     'Informe marca/modelo e detalhes úteis, sem repetir a medida.',
     'Ex.: *PIRELLI MT60 TRASEIRO 60P*',
-    'Para sair: *cancelar*',
   ].join('\n');
 }
 

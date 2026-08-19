@@ -411,7 +411,8 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.match(confirmation, /📥 Adicionou: \*\+3\* \| 💰 À vista: R\$2100,00/);
     assert.match(confirmation, /📃 A prazo: R\$2221,80/);
     assert.match(confirmation, /Total de itens: \*2\*/);
-    assert.ok(confirmation.split('\n').length <= 10);
+    assert.match(confirmation, /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
+    assert.ok(confirmation.split('\n').length <= 12);
 
     const registered = formatRegisteredEntry(
       getEntrySession(userId, chatId)!,

@@ -28,8 +28,8 @@ test('NSSM has isolated output, production environment and recovery settings', (
   assert.match(installer, /AppStderr/);
   assert.match(installer, /AppRotateFiles', '0/);
   assert.match(installer, /AppExit', 'Default', 'Restart/);
-  assert.match(installer, /AppRestartDelay', '5000/);
-  assert.match(installer, /SERVICE_AUTO_START/);
+  assert.match(installer, /AppRestartDelay', '15000/);
+  assert.match(installer, /SERVICE_DELAYED_AUTO_START/);
   assert.match(installer, /AppStopMethodConsole', '15000/);
   assert.match(installer, /AppKillProcessTree', '1/);
 });

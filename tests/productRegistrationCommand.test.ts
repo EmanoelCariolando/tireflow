@@ -64,8 +64,12 @@ test('guides a zero-stock registration through validation and confirmation', asy
     env.inventoryLocationsEnabled = false;
     await handleProductRegistrationStart(message);
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
-    assert.match(replies.at(-1) ?? '', /CADASTRO — MEDIDA/);
-    assert.match(replies.at(-1) ?? '', /110\/90-17/);
+    assert.equal(
+      replies.at(-1),
+      '🆕 *CADASTRO — MEDIDA*\n' +
+        'Digite apenas a medida, sem marca/modelo ou especificações.\n\n' +
+        'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*'
+    );
 
     await handleProductRegistrationConversation(message, 'medida errada');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
@@ -73,7 +77,12 @@ test('guides a zero-stock registration through validation and confirmation', asy
 
     await handleProductRegistrationConversation(message, '110 90 17');
     assert.equal(getProductRegistrationSession(userId, chatId)?.reference, '110/90 R17');
-    assert.match(replies.at(-1) ?? '', /CADASTRO — DESCRIÇÃO/);
+    assert.equal(
+      replies.at(-1),
+      '🏷️ *CADASTRO — DESCRIÇÃO*\n' +
+        'Informe marca/modelo e detalhes úteis, sem repetir a medida.\n' +
+        'Ex.: *PIRELLI MT60 TRASEIRO 60P*'
+    );
 
     await handleProductRegistrationConversation(message, 'Pirelli MT60 traseiro 60P');
     assert.equal(
@@ -110,7 +119,7 @@ test('guides a zero-stock registration through validation and confirmation', asy
 
     await handleProductRegistrationConversation(message, 'sim');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_confirmation');
-    assert.match(replies.at(-1) ?? '', /\*confirmar\* para salvar/i);
+    assert.match(replies.at(-1) ?? '', /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
 
     await handleProductRegistrationConversation(message, 'cancela');
     assert.equal(getProductRegistrationSession(userId, chatId), null);

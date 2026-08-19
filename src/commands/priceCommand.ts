@@ -13,7 +13,11 @@ import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/o
 import { runPostCommitTask } from '../services/postCommitTask.js';
 import { PriceProductNotFoundError, registerPriceChange } from '../services/priceService.js';
 import { sendBossNotification } from '../services/notificationService.js';
-import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import {
+  formatConfirmationOptions,
+  isCancellationResponse,
+  parseConfirmationAction,
+} from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import { formatCashPriceQuestion } from '../utils/operationPrompts.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
@@ -152,8 +156,26 @@ async function handleConfirmationStep(
   session: PriceSession,
   normalizedBody: string
 ): Promise<void> {
-  if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Responda: *confirmar* ou *cancelar*.');
+  const action = parseConfirmationAction(normalizedBody);
+
+  if (action === 'cancel') {
+    clearAllOperationSessions(session.userId, session.chatId);
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return;
+  }
+
+  if (action === 'back') {
+    savePriceSession({
+      ...session,
+      step: 'awaiting_cash_price',
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatCashPriceQuestion());
+    return;
+  }
+
+  if (action !== 'confirm') {
+    await message.reply(`❌ Opção inválida.\n\n${formatConfirmationOptions()}`);
     return;
   }
 
@@ -242,7 +264,7 @@ function formatPriceConfirmation(session: PriceSession): string {
     `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
     `💳 A prazo (+5,8%): ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
     '',
-    'Responda: *confirmar* ou *cancelar*.',
+    formatConfirmationOptions(),
   ].join('\n');
 }
 

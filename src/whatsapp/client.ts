@@ -5,8 +5,12 @@ import env from '../config/env.js';
 
 const { Client, LocalAuth } = whatsappWeb;
 
-const START_TIMEOUT_MS = 120_000;
+// Large accounts can spend several minutes restoring and synchronizing after a
+// computer restart. Do not force NSSM into a restart loop during that window.
+const START_TIMEOUT_MS = 600_000;
 const SHUTDOWN_TIMEOUT_MS = 5000;
+const READY_RECOVERY_DELAY_MS = 15_000;
+const READY_RECOVERY_RETRY_MS = 5000;
 let diagnosticsAttached = false;
 let whatsappReady = false;
 
@@ -18,10 +22,15 @@ interface WhatsAppPageDiagnostics {
   authStore: string;
   wwebjs: string;
   require: string;
+  socketState: string;
+  socketStream: string;
+  hasSynced: string;
+  offlineProgress: string;
 }
 
 interface WhatsAppClientInternals {
   attachEventListeners(): Promise<void>;
+  info?: unknown;
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -157,6 +166,23 @@ async function readWhatsAppPageDiagnostics(): Promise<WhatsAppPageDiagnostics | 
           }
         };
 
+        const readSocketValue = (key) => {
+          try {
+            const value = globalThis.require?.('WAWebSocketModel')?.Socket?.[key];
+            return value === undefined || value === null ? String(value) : String(value);
+          } catch {
+            return 'error';
+          }
+        };
+
+        const readOfflineProgress = () => {
+          try {
+            return String(globalThis.AuthStore?.OfflineMessageHandler?.getOfflineDeliveryProgress?.());
+          } catch {
+            return 'error';
+          }
+        };
+
         return {
           url: globalThis.location.href,
           title: globalThis.document.title,
@@ -165,6 +191,10 @@ async function readWhatsAppPageDiagnostics(): Promise<WhatsAppPageDiagnostics | 
           authStore: hasValue('AuthStore'),
           wwebjs: hasValue('WWebJS'),
           require: typeof globalThis.require,
+          socketState: readSocketValue('state'),
+          socketStream: readSocketValue('stream'),
+          hasSynced: readSocketValue('hasSynced'),
+          offlineProgress: readOfflineProgress(),
         };
       })()
     `) as WhatsAppPageDiagnostics;
@@ -189,7 +219,8 @@ async function attachMessageListenersManually(): Promise<boolean> {
     diagnostics?.readyState !== 'complete' ||
     diagnostics.authStore !== 'available' ||
     diagnostics.wwebjs !== 'available' ||
-    diagnostics.require !== 'function'
+    diagnostics.require !== 'function' ||
+    !(whatsappClient as unknown as WhatsAppClientInternals).info
   ) {
     return false;
   }
@@ -207,8 +238,38 @@ async function attachMessageListenersManually(): Promise<boolean> {
 function createReadyOrManualAttachPromise(): Promise<void> {
   return new Promise((resolve, reject) => {
     let recoveryTimeout: NodeJS.Timeout | undefined;
+    let recoveryRunning = false;
+    let settled = false;
+
+    function scheduleRecovery(delay: number): void {
+      if (settled) return;
+      if (recoveryTimeout) clearTimeout(recoveryTimeout);
+      recoveryTimeout = setTimeout(() => void attemptRecovery(), delay);
+    }
+
+    async function attemptRecovery(): Promise<void> {
+      if (settled || recoveryRunning) return;
+      recoveryRunning = true;
+
+      try {
+        const attached = await attachMessageListenersManually();
+        if (attached) {
+          markWhatsAppReady('manual recovery');
+          finish();
+          return;
+        }
+      } catch (error) {
+        console.error('Could not recover WhatsApp readiness:', error);
+      } finally {
+        recoveryRunning = false;
+      }
+
+      scheduleRecovery(READY_RECOVERY_RETRY_MS);
+    }
 
     const finish = (): void => {
+      if (settled) return;
+      settled = true;
       if (recoveryTimeout) {
         clearTimeout(recoveryTimeout);
       }
@@ -221,6 +282,8 @@ function createReadyOrManualAttachPromise(): Promise<void> {
     };
 
     const fail = (error: Error): void => {
+      if (settled) return;
+      settled = true;
       if (recoveryTimeout) clearTimeout(recoveryTimeout);
       whatsappClient.removeListener('authenticated', onAuthenticated);
       whatsappClient.removeListener('ready', onReady);
@@ -230,21 +293,12 @@ function createReadyOrManualAttachPromise(): Promise<void> {
     };
 
     const onReady = (): void => {
+      markWhatsAppReady('ready event');
       finish();
     };
 
     const onAuthenticated = (): void => {
-      recoveryTimeout = setTimeout(() => {
-        attachMessageListenersManually()
-          .then((attached) => {
-            if (attached) {
-              finish();
-            }
-          })
-          .catch((error: unknown) => {
-            reject(error);
-          });
-      }, 15_000);
+      scheduleRecovery(READY_RECOVERY_DELAY_MS);
     };
 
     const onAuthFailure = (message: string): void => {
@@ -260,6 +314,17 @@ function createReadyOrManualAttachPromise(): Promise<void> {
     whatsappClient.once('auth_failure', onAuthFailure);
     whatsappClient.once('disconnected', onDisconnected);
   });
+}
+
+function markWhatsAppReady(source: 'ready event' | 'manual recovery'): void {
+  if (whatsappReady) return;
+  whatsappReady = true;
+  console.log('✅ WhatsApp client is ready!');
+  console.log('🤖 TireFlow bot is now listening for messages.');
+  if (source === 'manual recovery') {
+    console.warn('WhatsApp readiness was restored after the ready event did not fire.');
+  }
+  console.log('');
 }
 
 /**
@@ -313,9 +378,7 @@ export function initializeWhatsAppClient(): void {
 
   // Client is ready to receive messages
   whatsappClient.on('ready', () => {
-    whatsappReady = true;
-    console.log('✅ WhatsApp client is ready!');
-    console.log('🤖 TireFlow bot is now listening for messages.\n');
+    markWhatsAppReady('ready event');
   });
 
   whatsappClient.on('authenticated', () => {
@@ -332,6 +395,7 @@ export function initializeWhatsAppClient(): void {
   whatsappClient.on('disconnected', (reason: string) => {
     whatsappReady = false;
     console.log('⚠️ WhatsApp client disconnected:', reason);
+    void logWhatsAppPageDiagnostics();
   });
 
   whatsappClient.on('change_state', (state: string) => {

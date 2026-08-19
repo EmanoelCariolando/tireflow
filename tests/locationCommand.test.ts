@@ -90,8 +90,21 @@ test('starts a compact location flow and validates the new location', async () =
     assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_location');
     assert.match(replies.at(-1) ?? '', /Local inválido/);
 
-    await handleLocationConversation(createMessage(replies), 'cancela');
+    await handleLocationConversation(createMessage(replies), 'PMAIS');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_confirmation');
+    assert.match(replies.at(-1) ?? '', /não cadastrado → PMAIS/);
+    assert.match(replies.at(-1) ?? '', /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
+
+    await handleLocationConversation(createMessage(replies), '2');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_location');
+    assert.equal(replies.at(-1), formatLocationQuestion());
+
+    await handleLocationConversation(createMessage(replies), 'W3');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_confirmation');
+
+    await handleLocationConversation(createMessage(replies), '0');
     assert.equal(getLocationSession(userId, chatId), null);
+    assert.equal(replies.at(-1), '❌ *LOCALIZAÇÃO CANCELADA*');
   } finally {
     env.inventoryLocationsEnabled = previousFlag;
     clearLocationSession(userId, chatId);

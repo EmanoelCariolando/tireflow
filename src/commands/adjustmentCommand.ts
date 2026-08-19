@@ -16,7 +16,11 @@ import {
 } from '../services/adjustmentService.js';
 import { getCurrentProductStock } from '../services/saleService.js';
 import { sendBossNotification } from '../services/notificationService.js';
-import { isCancellationResponse, isConfirmationResponse } from '../utils/operationResponse.js';
+import {
+  formatConfirmationOptions,
+  isCancellationResponse,
+  parseConfirmationAction,
+} from '../utils/operationResponse.js';
 import { formatQuantityQuestion } from '../utils/operationPrompts.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 
@@ -186,8 +190,26 @@ async function handleConfirmationStep(
   session: AdjustmentSession,
   normalizedBody: string
 ): Promise<void> {
-  if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Responda: *confirmar* ou *cancelar*.');
+  const action = parseConfirmationAction(normalizedBody);
+
+  if (action === 'cancel') {
+    clearAllOperationSessions(session.userId, session.chatId);
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return;
+  }
+
+  if (action === 'back') {
+    saveAdjustmentSession({
+      ...session,
+      step: 'awaiting_reason',
+      updatedAt: Date.now(),
+    });
+    await message.reply('📝 *AJUSTE — MOTIVO*\n\nInforme o motivo.\nEx.: *Conferência semanal*');
+    return;
+  }
+
+  if (action !== 'confirm') {
+    await message.reply(`❌ Opção inválida.\n\n${formatConfirmationOptions()}`);
     return;
   }
 
@@ -268,7 +290,7 @@ function formatAdjustmentConfirmation(session: AdjustmentSession): string {
     `📦 Estoque: *${session.previousStock} → ${session.newStock}*`,
     `📝 Motivo: *${session.reason}*`,
     '',
-    'Responda: *confirmar* ou *cancelar*.',
+    formatConfirmationOptions(),
   ].join('\n');
 }
 

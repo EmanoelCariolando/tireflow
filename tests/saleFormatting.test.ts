@@ -31,7 +31,7 @@ test('highlights and separates the total before sale confirmation', () => {
   assert.match(message, /^⚠️ \*CONFIRMAR VENDA\?\*/);
   assert.match(
     message,
-    /\*175\/70 R14\* — \*PNEU TESTE\*\n\*2 un\.\* × R\$300,00\nPagamento: \*PIX\*\n\n💰 Total: \*R\$600,00\*\n\nDigite: confirmar ou cancelar$/
+    /\*175\/70 R14\* — \*PNEU TESTE\*\n\*2 un\.\* × R\$300,00\nPagamento: \*PIX\*\n\n💰 Total: \*R\$600,00\*\n\n1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar$/
   );
   assert.doesNotMatch(message, /Foto da nota\/comprovante: recebida/);
   assert.doesNotMatch(message, /━/);

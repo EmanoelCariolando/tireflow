@@ -35,9 +35,10 @@ import {
   parseMixedPaymentMethods,
 } from '../utils/salePayment.js';
 import {
+  formatConfirmationOptions,
   isBackResponse,
   isCancellationResponse,
-  isConfirmationResponse,
+  parseConfirmationAction,
 } from '../utils/operationResponse.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import {
@@ -583,8 +584,32 @@ async function handleDiscountConfirmationStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
-  if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Responda: *confirmar* ou *cancelar*.');
+  const action = parseConfirmationAction(normalizedBody);
+
+  if (action === 'cancel') {
+    clearAllOperationSessions(session.userId, session.chatId);
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return;
+  }
+
+  if (action === 'back') {
+    const items = getSaleItems(session);
+    const nextSession: SaleSession = {
+      ...session,
+      step: 'awaiting_payment',
+      unitPrice: items.at(-1)?.unitPrice ?? session.unitPrice,
+      totalValue: session.originalTotalValue ?? session.totalValue,
+      originalTotalValue: undefined,
+      discountPercent: undefined,
+      updatedAt: Date.now(),
+    };
+    saveSaleSession(nextSession);
+    await message.reply(formatPaymentMenu(nextSession));
+    return;
+  }
+
+  if (action !== 'confirm') {
+    await message.reply(`❌ Opção inválida.\n\n${formatConfirmationOptions()}`);
     return;
   }
 
@@ -856,8 +881,45 @@ async function handleConfirmationStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
-  if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Responda: *confirmar* ou *cancelar*.');
+  const action = parseConfirmationAction(normalizedBody);
+
+  if (action === 'cancel') {
+    clearAllOperationSessions(session.userId, session.chatId);
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return;
+  }
+
+  if (action === 'back') {
+    if (session.paymentMethod === 'Nota' && session.invoiceName) {
+      saveSaleSession({
+        ...session,
+        step: 'awaiting_invoice_name',
+        updatedAt: Date.now(),
+      });
+      await message.reply('🧾 *NOME DA NOTA*\nEx.: *Prefeitura de Congo*');
+      return;
+    }
+
+    const nextSession: SaleSession = {
+      ...session,
+      step: 'awaiting_payment',
+      paymentMethod: undefined,
+      mixedPaymentMethods: undefined,
+      mixedAmountMethod: undefined,
+      paymentBreakdown: undefined,
+      pendingReceiptMethods: undefined,
+      receipts: undefined,
+      isCityHallSale: undefined,
+      invoiceName: undefined,
+      updatedAt: Date.now(),
+    };
+    saveSaleSession(nextSession);
+    await message.reply(formatPaymentMenu(nextSession));
+    return;
+  }
+
+  if (action !== 'confirm') {
+    await message.reply(`❌ Opção inválida.\n\n${formatConfirmationOptions()}`);
     return;
   }
 
@@ -1342,7 +1404,7 @@ function formatDiscountPreview(session: SaleSession): string {
     '',
     `💰 Novo total: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    'Responda: *confirmar* ou *cancelar*.',
+    formatConfirmationOptions(),
   ].join('\n');
 }
 
@@ -1359,7 +1421,7 @@ export function formatSaleConfirmation(session: SaleSession): string {
       ...formatInvoiceLines(session),
       `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
       '',
-      'Responda: *confirmar* ou *cancelar*.',
+      formatConfirmationOptions(),
     ].join('\n');
   }
 
@@ -1374,7 +1436,7 @@ export function formatSaleConfirmation(session: SaleSession): string {
     '',
     `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    'Digite: confirmar ou cancelar',
+    formatConfirmationOptions(),
   ].join('\n');
 }
 

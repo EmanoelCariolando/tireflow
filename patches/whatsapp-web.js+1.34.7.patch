@@ -1,5 +1,5 @@
 diff --git a/node_modules/whatsapp-web.js/src/Client.js b/node_modules/whatsapp-web.js/src/Client.js
-index 800109e..ac80f62 100644
+index 800109e..627f2a6 100644
 --- a/node_modules/whatsapp-web.js/src/Client.js
 +++ b/node_modules/whatsapp-web.js/src/Client.js
 @@ -113,6 +113,12 @@ class Client extends EventEmitter {
@@ -15,7 +15,7 @@ index 800109e..ac80f62 100644
          if (
              this.options.authTimeoutMs === undefined ||
              this.options.authTimeoutMs == 0
-@@ -398,29 +404,73 @@ class Client extends EventEmitter {
+@@ -398,29 +404,104 @@ class Client extends EventEmitter {
              },
          );
          await this.pupPage.evaluate(() => {
@@ -42,6 +42,28 @@ index 800109e..ac80f62 100644
 -            Cmd.on('logout_from_bridge', async () => {
 -                await window.onLogoutEvent();
 -            });
++            const readOfflineProgress = () => {
++                try {
++                    return window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress();
++                } catch {
++                    return 0;
++                }
++            };
++            const completeInitializationWhenSynced = () => {
++                const synchronized = Socket.hasSynced === true || readOfflineProgress() >= 100;
++                if (
++                    !synchronized ||
++                    typeof window.WWebJS !== 'undefined' ||
++                    window._wwjsReadyInitializationStarted
++                ) {
++                    return;
++                }
++
++                window._wwjsReadyInitializationStarted = true;
++                Promise.resolve(window.onAppStateHasSyncedEvent()).catch(() => {
++                    window._wwjsReadyInitializationStarted = false;
++                });
++            };
 +            const listeners = [
 +                [
 +                    Socket,
@@ -54,16 +76,15 @@ index 800109e..ac80f62 100644
 +                    Socket,
 +                    'change:hasSynced',
 +                    () => {
-+                        window.onAppStateHasSyncedEvent();
++                        completeInitializationWhenSynced();
 +                    },
 +                ],
 +                [
 +                    Cmd,
 +                    'offline_progress_update_from_bridge',
 +                    () => {
-+                        window.onOfflineProgressUpdateEvent(
-+                            window.AuthStore.OfflineMessageHandler.getOfflineDeliveryProgress(),
-+                        );
++                        window.onOfflineProgressUpdateEvent(readOfflineProgress());
++                        completeInitializationWhenSynced();
 +                    },
 +                ],
 +                [
@@ -93,11 +114,21 @@ index 800109e..ac80f62 100644
 +            }
 +            window._wwjsListeners = listeners;
 +
-+            // Registering the listener after WhatsApp has already synchronized
-+            // misses the Backbone change event. Complete initialization now.
-+            if (Socket.hasSynced === true && typeof window.WWebJS === 'undefined') {
-+                window.onAppStateHasSyncedEvent();
++            // WhatsApp can reach 100% without changing hasSynced or can do so
++            // before these listeners exist. Retry until the utility injection
++            // succeeds, covering both variants without requiring another QR.
++            if (window._wwjsReadyRecoveryInterval) {
++                clearInterval(window._wwjsReadyRecoveryInterval);
 +            }
++            window._wwjsReadyRecoveryInterval = setInterval(() => {
++                if (typeof window.WWebJS !== 'undefined') {
++                    clearInterval(window._wwjsReadyRecoveryInterval);
++                    window._wwjsReadyRecoveryInterval = undefined;
++                    return;
++                }
++                completeInitializationWhenSynced();
++            }, 5000);
++            completeInitializationWhenSynced();
          });
 +        } catch (err) {
 +            if (this._activeInjection !== injection) return;
@@ -110,7 +141,7 @@ index 800109e..ac80f62 100644
      }
  
      /**
-@@ -490,9 +540,9 @@ class Client extends EventEmitter {
+@@ -490,9 +571,9 @@ class Client extends EventEmitter {
              referer: 'https://whatsapp.com/',
          });
  
@@ -122,7 +153,7 @@ index 800109e..ac80f62 100644
              if (frame.url().includes('post_logout=1') || this.lastLoggedOut) {
                  this.emit(Events.DISCONNECTED, 'LOGOUT');
                  await this.authStrategy.logout();
-@@ -500,8 +550,16 @@ class Client extends EventEmitter {
+@@ -500,8 +581,16 @@ class Client extends EventEmitter {
                  await this.authStrategy.afterBrowserInitialized();
                  this.lastLoggedOut = false;
              }

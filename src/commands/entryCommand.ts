@@ -19,9 +19,10 @@ import {
 } from '../services/entryService.js';
 import { sendBossNotification } from '../services/notificationService.js';
 import {
+  formatConfirmationOptions,
   isBackResponse,
   isCancellationResponse,
-  isConfirmationResponse,
+  parseConfirmationAction,
 } from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
@@ -571,8 +572,27 @@ async function handleConfirmationStep(
   session: EntrySession,
   normalizedBody: string
 ): Promise<void> {
-  if (!isConfirmationResponse(normalizedBody)) {
-    await message.reply('Responda: *confirmar* ou *cancelar*.');
+  const action = parseConfirmationAction(normalizedBody);
+
+  if (action === 'cancel') {
+    clearAllOperationSessions(session.userId, session.chatId);
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return;
+  }
+
+  if (action === 'back') {
+    const nextSession: EntrySession = {
+      ...session,
+      step: 'awaiting_additional_decision',
+      updatedAt: Date.now(),
+    };
+    saveEntrySession(nextSession);
+    await message.reply(formatAdditionalDecisionQuestion(nextSession));
+    return;
+  }
+
+  if (action !== 'confirm') {
+    await message.reply(`❌ Opção inválida.\n\n${formatConfirmationOptions()}`);
     return;
   }
 
@@ -778,7 +798,7 @@ export function formatEntryConfirmation(session: EntrySession): string {
       ...formatCompactEntryItemLines(items),
       '',
       `📦 Total de itens: *${items.length}*`,
-      'Responda: *confirmar* ou *cancelar*.',
+      formatConfirmationOptions(),
     ].join('\n');
   }
 
@@ -803,7 +823,7 @@ export function formatEntryConfirmation(session: EntrySession): string {
         ]
       : ['', '🏷️ Preços: *sem alteração*']),
     '',
-    'Responda: *confirmar* ou *cancelar*.',
+    formatConfirmationOptions(),
   ].join('\n');
 }
 

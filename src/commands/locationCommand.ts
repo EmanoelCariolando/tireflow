@@ -23,7 +23,11 @@ import {
   hasActiveOperationSession,
 } from '../utils/operationSessionCoordinator.js';
 import { normalizeStockLocation } from '../utils/stockLocation.js';
-import { isCancellationResponse } from '../utils/operationResponse.js';
+import {
+  formatConfirmationOptions,
+  isCancellationResponse,
+  parseConfirmationAction,
+} from '../utils/operationResponse.js';
 
 const LOCATION_COMMAND_REGEX = /^local\s+(\d+)$/i;
 
@@ -133,6 +137,11 @@ export async function handleLocationConversation(
     return true;
   }
 
+  if (session.step === 'awaiting_confirmation') {
+    await handleLocationConfirmationStep(message, session, normalizedBody);
+    return true;
+  }
+
   if (session.step === 'processing') {
     await message.reply('⏳ *ATUALIZANDO LOCAL...*');
     return true;
@@ -166,13 +175,55 @@ async function handleLocationStep(
     return;
   }
 
-  const processingSession: LocationSession = {
+  const confirmationSession: LocationSession = {
     ...session,
-    step: 'processing',
+    step: 'awaiting_confirmation',
     newLocation,
     updatedAt: Date.now(),
   };
-  saveLocationSession(processingSession);
+  saveLocationSession(confirmationSession);
+  await message.reply(formatLocationConfirmation(confirmationSession));
+}
+
+async function handleLocationConfirmationStep(
+  message: Message,
+  session: LocationSession,
+  normalizedBody: string
+): Promise<void> {
+  const action = parseConfirmationAction(normalizedBody);
+
+  if (action === 'cancel') {
+    clearAllOperationSessions(session.userId, session.chatId);
+    await message.reply('❌ *LOCALIZAÇÃO CANCELADA*');
+    return;
+  }
+
+  if (action === 'back') {
+    saveLocationSession({
+      ...session,
+      step: 'awaiting_location',
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatLocationQuestion());
+    return;
+  }
+
+  if (action !== 'confirm') {
+    await message.reply(`❌ Opção inválida.\n\n${formatConfirmationOptions()}`);
+    return;
+  }
+
+  if (!session.newLocation) {
+    clearLocationSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão de localização. Faça uma nova consulta.');
+    return;
+  }
+
+  saveLocationSession({
+    ...session,
+    step: 'processing',
+    updatedAt: Date.now(),
+  });
 
   let registeredLocation: Awaited<ReturnType<typeof registerProductLocation>>;
 
@@ -180,7 +231,7 @@ async function handleLocationStep(
     registeredLocation = await registerProductLocation({
       productId: session.productId,
       expectedLocation: session.previousLocation,
-      newLocation,
+      newLocation: session.newLocation,
     });
   } catch (error) {
     clearLocationSession(session.userId, session.chatId);
@@ -222,6 +273,18 @@ async function handleLocationStep(
 
 export function formatLocationQuestion(): string {
   return '📍 *LOCALIZAÇÃO*\nInforme o local:';
+}
+
+function formatLocationConfirmation(session: LocationSession): string {
+  return [
+    '📍 *LOCALIZAÇÃO — CONFIRMAR*',
+    '',
+    `🛞 *${session.reference} — ${session.description}*`,
+    '',
+    `📍 Local: *${formatLocation(session.previousLocation)} → ${session.newLocation}*`,
+    '',
+    formatConfirmationOptions(),
+  ].join('\n');
 }
 
 function formatRegisteredLocation(session: LocationSession, currentLocation: string): string {

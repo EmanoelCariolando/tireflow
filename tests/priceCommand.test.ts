@@ -60,7 +60,7 @@ test('asks only for cash price and proceeds directly to confirmation', async () 
     assert.equal(confirmation?.newCashPrice, 1000);
     assert.equal(confirmation?.newCreditPrice, 1058);
     assert.match(replies.at(-1) ?? '', /A prazo \(\+5,8%\): R\$952,20 → \*R\$1058,00\*/);
-    assert.match(replies.at(-1) ?? '', /Responda: \*confirmar\* ou \*cancelar\*/);
+    assert.match(replies.at(-1) ?? '', /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
 
     await handlePriceConversation(message, 'cancela');
     assert.equal(getPriceSession(userId, chatId), null);

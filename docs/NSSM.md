@@ -95,10 +95,19 @@ O instalador recusa caminhos relativos, verifica `.env`, `dist\index.js` e `dist
 
 - `NODE_ENV=production` e `LOG_TO_CONSOLE=false` no ambiente do serviço;
 - diretório de trabalho igual à pasta da filial;
-- inicialização automática com o Windows;
-- reinício após falha com atraso de 5 segundos;
+- inicialização automática atrasada, para que rede e disco estejam disponíveis após o Windows subir;
+- reinício após falha com atraso de 15 segundos, permitindo que o Chrome libere a sessão;
 - stdout em `logs\nssm-stdout.log` e stderr em `logs\nssm-stderr.log`;
 - encerramento por console com até 15 segundos e término da árvore apenas como contingência.
+
+Em serviços já instalados, aplique os mesmos parâmetros sem remover a sessão ou reinstalar o serviço:
+
+```powershell
+& 'C:\Tools\nssm\win64\nssm.exe' set TireFlow-Congo AppRestartDelay 15000
+& 'C:\Tools\nssm\win64\nssm.exe' set TireFlow-Congo Start SERVICE_DELAYED_AUTO_START
+& 'C:\Tools\nssm\win64\nssm.exe' set TireFlow-Monteiro AppRestartDelay 15000
+& 'C:\Tools\nssm\win64\nssm.exe' set TireFlow-Monteiro Start SERVICE_DELAYED_AUTO_START
+```
 
 ## Operação
 

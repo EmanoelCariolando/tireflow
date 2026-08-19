@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  formatConfirmationOptions,
   isBackResponse,
   isCancellationResponse,
   isConfirmationResponse,
+  parseConfirmationAction,
 } from '../src/utils/operationResponse.js';
 
 test('accepts both infinitive and conversational confirmation words', () => {
@@ -27,4 +29,25 @@ test('recognizes only voltar as the safe back command', () => {
   assert.equal(isBackResponse(' VOLTAR '), true);
   assert.equal(isBackResponse('cancelar'), false);
   assert.equal(isBackResponse('volta'), false);
+});
+
+test('parses numeric shortcuts only in confirmation context', () => {
+  assert.equal(parseConfirmationAction('1'), 'confirm');
+  assert.equal(parseConfirmationAction('confirmar'), 'confirm');
+  assert.equal(parseConfirmationAction('2'), 'back');
+  assert.equal(parseConfirmationAction('voltar'), 'back');
+  assert.equal(parseConfirmationAction('0'), 'cancel');
+  assert.equal(parseConfirmationAction('cancelar'), 'cancel');
+  assert.equal(parseConfirmationAction('sim'), null);
+
+  assert.equal(isConfirmationResponse('1'), false);
+  assert.equal(isBackResponse('2'), false);
+  assert.equal(isCancellationResponse('0'), false);
+});
+
+test('formats the standard confirmation actions', () => {
+  assert.equal(
+    formatConfirmationOptions(),
+    '1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar'
+  );
 });
