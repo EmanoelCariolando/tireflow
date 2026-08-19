@@ -3,7 +3,9 @@ import test from 'node:test';
 import type { Message } from 'whatsapp-web.js';
 import env from '../src/config/env.js';
 import {
+  formatAdditionalLocationQuestion,
   formatLocationQuestion,
+  formatSecondLocationQuestion,
   handleLocationCommand,
   handleLocationConversation,
   isLocationCommand,
@@ -73,7 +75,7 @@ test('zero-stock list omits direct entry and location instructions', () => {
   assert.doesNotMatch(text, /Para cadastrar local|local 1/);
 });
 
-test('starts a compact location flow and validates the new location', async () => {
+test('starts a location flow with one location and validates the new location', async () => {
   const previousFlag = env.inventoryLocationsEnabled;
   const replies: string[] = [];
 
@@ -91,6 +93,14 @@ test('starts a compact location flow and validates the new location', async () =
     assert.match(replies.at(-1) ?? '', /Local inválido/);
 
     await handleLocationConversation(createMessage(replies), 'PMAIS');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_additional_location');
+    assert.equal(replies.at(-1), formatAdditionalLocationQuestion());
+
+    await handleLocationConversation(createMessage(replies), 'talvez');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_additional_location');
+    assert.match(replies.at(-1) ?? '', /Digite apenas \*s\* ou \*n\*/);
+
+    await handleLocationConversation(createMessage(replies), 'n');
     assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_confirmation');
     assert.match(replies.at(-1) ?? '', /não cadastrado → PMAIS/);
     assert.match(replies.at(-1) ?? '', /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
@@ -100,11 +110,45 @@ test('starts a compact location flow and validates the new location', async () =
     assert.equal(replies.at(-1), formatLocationQuestion());
 
     await handleLocationConversation(createMessage(replies), 'W3');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_additional_location');
+    await handleLocationConversation(createMessage(replies), 'não');
     assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_confirmation');
 
     await handleLocationConversation(createMessage(replies), '0');
     assert.equal(getLocationSession(userId, chatId), null);
     assert.equal(replies.at(-1), '❌ *LOCALIZAÇÃO CANCELADA*');
+  } finally {
+    env.inventoryLocationsEnabled = previousFlag;
+    clearLocationSession(userId, chatId);
+    clearLastQuery(userId, chatId);
+  }
+});
+
+test('accepts two different locations and stores them in one canonical value', async () => {
+  const previousFlag = env.inventoryLocationsEnabled;
+  const replies: string[] = [];
+
+  try {
+    env.inventoryLocationsEnabled = true;
+    saveLastQuery(userId, chatId, '175/70 R14', [product]);
+
+    await handleLocationCommand(createMessage(replies), 'local 1');
+    await handleLocationConversation(createMessage(replies), 'w3');
+    assert.equal(replies.at(-1), formatAdditionalLocationQuestion());
+
+    await handleLocationConversation(createMessage(replies), 's');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_second_location');
+    assert.equal(replies.at(-1), formatSecondLocationQuestion());
+
+    await handleLocationConversation(createMessage(replies), 'W3');
+    assert.equal(getLocationSession(userId, chatId)?.step, 'awaiting_second_location');
+    assert.match(replies.at(-1) ?? '', /deve ser diferente/);
+
+    await handleLocationConversation(createMessage(replies), 'pmais');
+    const confirmationSession = getLocationSession(userId, chatId);
+    assert.equal(confirmationSession?.step, 'awaiting_confirmation');
+    assert.equal(confirmationSession?.newLocation, 'W3 / PMAIS');
+    assert.match(replies.at(-1) ?? '', /não cadastrado → W3 \/ PMAIS/);
   } finally {
     env.inventoryLocationsEnabled = previousFlag;
     clearLocationSession(userId, chatId);

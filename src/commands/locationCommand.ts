@@ -22,7 +22,11 @@ import {
   clearAllOperationSessions,
   hasActiveOperationSession,
 } from '../utils/operationSessionCoordinator.js';
-import { normalizeStockLocation } from '../utils/stockLocation.js';
+import {
+  combineStockLocations,
+  normalizeSingleStockLocation,
+  normalizeStockLocation,
+} from '../utils/stockLocation.js';
 import {
   formatConfirmationOptions,
   isCancellationResponse,
@@ -137,6 +141,16 @@ export async function handleLocationConversation(
     return true;
   }
 
+  if (session.step === 'awaiting_additional_location') {
+    await handleAdditionalLocationDecisionStep(message, session, normalizedBody);
+    return true;
+  }
+
+  if (session.step === 'awaiting_second_location') {
+    await handleSecondLocationStep(message, session, body);
+    return true;
+  }
+
   if (session.step === 'awaiting_confirmation') {
     await handleLocationConfirmationStep(message, session, normalizedBody);
     return true;
@@ -155,9 +169,9 @@ async function handleLocationStep(
   session: LocationSession,
   body: string
 ): Promise<void> {
-  const newLocation = normalizeStockLocation(body);
+  const firstLocation = normalizeSingleStockLocation(body);
 
-  if (!newLocation) {
+  if (!firstLocation) {
     await message.reply(
       [
         'Local inválido.',
@@ -169,6 +183,90 @@ async function handleLocationStep(
     return;
   }
 
+  saveLocationSession({
+    ...session,
+    step: 'awaiting_additional_location',
+    firstLocation,
+    newLocation: undefined,
+    updatedAt: Date.now(),
+  });
+  await message.reply(formatAdditionalLocationQuestion());
+}
+
+async function handleAdditionalLocationDecisionStep(
+  message: Message,
+  session: LocationSession,
+  normalizedBody: string
+): Promise<void> {
+  if (!session.firstLocation) {
+    clearLocationSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão de localização. Faça uma nova consulta.');
+    return;
+  }
+
+  if (/^(s|sim)$/i.test(normalizedBody)) {
+    saveLocationSession({
+      ...session,
+      step: 'awaiting_second_location',
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatSecondLocationQuestion());
+    return;
+  }
+
+  if (/^(n|n[aã]o)$/i.test(normalizedBody)) {
+    await prepareLocationConfirmation(message, session, session.firstLocation);
+    return;
+  }
+
+  await message.reply(`❌ Resposta inválida. Digite apenas *s* ou *n*.\n\n${formatAdditionalLocationQuestion()}`);
+}
+
+async function handleSecondLocationStep(
+  message: Message,
+  session: LocationSession,
+  body: string
+): Promise<void> {
+  const secondLocation = normalizeSingleStockLocation(body);
+
+  if (!secondLocation) {
+    await message.reply(
+      [
+        'Local inválido.',
+        '',
+        'Use de 1 a 20 letras ou números, sem espaços.',
+        'Exemplos: CG, W3 ou PMAIS',
+      ].join('\n')
+    );
+    return;
+  }
+
+  if (!session.firstLocation) {
+    clearLocationSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão de localização. Faça uma nova consulta.');
+    return;
+  }
+
+  if (secondLocation === session.firstLocation) {
+    await message.reply('❌ O segundo local deve ser diferente do primeiro.');
+    return;
+  }
+
+  const newLocation = combineStockLocations(session.firstLocation, secondLocation);
+  if (!newLocation) {
+    clearLocationSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão de localização. Faça uma nova consulta.');
+    return;
+  }
+
+  await prepareLocationConfirmation(message, session, newLocation);
+}
+
+async function prepareLocationConfirmation(
+  message: Message,
+  session: LocationSession,
+  newLocation: string
+): Promise<void> {
   if (newLocation === session.previousLocation) {
     clearLocationSession(session.userId, session.chatId);
     await message.reply(`✅ Este pneu já está cadastrado no local *${newLocation}*.`);
@@ -273,6 +371,14 @@ async function handleLocationConfirmationStep(
 
 export function formatLocationQuestion(): string {
   return '📍 *LOCALIZAÇÃO*\nInforme o local:';
+}
+
+export function formatAdditionalLocationQuestion(): string {
+  return '📍 Quer adicionar mais algum local?\nResponda: *s* ou *n*.';
+}
+
+export function formatSecondLocationQuestion(): string {
+  return '📍 *SEGUNDO LOCAL*\nInforme o segundo local:';
 }
 
 function formatLocationConfirmation(session: LocationSession): string {

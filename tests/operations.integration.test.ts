@@ -200,15 +200,15 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
     const registeredLocation = await registerProductLocation({
       productId: mixedProduct.id,
       expectedLocation: null,
-      newLocation: 'w3',
+      newLocation: 'w3 / pmais',
     });
     assert.deepEqual(registeredLocation, {
       previousLocation: null,
-      currentLocation: 'W3',
+      currentLocation: 'W3 / PMAIS',
     });
     assert.equal(
       (await prisma.product.findUniqueOrThrow({ where: { id: mixedProduct.id } })).stockLocation,
-      'W3'
+      'W3 / PMAIS'
     );
     await assert.rejects(
       registerProductLocation({

@@ -91,7 +91,24 @@ npm run sync:locations -- data\seed\monteiro_products.csv
 A última conferência deve mostrar `Localizações a atualizar: 0` e
 `Localizações já corretas: 90`.
 
-## 7. Iniciar e testar
+## 7. Zerar o estoque exclusivo do CG
+
+Se for necessário zerar todo o estoque que pertence exclusivamente ao local `CG`, confira primeiro:
+
+```powershell
+npm run clear:location-stock -- CG
+```
+
+Depois de revisar a quantidade de produtos e unidades, aplique:
+
+```powershell
+npm run clear:location-stock -- CG --apply
+```
+
+O comando cria e verifica um backup antes da alteração, é bloqueado fora de Monteiro/MTR e não
+altera produtos que também estejam associados a outro local.
+
+## 8. Iniciar e testar
 
 Como serviço:
 
@@ -111,9 +128,10 @@ local 1
 A resposta do pneu em estoque deve continuar mostrando estoque e preços e, quando cadastrado,
 também `📍 Local: CG`, `W3` ou `PMAIS`. Quando o produto estiver sem localização, a consulta
 mostra `📍 Local: não cadastrado`; use `local <número>` para informar o local e confirme a
-alteração. A mesma opção aparece na lista de produtos com estoque zero.
+alteração. Depois do primeiro local, responda se deseja cadastrar um segundo. A mesma opção aparece
+na lista de produtos com estoque zero.
 
-## 8. Em caso de falha
+## 9. Em caso de falha
 
 - Não execute `seed:products`.
 - Não apague banco, sessão ou uploads.

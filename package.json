@@ -23,7 +23,8 @@
     "prisma:studio": "prisma studio",
     "seed:products": "tsx src/database/seedProducts.ts",
     "sync:locations": "tsx src/database/syncProductLocations.ts",
-    "sync:stocks": "tsx src/database/syncProductStocks.ts"
+    "sync:stocks": "tsx src/database/syncProductStocks.ts",
+    "clear:location-stock": "tsx src/database/clearLocationStock.ts"
   },
   "keywords": [
     "whatsapp",
