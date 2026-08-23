@@ -23,12 +23,16 @@ export interface RegisterEntryItemInput {
 }
 
 interface RegisterEntryInput extends RegisterEntryItemInput {
+  invoiceName?: string;
+  invoiceNumber?: string;
   responsiblePhone: string;
   responsibleName: string;
 }
 
 interface RegisterEntryItemsInput {
   items: RegisterEntryItemInput[];
+  invoiceName?: string;
+  invoiceNumber?: string;
   responsiblePhone: string;
   responsibleName: string;
 }
@@ -55,6 +59,8 @@ export async function registerEntry(input: RegisterEntryInput): Promise<Register
       stockLocation: input.stockLocation,
       newCashPrice: input.newCashPrice,
     }],
+    invoiceName: input.invoiceName,
+    invoiceNumber: input.invoiceNumber,
     responsiblePhone: input.responsiblePhone,
     responsibleName: input.responsibleName,
   });
@@ -66,6 +72,14 @@ export async function registerEntryItems(
 ): Promise<RegisteredEntryGroup> {
   if (!hasValidEntryItems(input.items)) {
     throw new Error('Invalid entry items.');
+  }
+
+  if (input.invoiceName !== undefined && !input.invoiceName.trim()) {
+    throw new Error('Invalid entry invoice name.');
+  }
+
+  if (input.invoiceNumber !== undefined && !input.invoiceNumber.trim()) {
+    throw new Error('Invalid entry invoice number.');
   }
 
   return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
@@ -171,6 +185,8 @@ export async function registerEntryItems(
           previousStock,
           newStock: updatedProduct.stock,
           supplier: item.supplier,
+          invoiceName: input.invoiceName,
+          invoiceNumber: input.invoiceNumber,
         },
         tx
       );

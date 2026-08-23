@@ -76,9 +76,9 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
   assert.equal(previewSession?.discountPercent, 3);
   assert.match(
     replies.at(-1) ?? '',
-    /DESCONTO — CONFIRMAR\*\n🏷️ Desconto: \*3%\* : R\$1000,00 -R\$30,00\n\n💰 Novo total: \*R\$970,00\*/
+    /DESCONTO — CONFIRMAR\*\n\n🏷️ Desconto: \*3%\* \| Economia: \*R\$30,00\*\n\n💰 Total: R\$1000,00 → \*R\$970,00\*/
   );
-  assert.match(replies.at(-1) ?? '', /Novo total: \*R\$970,00\*/);
+  assert.match(replies.at(-1) ?? '', /Total: R\$1000,00 → \*R\$970,00\*/);
 
   await handleSaleConversation(message, 'confirma');
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_payment');
@@ -124,7 +124,7 @@ test('confirms a cash sale without requesting a photo outside Monteiro', async (
     assert.equal(confirmationSession?.step, 'awaiting_confirmation');
     assert.deepEqual(confirmationSession?.pendingReceiptMethods, []);
     assert.deepEqual(confirmationSession?.receipts, []);
-    assert.match(replies.at(-1) ?? '', /CONFIRMAR VENDA/);
+    assert.match(replies.at(-1) ?? '', /VENDA — CONFIRMAR/);
     assert.doesNotMatch(replies.at(-1) ?? '', /COMPROVANTE|depósito\/dinheiro/);
 
     clearSaleSession(ids.userId, ids.chatId);
@@ -154,6 +154,7 @@ test('selects the price once before any direct payment method', async () => {
   assert.equal(noteSession?.step, 'awaiting_photo');
   assert.equal(noteSession?.priceType, 'A prazo');
   assert.equal(noteSession?.totalValue, 1100);
+  assert.match(noteReplies.at(-1) ?? '', /NOTA\/PEDIDO/);
   clearSaleSession(noteIds.userId, noteIds.chatId);
 
   const pixIds = startSale('pix');

@@ -1,0 +1,12 @@
+RESTAURACAO DO ESTOQUE E LOCAL CG - MONTEIRO
+
+1. Copie restoreLocationStock.ts para:
+   C:\sistems\tireflowmtr\src\database\restoreLocationStock.ts
+
+2. Na pasta C:\sistems\tireflowmtr, execute a conferencia:
+   npx.cmd tsx .\src\database\restoreLocationStock.ts "C:\backups\tireflowmtr\_snapshots\2026-08-19_08-07-34" CG
+
+3. Nao use --apply antes de revisar a conferencia.
+
+4. Se a conferencia mostrar conflitos e eles devam permanecer como estao, pare o servico e use:
+   npx.cmd tsx .\src\database\restoreLocationStock.ts <pasta-do-backup> CG --apply-safe

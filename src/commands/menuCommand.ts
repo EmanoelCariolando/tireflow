@@ -41,13 +41,13 @@ export function isMenuCommand(body: string): boolean {
 }
 
 export function isZeroStockCommand(body: string): boolean {
-  return /^zero(?:\s|$)/i.test(body.trim());
+  return /^0\s+\S/.test(body.trim());
 }
 
 export async function handleZeroStockCommand(message: Message, body: string): Promise<void> {
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
-  const rawMeasure = body.trim().replace(/^zero(?:\s+|$)/i, '');
+  const rawMeasure = body.trim().replace(/^0\s+/, '');
   const normalized = normalizeTireSize(rawMeasure);
 
   clearAllOperationSessions(userId, chatId);
@@ -57,7 +57,7 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
       const suggestions = await findSuggestedActiveReferences(rawMeasure);
       const suggestionText = formatReferenceSuggestions(suggestions);
       await message.reply(
-        '❌ Medida inválida. Ex.: *zero 175 70 14*' +
+        '❌ Medida inválida. Ex.: *0 175 70 14*' +
           (suggestionText ? `\n\n${suggestionText}` : '')
       );
       return;

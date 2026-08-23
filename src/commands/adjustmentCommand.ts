@@ -18,6 +18,7 @@ import { getCurrentProductStock } from '../services/saleService.js';
 import { sendBossNotification } from '../services/notificationService.js';
 import {
   formatConfirmationOptions,
+  formatOperationConfirmation,
   isCancellationResponse,
   parseConfirmationAction,
 } from '../utils/operationResponse.js';
@@ -282,16 +283,16 @@ function isNewOperationCommand(normalizedBody: string): boolean {
 }
 
 function formatAdjustmentConfirmation(session: AdjustmentSession): string {
-  return [
+  return formatOperationConfirmation(
     '🧮 *AJUSTE — CONFIRMAR*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `📦 Estoque: *${session.previousStock} → ${session.newStock}*`,
-    `📝 Motivo: *${session.reason}*`,
-    '',
-    formatConfirmationOptions(),
-  ].join('\n');
+    [
+      [`🛞 *${session.reference} — ${session.description}*`],
+      [
+        `📦 Estoque: *${session.previousStock} → ${session.newStock}*`,
+        `📝 Motivo: *${session.reason}*`,
+      ],
+    ]
+  );
 }
 
 function formatRegisteredAdjustment(

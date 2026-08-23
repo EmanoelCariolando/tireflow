@@ -26,7 +26,7 @@ function createMessage(replies: string[], imageId?: string): Message {
   } as unknown as Message;
 }
 
-test('asks whether a note is for a city hall before requesting its name', async () => {
+test('asks whether a received note has commission before requesting its name', async () => {
   const replies: string[] = [];
   saveSaleSession({
     userId,
@@ -48,10 +48,12 @@ test('asks whether a note is for a city hall before requesting its name', async 
 
   await handleSaleConversation(createMessage(replies, 'note-image'), '');
   assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_city_hall_confirmation');
-  assert.match(replies.at(-1) ?? '', /NOTA PARA PREFEITURA/);
-  assert.doesNotMatch(replies.at(-1) ?? '', /Nome da nota/);
+  assert.equal(
+    replies.at(-1),
+    '✅ Nota recebida.\n\n💵*Comissão*\n*Essa Nota Tem Comissão?*\n1️⃣*Sim* | 2️⃣*Não*'
+  );
 
-  await handleSaleConversation(createMessage(replies), 's');
+  await handleSaleConversation(createMessage(replies), '2');
   assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_invoice_name');
   assert.equal(getSaleSession(userId, chatId)?.isCityHallSale, true);
   assert.match(replies.at(-1) ?? '', /NOME DA NOTA/);
@@ -61,6 +63,34 @@ test('asks whether a note is for a city hall before requesting its name', async 
   assert.equal(confirmation?.step, 'awaiting_confirmation');
   assert.equal(confirmation?.isCityHallSale, true);
   assert.match(replies.at(-1) ?? '', /Prefeitura \(sem comissão\)/);
+
+  clearSaleSession(userId, chatId);
+});
+
+test('keeps the transfer payment option disabled', async () => {
+  const replies: string[] = [];
+  const message = createMessage(replies);
+  saveSaleSession({
+    userId,
+    chatId,
+    step: 'awaiting_payment',
+    productId: 'note-product',
+    reference: '175/70 R14',
+    description: 'PNEU TESTE',
+    quantity: 1,
+    cashPrice: 300,
+    creditPrice: 320,
+    unitPrice: 300,
+    totalValue: 300,
+    paymentMethod: undefined,
+    updatedAt: Date.now(),
+  });
+
+  await handleSaleConversation(message, '8');
+  assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_payment');
+  assert.equal(getSaleSession(userId, chatId)?.paymentMethod, undefined);
+  assert.match(replies.at(-1) ?? '', /Forma de pagamento inválida/);
+  assert.doesNotMatch(replies.at(-1) ?? '', /Transferencia/);
 
   clearSaleSession(userId, chatId);
 });

@@ -22,18 +22,21 @@ import {
   clearAllOperationSessions,
   hasActiveOperationSession,
 } from '../utils/operationSessionCoordinator.js';
-import {
-  combineStockLocations,
-  normalizeSingleStockLocation,
-  normalizeStockLocation,
-} from '../utils/stockLocation.js';
+import { normalizeStockLocation } from '../utils/stockLocation.js';
 import {
   formatConfirmationOptions,
+  formatOperationConfirmation,
   isCancellationResponse,
   parseConfirmationAction,
 } from '../utils/operationResponse.js';
 
 const LOCATION_COMMAND_REGEX = /^local\s+(\d+)$/i;
+const LOCATION_CHOICES: Readonly<Record<string, string>> = {
+  '1': 'PMAIS',
+  '2': 'W3',
+  '3': 'PMAIS / W3',
+  '4': 'CG',
+};
 
 export function isLocationCommand(body: string): boolean {
   return LOCATION_COMMAND_REGEX.test(body.trim());
@@ -141,16 +144,6 @@ export async function handleLocationConversation(
     return true;
   }
 
-  if (session.step === 'awaiting_additional_location') {
-    await handleAdditionalLocationDecisionStep(message, session, normalizedBody);
-    return true;
-  }
-
-  if (session.step === 'awaiting_second_location') {
-    await handleSecondLocationStep(message, session, body);
-    return true;
-  }
-
   if (session.step === 'awaiting_confirmation') {
     await handleLocationConfirmationStep(message, session, normalizedBody);
     return true;
@@ -169,93 +162,10 @@ async function handleLocationStep(
   session: LocationSession,
   body: string
 ): Promise<void> {
-  const firstLocation = normalizeSingleStockLocation(body);
+  const newLocation = LOCATION_CHOICES[body.trim()];
 
-  if (!firstLocation) {
-    await message.reply(
-      [
-        'Local inválido.',
-        '',
-        'Use de 1 a 20 letras ou números, sem espaços.',
-        'Exemplos: CG, W3 ou PMAIS',
-      ].join('\n')
-    );
-    return;
-  }
-
-  saveLocationSession({
-    ...session,
-    step: 'awaiting_additional_location',
-    firstLocation,
-    newLocation: undefined,
-    updatedAt: Date.now(),
-  });
-  await message.reply(formatAdditionalLocationQuestion());
-}
-
-async function handleAdditionalLocationDecisionStep(
-  message: Message,
-  session: LocationSession,
-  normalizedBody: string
-): Promise<void> {
-  if (!session.firstLocation) {
-    clearLocationSession(session.userId, session.chatId);
-    await message.reply('Ocorreu um erro na sessão de localização. Faça uma nova consulta.');
-    return;
-  }
-
-  if (/^(s|sim)$/i.test(normalizedBody)) {
-    saveLocationSession({
-      ...session,
-      step: 'awaiting_second_location',
-      updatedAt: Date.now(),
-    });
-    await message.reply(formatSecondLocationQuestion());
-    return;
-  }
-
-  if (/^(n|n[aã]o)$/i.test(normalizedBody)) {
-    await prepareLocationConfirmation(message, session, session.firstLocation);
-    return;
-  }
-
-  await message.reply(`❌ Resposta inválida. Digite apenas *s* ou *n*.\n\n${formatAdditionalLocationQuestion()}`);
-}
-
-async function handleSecondLocationStep(
-  message: Message,
-  session: LocationSession,
-  body: string
-): Promise<void> {
-  const secondLocation = normalizeSingleStockLocation(body);
-
-  if (!secondLocation) {
-    await message.reply(
-      [
-        'Local inválido.',
-        '',
-        'Use de 1 a 20 letras ou números, sem espaços.',
-        'Exemplos: CG, W3 ou PMAIS',
-      ].join('\n')
-    );
-    return;
-  }
-
-  if (!session.firstLocation) {
-    clearLocationSession(session.userId, session.chatId);
-    await message.reply('Ocorreu um erro na sessão de localização. Faça uma nova consulta.');
-    return;
-  }
-
-  if (secondLocation === session.firstLocation) {
-    await message.reply('❌ O segundo local deve ser diferente do primeiro.');
-    return;
-  }
-
-  const newLocation = combineStockLocations(session.firstLocation, secondLocation);
   if (!newLocation) {
-    clearLocationSession(session.userId, session.chatId);
-    await message.reply('Ocorreu um erro na sessão de localização. Faça uma nova consulta.');
+    await message.reply(`❌ Opção inválida. Digite *1*, *2*, *3* ou *4*.\n\n${formatLocationQuestion()}`);
     return;
   }
 
@@ -370,27 +280,26 @@ async function handleLocationConfirmationStep(
 }
 
 export function formatLocationQuestion(): string {
-  return '📍 *LOCALIZAÇÃO*\nInforme o local:';
-}
-
-export function formatAdditionalLocationQuestion(): string {
-  return '📍 Quer adicionar mais algum local?\nResponda: *s* ou *n*.';
-}
-
-export function formatSecondLocationQuestion(): string {
-  return '📍 *SEGUNDO LOCAL*\nInforme o segundo local:';
+  return [
+    '📍 *ESCOLHA O NOVO LOCAL*',
+    '',
+    '1️⃣ PMAIS',
+    '2️⃣ W3',
+    '3️⃣ PMAIS E W3',
+    '4️⃣ CG',
+    '',
+    '*Digite 1, 2, 3 ou 4.*',
+  ].join('\n');
 }
 
 function formatLocationConfirmation(session: LocationSession): string {
-  return [
+  return formatOperationConfirmation(
     '📍 *LOCALIZAÇÃO — CONFIRMAR*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `📍 Local: *${formatLocation(session.previousLocation)} → ${session.newLocation}*`,
-    '',
-    formatConfirmationOptions(),
-  ].join('\n');
+    [
+      [`🛞 *${session.reference} — ${session.description}*`],
+      [`📍 Local: *${formatLocation(session.previousLocation)} → ${session.newLocation}*`],
+    ]
+  );
 }
 
 function formatRegisteredLocation(session: LocationSession, currentLocation: string): string {

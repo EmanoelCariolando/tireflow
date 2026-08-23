@@ -66,9 +66,9 @@ test('guides a zero-stock registration through validation and confirmation', asy
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
     assert.equal(
       replies.at(-1),
-      '🆕 *CADASTRO — MEDIDA*\n' +
-        'Digite apenas a medida, sem marca/modelo ou especificações.\n\n' +
-        'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*'
+      '🆕 *DIGITAR MEDIDA*\n' +
+        '*Digite apenas a medida:*\n\n' +
+        'Ex.: 175/70 R14, 110/90-17, 18.4/30'
     );
 
     await handleProductRegistrationConversation(message, 'medida errada');
@@ -79,9 +79,9 @@ test('guides a zero-stock registration through validation and confirmation', asy
     assert.equal(getProductRegistrationSession(userId, chatId)?.reference, '110/90 R17');
     assert.equal(
       replies.at(-1),
-      '🏷️ *CADASTRO — DESCRIÇÃO*\n' +
-        'Informe marca/modelo e detalhes úteis, sem repetir a medida.\n' +
-        'Ex.: *PIRELLI MT60 TRASEIRO 60P*'
+      '🏷️*MARCA DO PNEU*\n' +
+        '*Informe marca/modelo:*\n\n' +
+        'Ex.: PIRELLI MT60 TRASEIRO 60P'
     );
 
     await handleProductRegistrationConversation(message, 'Pirelli MT60 traseiro 60P');
@@ -130,6 +130,39 @@ test('guides a zero-stock registration through validation and confirmation', asy
   }
 });
 
+test('guides wheel registration with RODA as the reference', async () => {
+  const userId = 'new-wheel-user';
+  const chatId = 'new-wheel-group@g.us';
+  const replies: string[] = [];
+  const message = createMessage(userId, chatId, replies);
+
+  try {
+    await handleProductRegistrationStart(message);
+
+    await handleProductRegistrationConversation(message, '22.5X7.50');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
+    assert.match(replies.at(-1) ?? '', /digite apenas: \*RODA\*/);
+
+    await handleProductRegistrationConversation(message, 'roda');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.reference, 'RODA');
+    assert.equal(
+      replies.at(-1),
+      '🏷️ *CADASTRO — DESCRIÇÃO DA RODA*\n' +
+        'Informe modelo, quantidade de furos e medida.\n' +
+        'Ex.: *275 8 FUROS (22.5X7.50)*'
+    );
+
+    await handleProductRegistrationConversation(message, '275 8 furos (22.5x7.50)');
+    assert.equal(
+      getProductRegistrationSession(userId, chatId)?.description,
+      '275 8 FUROS (22.5X7.50)'
+    );
+    assert.equal(replies.at(-1), '📦 *QUANTIDADE*\nQuantas rodas?');
+  } finally {
+    clearProductRegistrationSession(userId, chatId);
+  }
+});
+
 test('requires a supplier for initial stock and allows an optional valid location', async () => {
   const userId = 'new-product-stock-user';
   const chatId = 'new-product-stock-group@g.us';
@@ -151,12 +184,13 @@ test('requires a supplier for initial stock and allows an optional valid locatio
     await handleProductRegistrationConversation(message, 'JTR Pneus');
     await handleProductRegistrationConversation(message, '4.600,00');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_location');
+    assert.match(replies.at(-1) ?? '', /1️⃣ \*W3\*\n2️⃣ \*PMAIS\*\n3️⃣ \*CG\*/);
 
     await handleProductRegistrationConversation(message, 'corredor 1');
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_location');
     assert.match(replies.at(-1) ?? '', /LOCAL INVÁLIDO/);
 
-    await handleProductRegistrationConversation(message, 'w3');
+    await handleProductRegistrationConversation(message, '1');
     assert.equal(getProductRegistrationSession(userId, chatId)?.stockLocation, 'W3');
     assert.match(replies.at(-1) ?? '', /Fornecedor: \*JTR Pneus\*/);
     assert.match(replies.at(-1) ?? '', /Local: \*W3\*/);
@@ -180,7 +214,7 @@ test('shows product registration as menu option 3 and starts its isolated flow',
 
     assert.equal(await handleMenuSelection(message, '3'), true);
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
-    assert.match(replies.at(-1) ?? '', /CADASTRO — MEDIDA/);
+    assert.match(replies.at(-1) ?? '', /DIGITAR MEDIDA/);
   } finally {
     clearProductRegistrationSession(userId, chatId);
   }

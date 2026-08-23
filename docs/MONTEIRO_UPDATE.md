@@ -108,6 +108,29 @@ npm run clear:location-stock -- CG --apply
 O comando cria e verifica um backup antes da alteração, é bloqueado fora de Monteiro/MTR e não
 altera produtos que também estejam associados a outro local.
 
+### Desfazer a limpeza de um local
+
+Para recuperar apenas o estoque e o local dos produtos usando o backup criado antes da limpeza,
+pare o serviço e informe a pasta exata daquele backup. Confira primeiro, sem alterar o banco:
+
+```powershell
+npm run restore:location-stock -- "C:\backups\tireflowmtr_snapshots\AAAA-MM-DD_HH-MM-SS" CG
+```
+
+O resumo deve mostrar somente os produtos que estavam com estoque positivo e local exclusivo `CG`
+no backup. A restauração é bloqueada se algum desses produtos tiver estoque atual diferente de zero
+e diferente do backup. Depois de revisar a lista, aplique:
+
+```powershell
+npm run restore:location-stock -- "C:\backups\tireflowmtr_snapshots\AAAA-MM-DD_HH-MM-SS" CG --apply
+```
+
+O comando cria outro backup antes de gravar, restaura estoque e localização somente desses produtos
+e preserva vendas, entradas, preços, fotos e os demais produtos.
+
+Quando a conferência encontrar produtos movimentados depois do backup, `--apply-safe` pode ser usado
+para restaurar somente os produtos sem conflito e manter os conflitantes exatamente como estão.
+
 ## 8. Iniciar e testar
 
 Como serviço:
@@ -128,8 +151,8 @@ local 1
 A resposta do pneu em estoque deve continuar mostrando estoque e preços e, quando cadastrado,
 também `📍 Local: CG`, `W3` ou `PMAIS`. Quando o produto estiver sem localização, a consulta
 mostra `📍 Local: não cadastrado`; use `local <número>` para informar o local e confirme a
-alteração. Depois do primeiro local, responda se deseja cadastrar um segundo. A mesma opção aparece
-na lista de produtos com estoque zero.
+alteração. Escolha `1` para PMAIS, `2` para W3, `3` para cadastrar PMAIS e W3 ou `4` para CG. A
+mesma opção aparece na lista de produtos com estoque zero.
 
 ## 9. Em caso de falha
 

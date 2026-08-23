@@ -39,6 +39,7 @@ export type SaleSessionStep =
   | 'awaiting_mixed_methods'
   | 'awaiting_mixed_amount'
   | 'awaiting_photo'
+  | 'awaiting_transfer_city'
   | 'awaiting_city_hall_confirmation'
   | 'awaiting_invoice_name'
   | 'awaiting_confirmation'
@@ -65,6 +66,8 @@ export interface SaleSession {
   paymentBreakdown?: PaymentBreakdownPart[];
   pendingReceiptMethods?: ReceiptPaymentMethod[];
   receipts?: SaleReceipt[];
+  isTransferSale?: boolean;
+  transferCity?: string;
   isCityHallSale?: boolean;
   invoiceName?: string;
   items?: SaleItem[];

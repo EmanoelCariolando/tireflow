@@ -5,6 +5,7 @@ import {
   formatAdditionalEntryProductChoiceQuestion,
   formatAdditionalEntryHelp,
   formatBossEntryNotification,
+  formatEntryConfirmation,
   formatEntryLocationQuestion,
   formatRegisteredEntry,
   handleEntryCommand,
@@ -60,6 +61,46 @@ test('keeps the additional-entry choice clean and formats separate help', () => 
     formatAdditionalEntryHelp(),
     'Não achou o Pneu?\n' +
       'Digite: *novo* para adicionar um pneu ou *voltar* para pesquisar uma medida diferente'
+  );
+});
+
+test('formats entry confirmation with supplier, invoice number and prices in compact rows', () => {
+  const confirmation = formatEntryConfirmation({
+    userId: 'entry-format-user',
+    chatId: 'entry-format-chat',
+    step: 'awaiting_confirmation',
+    productId: 'entry-format-product',
+    reference: '265/70 R16',
+    description: '265/70R16 112S G-PROTAIL AT GRP TL',
+    oldCashPrice: 829,
+    oldCreditPrice: 877.08,
+    quantity: 4,
+    supplier: 'GP',
+    invoiceName: 'GP',
+    invoiceNumber: '201345',
+    stockLocation: 'W3',
+    updatedAt: Date.now(),
+  });
+
+  assert.equal(
+    confirmation,
+    [
+      '📦 *ENTRADA — CONFIRMAR*',
+      '',
+      '🛞 *265/70 R16 — 265/70R16 112S G-PROTAIL AT GRP TL*',
+      '📥 Quantidade: *+4*',
+      '',
+      '🚚 Fornecedor: *GP* | 📃 Número da nota: *201345*',
+      '🧾 Nome da nota: *GP*',
+      '',
+      '💰 À vista: *R$829,00* | 💳 A prazo: *R$877,08*',
+      '',
+      '📍 Local: *W3*',
+      '',
+      '1️⃣ ✅ Confirmar',
+      '2️⃣ ↩️ Voltar',
+      '0️⃣ ❌ Cancelar',
+    ].join('\n')
   );
 });
 
@@ -121,19 +162,30 @@ test('asks whether to change prices before confirming an entry', async () => {
 
     await handleEntryCommand(message, 'entrada 1');
     assert.equal(replies.at(-1), '📦 *QUANTIDADE*\nQuantos pneus?');
+    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_quantity');
     await handleEntryConversation(message, '10');
+    assert.equal(replies.at(-1), '🧾 *NOME DA NOTA*\nInforme o nome da nota fiscal:');
+    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_invoice_name');
+    await handleEntryConversation(message, 'Distribuidora Teste');
+    assert.equal(replies.at(-1), '🧾 *NÚMERO DA NOTA*\nInforme o número da nota fiscal:');
+    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_invoice_number');
+    await handleEntryConversation(message, 'nota #1');
+    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_invoice_number');
+    assert.match(replies.at(-1) ?? '', /Número da nota inválido/);
+    await handleEntryConversation(message, 'NF-2026/001');
+    assert.equal(getEntrySession(userId, chatId)?.invoiceNumber, 'NF-2026/001');
     assert.equal(replies.at(-1), '🚚 *FORNECEDOR*\nInforme o fornecedor:');
     await handleEntryConversation(message, 'ABC Pneus');
 
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_price_decision');
     assert.match(replies.at(-1) ?? '', /VOCÊ QUER ALTERAR O PREÇO/);
-    assert.match(replies.at(-1) ?? '', /Digite \*s\* ou \*n\*/);
+    assert.match(replies.at(-1) ?? '', /1️⃣\*Sim\* \| 2️⃣\*Não\*/);
 
     await handleEntryConversation(message, 'talvez');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_price_decision');
-    assert.match(replies.at(-1) ?? '', /Digite apenas \*s\* ou \*n\*/);
+    assert.match(replies.at(-1) ?? '', /1️⃣\*Sim\* \| 2️⃣\*Não\*/);
 
-    await handleEntryConversation(message, 's');
+    await handleEntryConversation(message, '1');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_cash_price');
     assert.equal(replies.at(-1), '💰 *PREÇO À VISTA*\nDigite o preço à vista:');
 
@@ -144,10 +196,11 @@ test('asks whether to change prices before confirming an entry', async () => {
     assert.equal(additionalDecision?.items?.[0]?.newCreditPrice, 290.95);
     assert.match(replies.at(-1) ?? '', /QUER ADICIONAR MAIS ALGUM PNEU/);
 
-    await handleEntryConversation(message, 'n');
+    await handleEntryConversation(message, '2');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_confirmation');
-    assert.match(replies.at(-1) ?? '', /À vista: R\$250,00 → \*R\$275,00\*/);
-    assert.match(replies.at(-1) ?? '', /A prazo \(\+5,8%\): R\$264,50 → \*R\$290,95\*/);
+    assert.match(replies.at(-1) ?? '', /Fornecedor: \*ABC Pneus\* \| 📃 Número da nota: \*NF-2026\/001\*/);
+    assert.match(replies.at(-1) ?? '', /🧾 Nome da nota: \*Distribuidora Teste\*/);
+    assert.match(replies.at(-1) ?? '', /À vista: R\$250,00 → \*R\$275,00\* \| 💳 A prazo: R\$264,50 → \*R\$290,95\*/);
   } finally {
     env.inventoryLocationsEnabled = previousLocationsFlag;
     clearEntrySession(userId, chatId);
@@ -176,22 +229,28 @@ test('asks and validates the stock location after supplier only in Monteiro', as
 
     await handleEntryCommand(message, 'entrada 1');
     await handleEntryConversation(message, '10');
+    await handleEntryConversation(message, 'Distribuidora Monteiro');
+    await handleEntryConversation(message, '987654');
     await handleEntryConversation(message, 'ABC Pneus');
 
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_location');
     assert.equal(replies.at(-1), formatEntryLocationQuestion());
+    assert.equal(
+      replies.at(-1),
+      '📍 *LOCALIZAÇÃO*\nInforme o local:\n1️⃣ *W3*\n2️⃣ *PMAIS*\n3️⃣ *CG*'
+    );
 
     await handleEntryConversation(message, 'corredor 1');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_location');
     assert.match(replies.at(-1) ?? '', /LOCAL INVÁLIDO/);
 
-    await handleEntryConversation(message, 'w3');
+    await handleEntryConversation(message, '1');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_price_decision');
     assert.equal(getEntrySession(userId, chatId)?.stockLocation, 'W3');
     assert.match(replies.at(-1) ?? '', /VOCÊ QUER ALTERAR O PREÇO/);
 
-    await handleEntryConversation(message, 'n');
-    await handleEntryConversation(message, 'n');
+    await handleEntryConversation(message, '2');
+    await handleEntryConversation(message, '2');
     assert.match(replies.at(-1) ?? '', /📍 Local: \*W3\*/);
   } finally {
     env.inventoryLocationsEnabled = previousLocationsFlag;
@@ -215,6 +274,8 @@ test('adds the location transition only to the private entry notification', () =
     stockLocation: 'W3',
     newCashPrice: 389,
     newCreditPrice: 411.56,
+    invoiceName: 'Distribuidora Speedmax',
+    invoiceNumber: 'NF-4455',
     updatedAt: Date.now(),
   };
   const registered = [{
@@ -230,7 +291,9 @@ test('adds the location transition only to the private entry notification', () =
   const bossMessage = formatBossEntryNotification(baseSession, 'Responsável', registered);
 
   assert.doesNotMatch(groupMessage, /📍 Local:/);
+  assert.match(groupMessage, /Nota: \*Distribuidora Speedmax\* \| Nº: \*NF-4455\*/);
   assert.match(bossMessage, /📍 Local: \*CG → W3\*/);
+  assert.match(bossMessage, /Nota: \*Distribuidora Speedmax\* \| Nº: \*NF-4455\*/);
 
   const firstLocationMessage = formatBossEntryNotification(
     baseSession,
@@ -241,7 +304,7 @@ test('adds the location transition only to the private entry notification', () =
   assert.doesNotMatch(firstLocationMessage, /não cadastrado →/);
 });
 
-test('keeps current prices when the entry price answer is n', async () => {
+test('keeps current prices when the entry price answer is 2', async () => {
   const userId = 'entry-no-price-user';
   const chatId = 'entry-no-price-group@g.us';
   const replies: string[] = [];
@@ -261,21 +324,23 @@ test('keeps current prices when the entry price answer is n', async () => {
 
     await handleEntryCommand(message, 'entrada 1');
     await handleEntryConversation(message, '4');
+    await handleEntryConversation(message, 'Fornecedor da Nota');
+    await handleEntryConversation(message, '123456');
     await handleEntryConversation(message, 'Fornecedor Teste');
-    await handleEntryConversation(message, 'n');
+    await handleEntryConversation(message, '2');
 
     const additionalDecision = getEntrySession(userId, chatId);
     assert.equal(additionalDecision?.step, 'awaiting_additional_decision');
     assert.equal(additionalDecision?.items?.[0]?.newCashPrice, undefined);
     assert.match(replies.at(-1) ?? '', /QUER ADICIONAR MAIS ALGUM PNEU/);
 
-    await handleEntryConversation(message, 'n');
+    await handleEntryConversation(message, '2');
 
     const confirmation = getEntrySession(userId, chatId);
     assert.equal(confirmation?.step, 'awaiting_confirmation');
     assert.equal(confirmation?.newCashPrice, undefined);
     assert.equal(confirmation?.newCreditPrice, undefined);
-    assert.match(replies.at(-1) ?? '', /Preços: \*sem alteração\*/);
+    assert.match(replies.at(-1) ?? '', /À vista: \*R\$300,00\* \| 💳 A prazo: \*R\$317,40\*/);
   } finally {
     env.inventoryLocationsEnabled = previousLocationsFlag;
     clearEntrySession(userId, chatId);
@@ -303,9 +368,11 @@ test('adds another tire and keeps the final confirmation compact', async () => {
 
     await handleEntryCommand(message, 'entrada 1');
     await handleEntryConversation(message, '10');
+    await handleEntryConversation(message, 'Distribuidora Multi');
+    await handleEntryConversation(message, 'NF-7788');
     await handleEntryConversation(message, 'Fornecedor A');
-    await handleEntryConversation(message, 'n');
-    await handleEntryConversation(message, 's');
+    await handleEntryConversation(message, '2');
+    await handleEntryConversation(message, '1');
 
     const awaitingMeasure = getEntrySession(userId, chatId);
     assert.equal(awaitingMeasure?.step, 'awaiting_additional_measure');
@@ -320,7 +387,7 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.equal(returnedEntry?.items?.length, 1);
     assert.match(replies.at(-1) ?? '', /itens anteriores continuam na entrada/);
 
-    await handleEntryConversation(message, 's');
+    await handleEntryConversation(message, '1');
 
     saveEntrySession({
       ...getEntrySession(userId, chatId)!,
@@ -397,12 +464,12 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.equal(additionalPriceDecision?.supplier, 'Fornecedor A');
     assert.match(replies.at(-1) ?? '', /VOCÊ QUER ALTERAR O PREÇO/);
 
-    await handleEntryConversation(message, 's');
+    await handleEntryConversation(message, '1');
     await handleEntryConversation(message, '2100');
     assert.equal(getEntrySession(userId, chatId)?.items?.length, 2);
     assert.equal(getEntrySession(userId, chatId)?.items?.[1]?.supplier, 'Fornecedor A');
 
-    await handleEntryConversation(message, 'n');
+    await handleEntryConversation(message, '2');
     const confirmation = replies.at(-1) ?? '';
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_confirmation');
     assert.match(confirmation, /175\/70 R14/);
@@ -410,9 +477,9 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.match(confirmation, /📥 Adicionou: \*\+10\* \| 🏷️ sem alteração/);
     assert.match(confirmation, /📥 Adicionou: \*\+3\* \| 💰 À vista: R\$2100,00/);
     assert.match(confirmation, /📃 A prazo: R\$2221,80/);
-    assert.match(confirmation, /Total de itens: \*2\*/);
+    assert.match(confirmation, /Nota: \*Distribuidora Multi\* \| Nº: \*NF-7788\*\n📦 Total de itens: \*2\*/);
     assert.match(confirmation, /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
-    assert.ok(confirmation.split('\n').length <= 12);
+    assert.ok(confirmation.split('\n').length <= 15);
 
     const registered = formatRegisteredEntry(
       getEntrySession(userId, chatId)!,
@@ -436,6 +503,7 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.match(registered, /📥 Adicionou: \*\+3\* \| 💰 À vista: R\$2100,00/);
     assert.match(registered, /📃 A prazo: R\$2221,80/);
     assert.match(registered, /📦 Estoque atual: \*3\*/);
+    assert.match(registered, /Nota: \*Distribuidora Multi\* \| Nº: \*NF-7788\*/);
     assert.doesNotMatch(registered, /#E-00000[12]/);
   } finally {
     env.inventoryLocationsEnabled = previousLocationsFlag;

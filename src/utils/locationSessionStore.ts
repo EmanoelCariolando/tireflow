@@ -1,7 +1,5 @@
 export type LocationSessionStep =
   | 'awaiting_location'
-  | 'awaiting_additional_location'
-  | 'awaiting_second_location'
   | 'awaiting_confirmation'
   | 'processing';
 
@@ -13,7 +11,6 @@ export interface LocationSession {
   reference: string;
   description: string;
   previousLocation: string | null;
-  firstLocation?: string;
   newLocation?: string;
   updatedAt: number;
 }

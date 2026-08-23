@@ -27,7 +27,7 @@ Consulte pneus com estoque digitando somente a medida:
 Consulte somente os pneus zerados da medida:
 
 ```
-zero 175 70 14
+0 175 70 14
 ```
 
 O bot retorna os produtos disponíveis. Para vender duas unidades da primeira opção:
@@ -43,7 +43,7 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 | Comando | Ação |
 | --- | --- |
 | `<medida>` | Consultar pneus com estoque |
-| `zero <medida>` | Consultar somente pneus zerados |
+| `0 <medida>` | Consultar somente pneus zerados |
 | `venda <item> <quantidade>` | Registrar uma venda |
 | `entrada <item>` | Adicionar estoque |
 | `ajuste <item>` | Corrigir o estoque |

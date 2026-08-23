@@ -271,6 +271,8 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
     const multiEntry = await registerEntryItems({
       responsiblePhone: 'entry-multi-user',
       responsibleName: 'Entry Multi User',
+      invoiceName: 'Distribuidora Integração',
+      invoiceNumber: 'NF-ENTRY-2026-001',
       items: [
         {
           productId: multiEntryProducts[0].id,
@@ -286,6 +288,16 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
       ],
     });
     assert.equal(multiEntry.items.length, 2);
+    assert.ok((await prisma.movement.findMany({
+      where: {
+        productId: { in: multiEntryProducts.map((item) => item.id) },
+        type: 'ENTRY',
+      },
+      select: { invoiceName: true, invoiceNumber: true },
+    })).every((movement) =>
+      movement.invoiceName === 'Distribuidora Integração' &&
+      movement.invoiceNumber === 'NF-ENTRY-2026-001'
+    ));
     assert.deepEqual(
       await prisma.product.findMany({
         where: { id: { in: multiEntryProducts.map((item) => item.id) } },

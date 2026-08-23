@@ -28,10 +28,10 @@ const session: SaleSession = {
 test('highlights and separates the total before sale confirmation', () => {
   const message = formatSaleConfirmation(session);
 
-  assert.match(message, /^⚠️ \*CONFIRMAR VENDA\?\*/);
+  assert.match(message, /^🧾 \*VENDA — CONFIRMAR\*/);
   assert.match(
     message,
-    /\*175\/70 R14\* — \*PNEU TESTE\*\n\*2 un\.\* × R\$300,00\nPagamento: \*PIX\*\n\n💰 Total: \*R\$600,00\*\n\n1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar$/
+    /🛞 \*175\/70 R14 — PNEU TESTE\*\n📤 Quantidade: \*2 un\.\* × R\$300,00\n\nPagamento: \*PIX\*\n\n💰 Total: \*R\$600,00\*\n\n1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar$/
   );
   assert.doesNotMatch(message, /Foto da nota\/comprovante: recebida/);
   assert.doesNotMatch(message, /━/);
@@ -87,13 +87,18 @@ test('shows both mixed payment amounts in the confirmation', () => {
   assert.match(message, /💰 Total: \*R\$600,00\*/);
 });
 
-test('accepts s or n for the city hall question and shows the commission rule', () => {
-  assert.equal(parseCityHallResponse('s'), true);
-  assert.equal(parseCityHallResponse('sim'), true);
-  assert.equal(parseCityHallResponse('n'), false);
-  assert.equal(parseCityHallResponse('não'), false);
+test('accepts numbered commission answers and keeps s or n compatible', () => {
+  assert.equal(parseCityHallResponse('1'), false);
+  assert.equal(parseCityHallResponse('s'), false);
+  assert.equal(parseCityHallResponse('sim'), false);
+  assert.equal(parseCityHallResponse('2'), true);
+  assert.equal(parseCityHallResponse('n'), true);
+  assert.equal(parseCityHallResponse('não'), true);
   assert.equal(parseCityHallResponse('talvez'), null);
-  assert.match(formatCityHallQuestion(), /NOTA PARA PREFEITURA/);
+  assert.equal(
+    formatCityHallQuestion(),
+    '✅ Nota recebida.\n\n💵*Comissão*\n*Essa Nota Tem Comissão?*\n1️⃣*Sim* | 2️⃣*Não*'
+  );
 
   const cityHallConfirmation = formatSaleConfirmation({
     ...session,

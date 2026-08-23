@@ -26,3 +26,14 @@ export function formatAdditionalTireQuestion(): string {
     'Ex.: *275 80 22.5*',
   ].join('\n');
 }
+
+export function formatStockLocationQuestion(allowSkip = false): string {
+  return [
+    '📍 *LOCALIZAÇÃO*',
+    'Informe o local:',
+    '1️⃣ *W3*',
+    '2️⃣ *PMAIS*',
+    '3️⃣ *CG*',
+    ...(allowSkip ? ['', 'Sem local definido: *pular*'] : []),
+  ].join('\n');
+}

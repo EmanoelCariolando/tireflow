@@ -37,3 +37,23 @@ export function formatConfirmationOptions(): string {
     '0️⃣ ❌ Cancelar',
   ].join('\n');
 }
+
+export function formatOperationConfirmation(
+  title: string,
+  sections: ReadonlyArray<ReadonlyArray<string>>
+): string {
+  const content = sections
+    .filter((section) => section.length > 0)
+    .flatMap((section, index) => [
+      ...(index > 0 ? [''] : []),
+      ...section,
+    ]);
+
+  return [
+    title,
+    '',
+    ...content,
+    '',
+    formatConfirmationOptions(),
+  ].join('\n');
+}

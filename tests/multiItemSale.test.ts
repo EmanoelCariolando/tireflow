@@ -69,13 +69,13 @@ test('allocates discounts and mixed payments without losing a cent', () => {
 
 test('shows every tire under one confirmation and one total', () => {
   const confirmation = formatSaleConfirmation(multiItemSession);
-  assert.match(confirmation, /CONFIRMAR VENDA/);
+  assert.match(confirmation, /VENDA — CONFIRMAR/);
   assert.match(confirmation, /175\/70 R13/);
   assert.match(confirmation, /275\/80 R22\.5/);
   assert.match(confirmation, /📤 \*1 un\.\* \| 💰 \*R\$350,00\*/);
   assert.match(confirmation, /📤 \*1 un\.\* \| 💰 \*R\$2000,00\*/);
   assert.match(confirmation, /\*Desconto: 3%\* \(-R\$70,50\)/);
-  assert.match(confirmation, /💰 \*TOTAL: R\$2279,50\*/);
+  assert.match(confirmation, /💰 Total: \*R\$2279,50\*/);
   assert.doesNotMatch(confirmation, /ITENS DA COMPRA/);
   assert.doesNotMatch(confirmation, /×/);
 
@@ -223,7 +223,7 @@ test('applies the discount when cart items use different price types', async () 
   assert.equal(discounted?.totalValue, 2376.50);
   assert.match(
     replies.at(-1) ?? '',
-    /Desconto: \*3%\* : R\$2450,00 -R\$73,50\n\n💰 Novo total: \*R\$2376,50\*/
+    /Desconto: \*3%\* \| Economia: \*R\$73,50\*\n\n💰 Total: R\$2450,00 → \*R\$2376,50\*/
   );
   clearSaleSession(ids.userId, ids.chatId);
 });

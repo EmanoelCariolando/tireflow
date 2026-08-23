@@ -15,6 +15,7 @@ import { PriceProductNotFoundError, registerPriceChange } from '../services/pric
 import { sendBossNotification } from '../services/notificationService.js';
 import {
   formatConfirmationOptions,
+  formatOperationConfirmation,
   isCancellationResponse,
   parseConfirmationAction,
 } from '../utils/operationResponse.js';
@@ -256,16 +257,15 @@ function isNewOperationCommand(normalizedBody: string): boolean {
 }
 
 function formatPriceConfirmation(session: PriceSession): string {
-  return [
+  return formatOperationConfirmation(
     '💰 *PREÇO — CONFIRMAR*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
-    `💳 A prazo (+5,8%): ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
-    '',
-    formatConfirmationOptions(),
-  ].join('\n');
+    [
+      [`🛞 *${session.reference} — ${session.description}*`],
+      [
+        `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}* | 💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
+      ],
+    ]
+  );
 }
 
 function formatRegisteredPriceChange(

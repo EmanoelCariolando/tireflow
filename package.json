@@ -24,7 +24,8 @@
     "seed:products": "tsx src/database/seedProducts.ts",
     "sync:locations": "tsx src/database/syncProductLocations.ts",
     "sync:stocks": "tsx src/database/syncProductStocks.ts",
-    "clear:location-stock": "tsx src/database/clearLocationStock.ts"
+    "clear:location-stock": "tsx src/database/clearLocationStock.ts",
+    "restore:location-stock": "tsx src/database/restoreLocationStock.ts"
   },
   "keywords": [
     "whatsapp",

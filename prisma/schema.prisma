@@ -67,6 +67,7 @@ model Movement {
   paymentMethod String?
   paymentDetails String?
   invoiceName   String?
+  invoiceNumber String?
   isCityHallSale Boolean      @default(false)
   observation   String?
   supplier      String?
@@ -81,6 +82,7 @@ model Movement {
   @@index([userId])
   @@index([createdAt])
   @@index([saleGroupCode])
+  @@index([invoiceNumber])
   @@map("movements")
 }
 

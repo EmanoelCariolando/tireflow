@@ -104,9 +104,10 @@ export function formatReferenceSuggestions(suggestions: string[]): string {
 
   return [
     'Você quis dizer:',
-    ...suggestions.map((reference) => `• *${reference}*`),
     '',
-    'Digite novamente a medida correta.',
+    ...suggestions.map((reference) => `- ${reference}`),
+    '',
+    '*Digite novamente a medida correta:*',
   ].join('\n');
 }
 
@@ -129,12 +130,8 @@ export function formatResolvedReferenceNotice(
 function formatInvalidMeasure(suggestions: string[]): string {
   return [
     '❌ *MEDIDA INVÁLIDA*',
-    '',
-    'Use uma destas formas:',
-    '*175/70 R14*',
-    '*175 70 14*',
-    '*175-70-14*',
     ...(suggestions.length > 0 ? ['', formatReferenceSuggestions(suggestions)] : []),
+    ...(suggestions.length === 0 ? ['', '*Digite novamente a medida correta:*'] : []),
   ].join('\n');
 }
 

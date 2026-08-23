@@ -36,6 +36,7 @@ import {
 } from '../utils/salePayment.js';
 import {
   formatConfirmationOptions,
+  formatOperationConfirmation,
   isBackResponse,
   isCancellationResponse,
   parseConfirmationAction,
@@ -50,11 +51,13 @@ import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { allocateAmountByWeights } from '../utils/saleAllocation.js';
 import { formatAdditionalTireQuestion, formatQuantityQuestion } from '../utils/operationPrompts.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
+import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryResponse.js';
 import env from '../config/env.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
 const DISCOUNT_PERCENT = 3;
 const MAX_SALE_ITEMS = 20;
+const TRANSFER_PAYMENT_ENABLED = false;
 const MIXED_PAYMENT_MENU = [
   '💳 *PAGAMENTO MISTO*',
   '',
@@ -223,6 +226,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (session.step === 'awaiting_transfer_city') {
+    await handleTransferCityStep(message, session, body);
+    return true;
+  }
+
   if (session.step === 'awaiting_city_hall_confirmation') {
     await handleCityHallConfirmationStep(message, session, normalizedBody);
     return true;
@@ -327,6 +335,23 @@ async function handlePaymentStep(
     return;
   }
 
+  if (paymentMethod === 'Transferência') {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_photo',
+      paymentMethod: 'Nota',
+      pendingReceiptMethods: ['Nota'],
+      receipts: [],
+      isTransferSale: true,
+      transferCity: undefined,
+      isCityHallSale: undefined,
+      invoiceName: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply('📎 *NOTA/PEDIDO*\nEnvie a foto.');
+    return;
+  }
+
   await continueDirectPayment(message, { ...session, paymentMethod }, paymentMethod);
 }
 
@@ -338,6 +363,8 @@ async function continueDirectPayment(
   const cleanSession: SaleSession = {
     ...pricedSession,
     paymentMethod,
+    isTransferSale: undefined,
+    transferCity: undefined,
   };
 
   if (!isPaymentReceiptRequired(paymentMethod)) {
@@ -788,14 +815,19 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
   const pendingReceiptMethods = session.pendingReceiptMethods?.slice(1) ?? [];
 
   if (receiptMethod === 'Nota') {
+    const isTransferSale = session.isTransferSale === true;
     saveSaleSession({
       ...session,
-      step: 'awaiting_city_hall_confirmation',
+      step: isTransferSale ? 'awaiting_transfer_city' : 'awaiting_city_hall_confirmation',
       receipts,
       pendingReceiptMethods,
       updatedAt: Date.now(),
     });
-    await message.reply(`✅ Comprovante recebido.\n\n${formatCityHallQuestion()}`);
+    await message.reply(
+      isTransferSale
+        ? `✅ Comprovante recebido.\n\n${formatTransferCityQuestion()}`
+        : formatCityHallQuestion()
+    );
     return;
   }
 
@@ -831,6 +863,28 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
     ? `✅ Comprovante do *${formatMethodForSentence(receiptMethod)}* recebido.`
     : '✅ Comprovante recebido.';
   await message.reply(`${receiptConfirmation}\n\n${formatSaleConfirmation(nextSession)}`);
+}
+
+async function handleTransferCityStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  const transferCity = body.trim();
+
+  if (!transferCity) {
+    await message.reply(`❌ Informe a cidade de destino.\n\n${formatTransferCityQuestion()}`);
+    return;
+  }
+
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_confirmation',
+    transferCity,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply(formatSaleConfirmation(nextSession));
 }
 
 async function handleCityHallConfirmationStep(
@@ -890,6 +944,16 @@ async function handleConfirmationStep(
   }
 
   if (action === 'back') {
+    if (session.paymentMethod === 'Nota' && session.isTransferSale && session.transferCity) {
+      saveSaleSession({
+        ...session,
+        step: 'awaiting_transfer_city',
+        updatedAt: Date.now(),
+      });
+      await message.reply(formatTransferCityQuestion());
+      return;
+    }
+
     if (session.paymentMethod === 'Nota' && session.invoiceName) {
       saveSaleSession({
         ...session,
@@ -909,6 +973,8 @@ async function handleConfirmationStep(
       paymentBreakdown: undefined,
       pendingReceiptMethods: undefined,
       receipts: undefined,
+      isTransferSale: undefined,
+      transferCity: undefined,
       isCityHallSale: undefined,
       invoiceName: undefined,
       updatedAt: Date.now(),
@@ -1088,14 +1154,13 @@ function logReceiptMessageIdDiagnostics(message: Message): void {
 }
 
 export function parseCityHallResponse(value: string): boolean | null {
-  const normalized = value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const hasCommission = parseBinaryResponse(value);
 
-  if (normalized === 's' || normalized === 'sim') return true;
-  if (normalized === 'n' || normalized === 'nao') return false;
-  return null;
+  // The stored flag represents a city-hall/no-commission sale, the inverse of this question.
+  return hasCommission === null ? null : !hasCommission;
 }
 
-function parsePaymentMethod(value: string): PaymentMethod | null {
+function parsePaymentMethod(value: string): PaymentMethod | 'Transferência' | null {
   const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   if (normalized === '1' || normalized === 'dinheiro') return 'Dinheiro';
@@ -1104,6 +1169,12 @@ function parsePaymentMethod(value: string): PaymentMethod | null {
   if (normalized === '4' || normalized === 'nota') return 'Nota';
   if (normalized === '5' || normalized === 'misto' || normalized === 'pagamento misto') {
     return 'Misto';
+  }
+  if (
+    TRANSFER_PAYMENT_ENABLED &&
+    (normalized === '8' || normalized === 'transferencia')
+  ) {
+    return 'Transferência';
   }
 
   return null;
@@ -1357,6 +1428,7 @@ function formatPaymentMenu(session?: SaleSession): string {
     '5️⃣ *Pagamento misto*',
     `6️⃣ *Desconto de ${DISCOUNT_PERCENT}%*${discountApplied ? ' ✅' : ''}`,
     '7️⃣ *Adicionar outro pneu*',
+    ...(TRANSFER_PAYMENT_ENABLED ? ['8️⃣ *Transferencia*'] : []),
   ].join('\n');
 }
 
@@ -1376,10 +1448,30 @@ function formatPriceTypeQuestion(session: SaleSession): string {
 
 export function formatCityHallQuestion(): string {
   return [
-    '🏛️ *NOTA PARA PREFEITURA?*',
+    '✅ Nota recebida.',
     '',
-    'Responda: *s* (sim) ou *n* (não).',
+    '💵*Comissão*',
+    '*Essa Nota Tem Comissão?*',
+    formatBinaryOptions(),
   ].join('\n');
+}
+
+export function formatTransferCityQuestion(): string {
+  return [
+    '📍*Cidade*',
+    '*Para Qual Cidade Vai esse Pneu?*',
+  ].join('\n');
+}
+
+function formatTransferLines(session: SaleSession): string[] {
+  if (!session.isTransferSale || !session.transferCity) {
+    return [];
+  }
+
+  return [
+    'Transferência: *Sim*',
+    `Cidade: *${session.transferCity}*`,
+  ];
 }
 
 function formatInvoiceLines(session: SaleSession): string[] {
@@ -1398,46 +1490,51 @@ function formatInvoiceLines(session: SaleSession): string[] {
 function formatDiscountPreview(session: SaleSession): string {
   const originalTotal = session.originalTotalValue ?? 0;
   const discountValue = originalTotal - (session.totalValue ?? 0);
-  return [
+  return formatOperationConfirmation(
     '🏷️ *DESCONTO — CONFIRMAR*',
-    `🏷️ Desconto: *${session.discountPercent}%* : ${formatCurrency(originalTotal)} -${formatCurrency(discountValue)}`,
-    '',
-    `💰 Novo total: *${formatCurrency(session.totalValue ?? 0)}*`,
-    '',
-    formatConfirmationOptions(),
-  ].join('\n');
+    [
+      [`🏷️ Desconto: *${session.discountPercent}%* | Economia: *${formatCurrency(discountValue)}*`],
+      [
+        `💰 Total: ${formatCurrency(originalTotal)} → *${formatCurrency(session.totalValue ?? 0)}*`,
+      ],
+    ]
+  );
 }
 
 export function formatSaleConfirmation(session: SaleSession): string {
   const items = getSaleItems(session);
   if (items.length > 1) {
-    return [
-      '⚠️ *CONFIRMAR VENDA?*',
-      '',
-      ...formatConfirmationSaleItemLines(items),
-      '',
-      ...formatCompactPaymentLines(session),
-      ...formatDiscountLines(session),
-      ...formatInvoiceLines(session),
-      `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
-      '',
-      formatConfirmationOptions(),
-    ].join('\n');
+    return formatOperationConfirmation(
+      '🧾 *VENDA — CONFIRMAR*',
+      [
+        formatConfirmationSaleItemLines(items),
+        [
+          ...formatCompactPaymentLines(session),
+          ...formatDiscountLines(session),
+          ...formatTransferLines(session),
+          ...formatInvoiceLines(session),
+        ],
+        [`💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`],
+      ]
+    );
   }
 
-  return [
-    '⚠️ *CONFIRMAR VENDA?*',
-    '',
-    `*${session.reference}* — *${session.description}*`,
-    formatSaleItemLine(session, false),
-    ...formatConfirmationPaymentLines(session),
-    ...formatDiscountLines(session),
-    ...formatInvoiceLines(session),
-    '',
-    `💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`,
-    '',
-    formatConfirmationOptions(),
-  ].join('\n');
+  return formatOperationConfirmation(
+    '🧾 *VENDA — CONFIRMAR*',
+    [
+      [
+        `🛞 *${session.reference} — ${session.description}*`,
+        `📤 Quantidade: ${formatSaleItemLine(session, false)}`,
+      ],
+      [
+        ...formatConfirmationPaymentLines(session),
+        ...formatDiscountLines(session),
+        ...formatTransferLines(session),
+        ...formatInvoiceLines(session),
+      ],
+      [`💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`],
+    ]
+  );
 }
 
 export function formatRegisteredSale(
@@ -1465,6 +1562,7 @@ export function formatRegisteredSale(
     formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
     ...formatDiscountLines(session),
+    ...formatTransferLines(session),
     ...formatInvoiceLines(session),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
@@ -1500,6 +1598,7 @@ export function formatBossSaleNotification(
     formatSaleItemLine(session, true),
     ...formatPaymentLines(session),
     ...formatDiscountLines(session),
+    ...formatTransferLines(session),
     ...formatInvoiceLines(session),
     '',
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
@@ -1525,6 +1624,7 @@ function formatRegisteredMultiItemSale(
     '',
     ...formatCompactPaymentLines(session),
     ...formatDiscountLines(session),
+    ...formatTransferLines(session),
     ...formatInvoiceLines(session),
     `💰 *TOTAL: ${formatCurrency(session.totalValue ?? 0)}*`,
     '',

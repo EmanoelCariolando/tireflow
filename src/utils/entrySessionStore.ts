@@ -14,6 +14,8 @@ export interface EntryItem {
 }
 
 export type EntrySessionStep =
+  | 'awaiting_invoice_name'
+  | 'awaiting_invoice_number'
   | 'awaiting_quantity'
   | 'awaiting_supplier'
   | 'awaiting_location'
@@ -34,6 +36,8 @@ export interface EntrySession {
   description: string;
   oldCashPrice: number;
   oldCreditPrice: number;
+  invoiceName?: string;
+  invoiceNumber?: string;
   quantity?: number;
   supplier?: string;
   stockLocation?: string;

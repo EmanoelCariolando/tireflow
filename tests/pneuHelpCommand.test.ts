@@ -61,8 +61,10 @@ test('accepts a standalone tire size without treating ordinary messages as queri
 });
 
 test('recognizes the explicit zero-stock query', () => {
-  assert.equal(isZeroStockCommand('zero 175 75 13'), true);
-  assert.equal(isZeroStockCommand('ZERO 175/75 R13'), true);
+  assert.equal(isZeroStockCommand('0 175 75 13'), true);
+  assert.equal(isZeroStockCommand('0 175/75 R13'), true);
+  assert.equal(isZeroStockCommand('0'), false);
+  assert.equal(isZeroStockCommand('zero 175 75 13'), false);
   assert.equal(isZeroStockCommand('zerado 175 75 13'), false);
 });
 
@@ -183,7 +185,7 @@ test('zero query lists and caches only products without stock', async () => {
       },
     } as unknown as Message;
 
-    await handleZeroStockCommand(message, 'zero 175 75 13');
+    await handleZeroStockCommand(message, '0 175 75 13');
 
     assert.equal(replies.length, 2);
     assert.match(replies[0] ?? '', /PNEU ZERADO/);
@@ -245,7 +247,7 @@ test('sends the product choice instruction separately after an available-stock q
   }
 });
 
-test('lists every supported common format when the tire size is invalid', async () => {
+test('shows only the suggested reference when the tire size is invalid', async () => {
   let replyText = '';
   const message = {
     from: 'invalid-size-chat',
@@ -261,15 +263,15 @@ test('lists every supported common format when the tire size is invalid', async 
   const originalFindDistinctActiveReferences = mutableRepository.findDistinctActiveReferences;
   mutableRepository.findDistinctActiveReferences = async () => [
     { reference: '175/70 R14' },
-    { reference: '165/70 R14' },
   ];
 
   try {
     await handlePneuCommand(message, '175.70.14');
 
-    assert.match(replyText, /Use uma destas formas:/);
-    assert.match(replyText, /Você quis dizer:\n• \*175\/70 R14\*/);
-    assert.match(replyText, /Digite novamente a medida correta/);
+    assert.equal(
+      replyText,
+      '❌ *MEDIDA INVÁLIDA*\n\nVocê quis dizer:\n\n- 175/70 R14\n\n*Digite novamente a medida correta:*'
+    );
   } finally {
     mutableRepository.findDistinctActiveReferences = originalFindDistinctActiveReferences;
   }

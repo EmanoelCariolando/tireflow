@@ -59,7 +59,7 @@ test('asks only for cash price and proceeds directly to confirmation', async () 
     assert.equal(confirmation?.step, 'awaiting_confirmation');
     assert.equal(confirmation?.newCashPrice, 1000);
     assert.equal(confirmation?.newCreditPrice, 1058);
-    assert.match(replies.at(-1) ?? '', /A prazo \(\+5,8%\): R\$952,20 → \*R\$1058,00\*/);
+    assert.match(replies.at(-1) ?? '', /À vista: R\$900,00 → \*R\$1000,00\* \| 💳 A prazo: R\$952,20 → \*R\$1058,00\*/);
     assert.match(replies.at(-1) ?? '', /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
 
     await handlePriceConversation(message, 'cancela');

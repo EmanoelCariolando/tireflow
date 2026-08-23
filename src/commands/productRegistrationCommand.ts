@@ -10,7 +10,7 @@ import {
   ProductRegistrationSession,
   saveProductRegistrationSession,
 } from '../utils/productRegistrationSessionStore.js';
-import { normalizeStockLocation } from '../utils/stockLocation.js';
+import { parseStockLocationChoice } from '../utils/stockLocation.js';
 import {
   clearAllOperationSessions,
   hasActiveOperationSession,
@@ -23,6 +23,7 @@ import { runPostCommitTask } from '../services/postCommitTask.js';
 import { sendBossTextNotification } from '../services/notificationService.js';
 import {
   formatConfirmationOptions,
+  formatOperationConfirmation,
   isCancellationResponse,
   parseConfirmationAction,
 } from '../utils/operationResponse.js';
@@ -30,6 +31,7 @@ import { calculateCreditPrice } from '../utils/productPricing.js';
 import {
   formatCashPriceQuestion,
   formatQuantityQuestion,
+  formatStockLocationQuestion,
   formatSupplierQuestion,
 } from '../utils/operationPrompts.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
@@ -140,6 +142,8 @@ async function handleMeasureStep(
         '',
         'Digite só a medida, sem marca/modelo ou especificações.',
         'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*',
+        'Para cadastrar uma roda, digite apenas: *RODA*',
+        'Na próxima pergunta, informe aro, furos e medida da roda.',
         '',
         'Tente novamente ou digite *cancelar*.',
       ].join('\n')
@@ -154,7 +158,7 @@ async function handleMeasureStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatDescriptionQuestion());
+  await message.reply(formatDescriptionQuestion(reference));
 }
 
 async function handleDescriptionStep(
@@ -184,7 +188,7 @@ async function handleDescriptionStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatQuantityQuestion());
+  await message.reply(formatProductQuantityQuestion(session.reference));
 }
 
 async function handleInitialStockStep(
@@ -196,7 +200,7 @@ async function handleInitialStockStep(
 
   if (initialStock === null) {
     await message.reply(
-      `❌ Estoque inválido. Digite um inteiro maior ou igual a zero.\n\n${formatQuantityQuestion()}`
+      `❌ Estoque inválido. Digite um inteiro maior ou igual a zero.\n\n${formatProductQuantityQuestion(session.reference)}`
     );
     return;
   }
@@ -276,15 +280,14 @@ async function handleLocationStep(
   body: string
 ): Promise<void> {
   const normalizedBody = body.trim().toLowerCase();
-  const stockLocation = normalizedBody === 'pular' ? null : normalizeStockLocation(body);
+  const stockLocation = normalizedBody === 'pular' ? null : parseStockLocationChoice(body);
 
   if (normalizedBody !== 'pular' && !stockLocation) {
     await message.reply(
       [
         '❌ *LOCAL INVÁLIDO*',
         '',
-        'Use 1 a 20 letras/números, sem espaços.',
-        'Ex.: *CG*, *W3*, *PMAIS* ou *pular*',
+        formatProductRegistrationLocationQuestion(),
       ].join('\n')
     );
     return;
@@ -455,51 +458,62 @@ export function parseProductRegistrationPrice(value: string): number | null {
 export function formatProductRegistrationConfirmation(
   session: ProductRegistrationSession
 ): string {
-  return [
+  return formatOperationConfirmation(
     '🧾 *CADASTRO — CONFIRMAR*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `📦 Estoque inicial: *${session.initialStock}*`,
-    ...(session.initialStock
-      ? [`🚚 Fornecedor: *${session.supplier}*`]
-      : []),
-    '',
-    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
-    `💳 A prazo (+5,8%): *${formatCurrency(session.creditPrice ?? 0)}*`,
-    ...(env.inventoryLocationsEnabled
-      ? ['', `📍 Local: *${session.stockLocation ?? 'não cadastrado'}*`]
-      : []),
-    '',
-    formatConfirmationOptions(),
-  ].join('\n');
+    [
+      [
+        `🛞 *${session.reference} — ${session.description}*`,
+        `📦 Estoque inicial: *${session.initialStock}*`,
+      ],
+      ...(session.initialStock
+        ? [[`🚚 Fornecedor: *${session.supplier}*`]]
+        : []),
+      [
+        `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}* | 💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
+      ],
+      ...(env.inventoryLocationsEnabled
+        ? [[`📍 Local: *${session.stockLocation ?? 'não cadastrado'}*`]]
+        : []),
+    ]
+  );
 }
 
 function formatProductRegistrationLocationQuestion(): string {
-  return [
-    '📍 *CADASTRO — LOCAL*',
-    '',
-    'Use 1 a 20 letras/números, sem espaços.',
-    'Ex.: *CG*, *W3* ou *PMAIS*',
-    'Sem local definido: *pular* | Sair: *cancelar*',
-  ].join('\n');
+  return formatStockLocationQuestion(true);
 }
 
 function formatMeasureQuestion(): string {
   return [
-    '🆕 *CADASTRO — MEDIDA*',
-    'Digite apenas a medida, sem marca/modelo ou especificações.',
+    '🆕 *DIGITAR MEDIDA*',
+    '*Digite apenas a medida:*',
     '',
-    'Ex.: *175/70 R14*, *110/90-17*, *18.4/30* ou *31x10.50R15*',
+    'Ex.: 175/70 R14, 110/90-17, 18.4/30',
   ].join('\n');
 }
 
-function formatDescriptionQuestion(): string {
+function formatDescriptionQuestion(reference: string): string {
+  if (reference === 'RODA') {
+    return [
+      '🏷️ *CADASTRO — DESCRIÇÃO DA RODA*',
+      'Informe modelo, quantidade de furos e medida.',
+      'Ex.: *275 8 FUROS (22.5X7.50)*',
+    ].join('\n');
+  }
+
   return [
-    '🏷️ *CADASTRO — DESCRIÇÃO*',
-    'Informe marca/modelo e detalhes úteis, sem repetir a medida.',
-    'Ex.: *PIRELLI MT60 TRASEIRO 60P*',
+    '🏷️*MARCA DO PNEU*',
+    '*Informe marca/modelo:*',
+    '',
+    'Ex.: PIRELLI MT60 TRASEIRO 60P',
   ].join('\n');
+}
+
+function formatProductQuantityQuestion(reference: string | undefined): string {
+  if (reference === 'RODA') {
+    return '📦 *QUANTIDADE*\nQuantas rodas?';
+  }
+
+  return formatQuantityQuestion();
 }
 
 function isCompleteSession(session: ProductRegistrationSession): session is ProductRegistrationSession & {

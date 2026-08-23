@@ -20,6 +20,7 @@ import {
 import { sendBossNotification } from '../services/notificationService.js';
 import {
   formatConfirmationOptions,
+  formatOperationConfirmation,
   isBackResponse,
   isCancellationResponse,
   parseConfirmationAction,
@@ -33,14 +34,18 @@ import {
   formatAdditionalTireQuestion,
   formatCashPriceQuestion,
   formatQuantityQuestion,
+  formatStockLocationQuestion,
   formatSupplierQuestion,
 } from '../utils/operationPrompts.js';
 import env from '../config/env.js';
-import { normalizeStockLocation } from '../utils/stockLocation.js';
+import { parseStockLocationChoice } from '../utils/stockLocation.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
+import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryResponse.js';
 
 const ENTRY_COMMAND_REGEX = /^entrada\s+(\d+)$/i;
 const MAX_ENTRY_ITEMS = 20;
+const MAX_INVOICE_NAME_LENGTH = 100;
+const MAX_INVOICE_NUMBER_LENGTH = 40;
 const ADDITIONAL_ENTRY_HELP_DELAY_MS = 30_000;
 const additionalEntryHelpTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -173,6 +178,16 @@ export async function handleEntryConversation(message: Message, body: string): P
     return true;
   }
 
+  if (session.step === 'awaiting_invoice_name') {
+    await handleInvoiceNameStep(message, session, body);
+    return true;
+  }
+
+  if (session.step === 'awaiting_invoice_number') {
+    await handleInvoiceNumberStep(message, session, body);
+    return true;
+  }
+
   if (session.step === 'awaiting_quantity') {
     await handleQuantityStep(message, session, normalizedBody);
     return true;
@@ -216,6 +231,52 @@ export async function handleEntryConversation(message: Message, body: string): P
   return false;
 }
 
+async function handleInvoiceNameStep(
+  message: Message,
+  session: EntrySession,
+  body: string
+): Promise<void> {
+  const invoiceName = normalizeInvoiceName(body);
+
+  if (!invoiceName) {
+    await message.reply(
+      `❌ Nome da nota inválido. Use até ${MAX_INVOICE_NAME_LENGTH} caracteres.\n\n${formatInvoiceNameQuestion()}`
+    );
+    return;
+  }
+
+  saveEntrySession({
+    ...session,
+    step: 'awaiting_invoice_number',
+    invoiceName,
+    updatedAt: Date.now(),
+  });
+  await message.reply(formatInvoiceNumberQuestion());
+}
+
+async function handleInvoiceNumberStep(
+  message: Message,
+  session: EntrySession,
+  body: string
+): Promise<void> {
+  const invoiceNumber = normalizeInvoiceNumber(body);
+
+  if (!invoiceNumber) {
+    await message.reply(
+      `❌ Número da nota inválido. Use até ${MAX_INVOICE_NUMBER_LENGTH} caracteres (letras, números, espaços, ponto, barra ou hífen).\n\n${formatInvoiceNumberQuestion()}`
+    );
+    return;
+  }
+
+  saveEntrySession({
+    ...session,
+    step: 'awaiting_supplier',
+    invoiceNumber,
+    updatedAt: Date.now(),
+  });
+  await message.reply(formatSupplierQuestion());
+}
+
 async function handleQuantityStep(
   message: Message,
   session: EntrySession,
@@ -249,12 +310,12 @@ async function handleQuantityStep(
 
   saveEntrySession({
     ...session,
-    step: 'awaiting_supplier',
+    step: 'awaiting_invoice_name',
     quantity,
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatSupplierQuestion());
+  await message.reply(formatInvoiceNameQuestion());
 }
 
 async function handleSupplierStep(
@@ -289,7 +350,7 @@ async function handleEntryLocationStep(
   session: EntrySession,
   body: string
 ): Promise<void> {
-  const stockLocation = normalizeStockLocation(body);
+  const stockLocation = parseStockLocationChoice(body);
 
   if (!stockLocation) {
     await message.reply(`❌ *LOCAL INVÁLIDO*\n\n${formatEntryLocationQuestion()}`);
@@ -310,7 +371,9 @@ async function handlePriceDecisionStep(
   session: EntrySession,
   normalizedBody: string
 ): Promise<void> {
-  if (/^(s|sim)$/i.test(normalizedBody)) {
+  const shouldChangePrice = parseBinaryResponse(normalizedBody);
+
+  if (shouldChangePrice === true) {
     saveEntrySession({
       ...session,
       step: 'awaiting_cash_price',
@@ -320,7 +383,7 @@ async function handlePriceDecisionStep(
     return;
   }
 
-  if (/^(n|n[aã]o)$/i.test(normalizedBody)) {
+  if (shouldChangePrice === false) {
     const nextSession: EntrySession = {
       ...session,
       step: 'awaiting_additional_decision',
@@ -330,7 +393,7 @@ async function handlePriceDecisionStep(
     return;
   }
 
-  await message.reply('❌ Resposta inválida. Digite apenas *s* ou *n*.');
+  await message.reply(`❌ Resposta inválida.\n\n${formatPriceDecisionQuestion()}`);
 }
 
 async function handleCashPriceStep(
@@ -383,7 +446,9 @@ async function handleAdditionalDecisionStep(
   session: EntrySession,
   normalizedBody: string
 ): Promise<void> {
-  if (/^(s|sim)$/i.test(normalizedBody)) {
+  const shouldAddItem = parseBinaryResponse(normalizedBody);
+
+  if (shouldAddItem === true) {
     const items = getEntryItems(session);
 
     if (items.length >= MAX_ENTRY_ITEMS) {
@@ -410,7 +475,7 @@ async function handleAdditionalDecisionStep(
     return;
   }
 
-  if (/^(n|n[aã]o)$/i.test(normalizedBody)) {
+  if (shouldAddItem === false) {
     const nextSession: EntrySession = {
       ...session,
       step: 'awaiting_confirmation',
@@ -421,7 +486,7 @@ async function handleAdditionalDecisionStep(
     return;
   }
 
-  await message.reply('❌ Resposta inválida. Digite apenas *s* ou *n*.');
+  await message.reply(`❌ Resposta inválida.\n\n${formatAdditionalDecisionQuestion(session)}`);
 }
 
 async function handleAdditionalMeasureStep(
@@ -622,6 +687,8 @@ async function handleConfirmationStep(
         stockLocation: item.stockLocation,
         newCashPrice: item.newCashPrice,
       })),
+      invoiceName: session.invoiceName,
+      invoiceNumber: session.invoiceNumber,
       responsiblePhone: session.userId,
       responsibleName,
     });
@@ -738,6 +805,34 @@ function parsePriceValue(value: string): number | null {
   return Math.round(price * 100) / 100;
 }
 
+function normalizeInvoiceNumber(value: string): string | null {
+  const normalized = value.trim().replace(/\s+/g, ' ');
+
+  if (
+    !normalized ||
+    normalized.length > MAX_INVOICE_NUMBER_LENGTH ||
+    !/^[\p{L}\p{N}][\p{L}\p{N} ./-]*$/u.test(normalized)
+  ) {
+    return null;
+  }
+
+  return normalized;
+}
+
+function normalizeInvoiceName(value: string): string | null {
+  const normalized = value.trim().replace(/\s+/g, ' ');
+
+  if (
+    !normalized ||
+    normalized.length > MAX_INVOICE_NAME_LENGTH ||
+    !/^[\p{L}\p{N}][\p{L}\p{N} .,&/'()-]*$/u.test(normalized)
+  ) {
+    return null;
+  }
+
+  return normalized;
+}
+
 function buildCurrentEntryItem(session: EntrySession): EntryItem | null {
   if (!session.quantity || !session.supplier) {
     return null;
@@ -777,29 +872,40 @@ function formatAdditionalDecisionQuestion(session: EntrySession): string {
     '',
     `Itens preparados: *${getEntryItems(session).length}*`,
     '',
-    'Responda: *s* ou *n*.',
+    formatBinaryOptions(),
   ].join('\n');
 }
 
 function formatPriceDecisionQuestion(): string {
-  return '💰 *VOCÊ QUER ALTERAR O PREÇO?*\nDigite *s* ou *n*.';
+  return `💰 *VOCÊ QUER ALTERAR O PREÇO?*\n${formatBinaryOptions()}`;
+}
+
+export function formatInvoiceNumberQuestion(): string {
+  return '🧾 *NÚMERO DA NOTA*\nInforme o número da nota fiscal:';
+}
+
+export function formatInvoiceNameQuestion(): string {
+  return '🧾 *NOME DA NOTA*\nInforme o nome da nota fiscal:';
 }
 
 export function formatEntryLocationQuestion(): string {
-  return '📍 *LOCALIZAÇÃO*\nInforme o local:';
+  return formatStockLocationQuestion();
 }
 
 export function formatEntryConfirmation(session: EntrySession): string {
   const items = getEntryItems(session);
+  const invoiceLine = formatEntryInvoiceLine(session);
   if (items.length > 1) {
-    return [
+    return formatOperationConfirmation(
       '📦 *ENTRADA — CONFIRMAR*',
-      '',
-      ...formatCompactEntryItemLines(items),
-      '',
-      `📦 Total de itens: *${items.length}*`,
-      formatConfirmationOptions(),
-    ].join('\n');
+      [
+        formatCompactEntryItemLines(items),
+        [
+          ...(invoiceLine ? [invoiceLine] : []),
+          `📦 Total de itens: *${items.length}*`,
+        ],
+      ]
+    );
   }
 
   const item = items[0] ?? buildCurrentEntryItem(session);
@@ -807,24 +913,22 @@ export function formatEntryConfirmation(session: EntrySession): string {
     return 'Ocorreu um erro na sessão da entrada. Faça a consulta novamente.';
   }
 
-  return [
+  const prices = item.newCashPrice !== undefined && item.newCreditPrice !== undefined
+    ? `💰 À vista: ${formatCurrency(item.oldCashPrice)} → *${formatCurrency(item.newCashPrice)}* | 💳 A prazo: ${formatCurrency(item.oldCreditPrice)} → *${formatCurrency(item.newCreditPrice)}*`
+    : `💰 À vista: *${formatCurrency(item.oldCashPrice)}* | 💳 A prazo: *${formatCurrency(item.oldCreditPrice)}*`;
+
+  return formatOperationConfirmation(
     '📦 *ENTRADA — CONFIRMAR*',
-    '',
-    `🛞 *${item.reference} — ${item.description}*`,
-    '',
-    `📥 Quantidade: *+${item.quantity}*`,
-    `🚚 Fornecedor: *${item.supplier}*`,
-    ...(item.stockLocation ? [`📍 Local: *${item.stockLocation}*`] : []),
-    ...(item.newCashPrice !== undefined && item.newCreditPrice !== undefined
-      ? [
-          '',
-          `💰 À vista: ${formatCurrency(item.oldCashPrice)} → *${formatCurrency(item.newCashPrice)}*`,
-          `💳 A prazo (+5,8%): ${formatCurrency(item.oldCreditPrice)} → *${formatCurrency(item.newCreditPrice)}*`,
-        ]
-      : ['', '🏷️ Preços: *sem alteração*']),
-    '',
-    formatConfirmationOptions(),
-  ].join('\n');
+    [
+      [
+        `🛞 *${item.reference} — ${item.description}*`,
+        `📥 Quantidade: *+${item.quantity}*`,
+      ],
+      formatEntrySupplierAndInvoiceLines(item, session),
+      [prices],
+      ...(item.stockLocation ? [[`📍 Local: *${item.stockLocation}*`]] : []),
+    ]
+  );
 }
 
 export function formatRegisteredEntry(
@@ -836,6 +940,7 @@ export function formatRegisteredEntry(
   if (items.length > 1) {
     return formatRegisteredEntryItems(
       '✅ *ENTRADAS REGISTRADAS*',
+      formatEntryInvoiceLine(session),
       items,
       responsibleName,
       registeredItems,
@@ -853,6 +958,7 @@ export function formatRegisteredEntry(
     `📥 Entrada: *+${item.quantity}*`,
     `📦 Estoque atual: *${registered.currentStock}*`,
     `🚚 Fornecedor: *${item.supplier}*`,
+    ...formatOptionalEntryInvoiceLine(session),
     ...(item.newCashPrice !== undefined && item.newCreditPrice !== undefined
       ? [
           '',
@@ -875,6 +981,7 @@ export function formatBossEntryNotification(
   if (items.length > 1) {
     return formatRegisteredEntryItems(
       '📦 *NOVAS ENTRADAS*',
+      formatEntryInvoiceLine(session),
       items,
       responsibleName,
       registeredItems,
@@ -892,6 +999,7 @@ export function formatBossEntryNotification(
     `📥 Entrada: *+${item.quantity}*`,
     `📦 Estoque atual: *${registered.currentStock}*`,
     `🚚 Fornecedor: *${item.supplier}*`,
+    ...formatOptionalEntryInvoiceLine(session),
     ...(item.newCashPrice !== undefined && item.newCreditPrice !== undefined
       ? [
           '',
@@ -937,8 +1045,26 @@ function formatCompactEntryItem(
   ];
 }
 
+function formatEntrySupplierAndInvoiceLines(
+  item: EntryItem,
+  session: Pick<EntrySession, 'invoiceName' | 'invoiceNumber'>
+): string[] {
+  return [
+    [
+      `🚚 Fornecedor: *${item.supplier}*`,
+      ...(session.invoiceNumber
+        ? [`📃 Número da nota: *${session.invoiceNumber}*`]
+        : []),
+    ].join(' | '),
+    ...(session.invoiceName
+      ? [`🧾 Nome da nota: *${session.invoiceName}*`]
+      : []),
+  ];
+}
+
 function formatRegisteredEntryItems(
   title: string,
+  invoiceLine: string | null,
   items: EntryItem[],
   responsibleName: string,
   registeredItems: RegisteredEntry[],
@@ -963,8 +1089,30 @@ function formatRegisteredEntryItems(
     '',
     ...lines,
     '',
+    ...(invoiceLine ? [invoiceLine] : []),
     `👤 Responsável: *${responsibleName}*`,
   ].join('\n');
+}
+
+function formatEntryInvoiceLine(
+  session: Pick<EntrySession, 'invoiceName' | 'invoiceNumber'>
+): string | null {
+  if (session.invoiceName && session.invoiceNumber) {
+    return `🧾 Nota: *${session.invoiceName}* | Nº: *${session.invoiceNumber}*`;
+  }
+
+  if (session.invoiceNumber) {
+    return `🧾 Nº da nota: *${session.invoiceNumber}*`;
+  }
+
+  return session.invoiceName ? `🧾 Nome da nota: *${session.invoiceName}*` : null;
+}
+
+function formatOptionalEntryInvoiceLine(
+  session: Pick<EntrySession, 'invoiceName' | 'invoiceNumber'>
+): string[] {
+  const line = formatEntryInvoiceLine(session);
+  return line ? [line] : [];
 }
 
 function formatEntryLocationChange(registered: RegisteredEntry): string[] {

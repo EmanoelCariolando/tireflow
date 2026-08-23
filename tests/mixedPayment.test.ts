@@ -191,7 +191,7 @@ test('skips only the cash receipt in a mixed payment outside Monteiro', async ()
     assert.equal(confirmationSession?.step, 'awaiting_confirmation');
     assert.equal(confirmationSession?.receipts?.length, 1);
     assert.doesNotMatch(replies.at(-1) ?? '', /depósito\/dinheiro/);
-    assert.match(replies.at(-1) ?? '', /CONFIRMAR VENDA/);
+    assert.match(replies.at(-1) ?? '', /VENDA — CONFIRMAR/);
 
     clearSaleSession(ids.userId, ids.chatId);
   });

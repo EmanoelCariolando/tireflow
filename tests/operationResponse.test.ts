@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   formatConfirmationOptions,
+  formatOperationConfirmation,
   isBackResponse,
   isCancellationResponse,
   isConfirmationResponse,
@@ -49,5 +50,17 @@ test('formats the standard confirmation actions', () => {
   assert.equal(
     formatConfirmationOptions(),
     '1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar'
+  );
+});
+
+test('formats confirmation content in consistently separated sections', () => {
+  assert.equal(
+    formatOperationConfirmation('🧾 *TESTE — CONFIRMAR*', [
+      ['Primeira linha', 'Segunda linha'],
+      [],
+      ['Última linha'],
+    ]),
+    '🧾 *TESTE — CONFIRMAR*\n\nPrimeira linha\nSegunda linha\n\nÚltima linha\n\n' +
+      '1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar'
   );
 });
