@@ -11,5 +11,5 @@ export function parseBinaryResponse(value: string): boolean | null {
 }
 
 export function formatBinaryOptions(): string {
-  return '1️⃣*Sim* | 2️⃣*Não*';
+  return '1️⃣ *Sim* | 2️⃣ *Não*';
 }

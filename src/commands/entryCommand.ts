@@ -44,7 +44,6 @@ import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryRespons
 
 const ENTRY_COMMAND_REGEX = /^entrada\s+(\d+)$/i;
 const MAX_ENTRY_ITEMS = 20;
-const MAX_INVOICE_NAME_LENGTH = 100;
 const MAX_INVOICE_NUMBER_LENGTH = 40;
 const ADDITIONAL_ENTRY_HELP_DELAY_MS = 30_000;
 const additionalEntryHelpTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -178,11 +177,6 @@ export async function handleEntryConversation(message: Message, body: string): P
     return true;
   }
 
-  if (session.step === 'awaiting_invoice_name') {
-    await handleInvoiceNameStep(message, session, body);
-    return true;
-  }
-
   if (session.step === 'awaiting_invoice_number') {
     await handleInvoiceNumberStep(message, session, body);
     return true;
@@ -229,29 +223,6 @@ export async function handleEntryConversation(message: Message, body: string): P
   }
 
   return false;
-}
-
-async function handleInvoiceNameStep(
-  message: Message,
-  session: EntrySession,
-  body: string
-): Promise<void> {
-  const invoiceName = normalizeInvoiceName(body);
-
-  if (!invoiceName) {
-    await message.reply(
-      `❌ Nome da nota inválido. Use até ${MAX_INVOICE_NAME_LENGTH} caracteres.\n\n${formatInvoiceNameQuestion()}`
-    );
-    return;
-  }
-
-  saveEntrySession({
-    ...session,
-    step: 'awaiting_invoice_number',
-    invoiceName,
-    updatedAt: Date.now(),
-  });
-  await message.reply(formatInvoiceNumberQuestion());
 }
 
 async function handleInvoiceNumberStep(
@@ -310,12 +281,12 @@ async function handleQuantityStep(
 
   saveEntrySession({
     ...session,
-    step: 'awaiting_invoice_name',
+    step: 'awaiting_invoice_number',
     quantity,
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatInvoiceNameQuestion());
+  await message.reply(formatInvoiceNumberQuestion());
 }
 
 async function handleSupplierStep(
@@ -819,20 +790,6 @@ function normalizeInvoiceNumber(value: string): string | null {
   return normalized;
 }
 
-function normalizeInvoiceName(value: string): string | null {
-  const normalized = value.trim().replace(/\s+/g, ' ');
-
-  if (
-    !normalized ||
-    normalized.length > MAX_INVOICE_NAME_LENGTH ||
-    !/^[\p{L}\p{N}][\p{L}\p{N} .,&/'()-]*$/u.test(normalized)
-  ) {
-    return null;
-  }
-
-  return normalized;
-}
-
 function buildCurrentEntryItem(session: EntrySession): EntryItem | null {
   if (!session.quantity || !session.supplier) {
     return null;
@@ -881,11 +838,7 @@ function formatPriceDecisionQuestion(): string {
 }
 
 export function formatInvoiceNumberQuestion(): string {
-  return '🧾 *NÚMERO DA NOTA*\nInforme o número da nota fiscal:';
-}
-
-export function formatInvoiceNameQuestion(): string {
-  return '🧾 *NOME DA NOTA*\nInforme o nome da nota fiscal:';
+  return '📋 *NÚMERO DA NOTA*\nnúmero da nota fiscal:';
 }
 
 export function formatEntryLocationQuestion(): string {

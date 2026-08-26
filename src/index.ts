@@ -66,7 +66,7 @@ async function main(): Promise<void> {
     console.log('Bot is running. Press Ctrl+C to stop.\n');
   } catch (error) {
     console.error('Failed to start TireFlow:', error);
-    process.exit(1);
+    await shutdown('STARTUP_FAILURE', 1);
   }
 }
 

@@ -1,7 +1,15 @@
 import whatsappWeb from 'whatsapp-web.js';
 import qrcode from 'qrcode-terminal';
+import path from 'node:path';
+import type { ChildProcess } from 'node:child_process';
 import type { ConsoleMessage, HTTPRequest, Page } from 'puppeteer';
 import env from '../config/env.js';
+import {
+  forceStopBrowserProcessTree,
+  isExpectedBrowserProfileConflict,
+  recoverBrowserProfile,
+  type BrowserProfileRecoveryResult,
+} from './browserProfileRecovery.js';
 
 const { Client, LocalAuth } = whatsappWeb;
 
@@ -9,10 +17,20 @@ const { Client, LocalAuth } = whatsappWeb;
 // computer restart. Do not force NSSM into a restart loop during that window.
 const START_TIMEOUT_MS = 600_000;
 const SHUTDOWN_TIMEOUT_MS = 5000;
+const BROWSER_EXIT_TIMEOUT_MS = 3000;
+const BROWSER_FORCE_EXIT_TIMEOUT_MS = 3000;
 const READY_RECOVERY_DELAY_MS = 15_000;
 const READY_RECOVERY_RETRY_MS = 5000;
+const PROFILE_CONFLICT_MIN_RETRY_MS = 5000;
+const PROFILE_CONFLICT_MAX_RETRY_MS = 120_000;
 let diagnosticsAttached = false;
+let diagnosticsAttaching = false;
 let whatsappReady = false;
+
+const WHATSAPP_PROFILE_PATH = path.join(
+  env.whatsappAuthDataPath,
+  `session-${env.whatsappSessionName}`,
+);
 
 interface WhatsAppPageDiagnostics {
   url: string;
@@ -109,42 +127,47 @@ async function waitForPuppeteerPage(): Promise<Page | undefined> {
 }
 
 async function attachBrowserDiagnostics(): Promise<void> {
-  if (diagnosticsAttached || !env.whatsappDebug) {
+  if (diagnosticsAttached || diagnosticsAttaching || !env.whatsappDebug) {
     return;
   }
 
-  const page = await waitForPuppeteerPage();
+  diagnosticsAttaching = true;
+  try {
+    const page = await waitForPuppeteerPage();
 
-  if (!page) {
-    return;
-  }
-
-  diagnosticsAttached = true;
-
-  page.on('console', (message: ConsoleMessage) => {
-    const type = message.type();
-
-    if (type === 'error' || type === 'warn') {
-      console.log(`[WA PAGE ${type}] ${shorten(message.text())}`);
-    }
-  });
-
-  page.on('pageerror', (error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`[WA PAGE ERROR] ${message}`);
-  });
-
-  page.on('requestfailed', (request: HTTPRequest) => {
-    const failure = request.failure();
-    const errorText = failure?.errorText || 'unknown';
-    const url = request.url();
-
-    if (isNoisyRequestFailure(errorText, url)) {
+    if (!page || diagnosticsAttached) {
       return;
     }
 
-    console.error(`[WA REQUEST FAILED] ${errorText} ${shorten(url)}`);
-  });
+    diagnosticsAttached = true;
+
+    page.on('console', (message: ConsoleMessage) => {
+      const type = message.type();
+
+      if (type === 'error' || type === 'warn') {
+        console.log(`[WA PAGE ${type}] ${shorten(message.text())}`);
+      }
+    });
+
+    page.on('pageerror', (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[WA PAGE ERROR] ${message}`);
+    });
+
+    page.on('requestfailed', (request: HTTPRequest) => {
+      const failure = request.failure();
+      const errorText = failure?.errorText || 'unknown';
+      const url = request.url();
+
+      if (isNoisyRequestFailure(errorText, url)) {
+        return;
+      }
+
+      console.error(`[WA REQUEST FAILED] ${errorText} ${shorten(url)}`);
+    });
+  } finally {
+    diagnosticsAttaching = false;
+  }
 }
 
 async function readWhatsAppPageDiagnostics(): Promise<WhatsAppPageDiagnostics | undefined> {
@@ -316,6 +339,39 @@ function createReadyOrManualAttachPromise(): Promise<void> {
   });
 }
 
+function browserProcessHasExited(browserProcess: ChildProcess): boolean {
+  return browserProcess.exitCode !== null || browserProcess.signalCode !== null;
+}
+
+async function waitForBrowserProcessExit(
+  browserProcess: ChildProcess,
+  milliseconds: number,
+): Promise<boolean> {
+  if (browserProcessHasExited(browserProcess)) return true;
+
+  return new Promise((resolve) => {
+    const onExit = (): void => {
+      clearTimeout(timeout);
+      resolve(true);
+    };
+    const timeout = setTimeout(() => {
+      browserProcess.removeListener('exit', onExit);
+      resolve(browserProcessHasExited(browserProcess));
+    }, milliseconds);
+    browserProcess.once('exit', onExit);
+  });
+}
+
+function profileConflictRetryDelay(conflictCount: number, recovery: BrowserProfileRecoveryResult): number {
+  if (recovery === 'recovered_orphan' || recovery === 'removed_stale_lock') {
+    return PROFILE_CONFLICT_MIN_RETRY_MS;
+  }
+  return Math.min(
+    PROFILE_CONFLICT_MIN_RETRY_MS * (2 ** Math.min(conflictCount - 1, 5)),
+    PROFILE_CONFLICT_MAX_RETRY_MS,
+  );
+}
+
 function markWhatsAppReady(source: 'ready event' | 'manual recovery'): void {
   if (whatsappReady) return;
   whatsappReady = true;
@@ -416,25 +472,39 @@ export function isWhatsAppConnected(): boolean {
  */
 export async function startWhatsAppClient(): Promise<void> {
   console.log('🚀 Starting WhatsApp client...');
+  let profileConflictCount = 0;
 
+  while (true) {
+    try {
+      const initializePromise = whatsappClient.initialize();
+      const initializeFailurePromise = initializePromise.then(
+        () => new Promise<void>(() => undefined),
+        (error: unknown) => Promise.reject(error),
+      );
 
-  try {
-    const initializePromise = whatsappClient.initialize();
-    const initializeFailurePromise = initializePromise.then(
-      () => new Promise<void>(() => undefined),
-      (error: unknown) => Promise.reject(error),
-    );
+      void attachBrowserDiagnostics();
 
-    void attachBrowserDiagnostics();
+      await withTimeout(
+        Promise.race([createReadyOrManualAttachPromise(), initializeFailurePromise]),
+        START_TIMEOUT_MS,
+      );
+      return;
+    } catch (error) {
+      await logWhatsAppPageDiagnostics();
+      await stopWhatsAppClient();
 
-    await withTimeout(
-      Promise.race([createReadyOrManualAttachPromise(), initializeFailurePromise]),
-      START_TIMEOUT_MS,
-    );
-  } catch (error) {
-    await logWhatsAppPageDiagnostics();
-    await stopWhatsAppClient();
-    throw error;
+      if (!isExpectedBrowserProfileConflict(error, WHATSAPP_PROFILE_PATH)) {
+        throw error;
+      }
+
+      profileConflictCount += 1;
+      const recovery = await recoverBrowserProfile(WHATSAPP_PROFILE_PATH);
+      const retryDelay = profileConflictRetryDelay(profileConflictCount, recovery);
+      console.warn(
+        `[WHATSAPP] Chrome profile conflict (${recovery}). Retrying in ${Math.round(retryDelay / 1000)} seconds without restarting TireFlow.`,
+      );
+      await wait(retryDelay);
+    }
   }
 }
 
@@ -444,16 +514,38 @@ export async function startWhatsAppClient(): Promise<void> {
 export async function stopWhatsAppClient(): Promise<void> {
   whatsappReady = false;
   const browserProcess = whatsappClient.pupBrowser?.process?.();
+  let gracefulStopFailed = false;
 
   try {
     await withTimeout(whatsappClient.destroy(), SHUTDOWN_TIMEOUT_MS);
   } catch (error) {
-    console.error('Could not stop WhatsApp client gracefully. Forcing browser close.');
+    gracefulStopFailed = true;
+    console.error('Could not stop WhatsApp client gracefully.', error);
+  }
 
-    if (browserProcess && !browserProcess.killed) {
-      browserProcess.kill();
+  if (browserProcess) {
+    const exitedGracefully = await waitForBrowserProcessExit(browserProcess, BROWSER_EXIT_TIMEOUT_MS);
+
+    if (!exitedGracefully) {
+      console.warn('WhatsApp Chrome remained open after shutdown. Forcing its process to close.');
+      try {
+        if (!browserProcess.pid) throw new Error('Chrome process id is unavailable.');
+        await forceStopBrowserProcessTree(browserProcess.pid);
+      } catch (error) {
+        console.error('Could not force the complete WhatsApp Chrome process tree to close.', error);
+        browserProcess.kill('SIGKILL');
+      }
+      const exitedAfterForce = await waitForBrowserProcessExit(
+        browserProcess,
+        BROWSER_FORCE_EXIT_TIMEOUT_MS,
+      );
+      if (!exitedAfterForce) {
+        throw new Error(`WhatsApp Chrome process ${browserProcess.pid ?? 'unknown'} did not exit.`);
+      }
     }
   }
 
-  await wait(1500);
+  if (gracefulStopFailed && !browserProcess) {
+    console.warn('WhatsApp Chrome process was not available for forced shutdown.');
+  }
 }

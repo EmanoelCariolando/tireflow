@@ -7,6 +7,10 @@ const clientSource = readFileSync(
   path.join(process.cwd(), 'src', 'whatsapp', 'client.ts'),
   'utf8'
 );
+const indexSource = readFileSync(
+  path.join(process.cwd(), 'src', 'index.ts'),
+  'utf8'
+);
 const whatsappPatch = readFileSync(
   path.join(process.cwd(), 'patches', 'whatsapp-web.js+1.34.7.patch'),
   'utf8'
@@ -36,4 +40,24 @@ test('startup diagnostics capture the socket and offline synchronization state',
   for (const field of ['socketState', 'socketStream', 'hasSynced', 'offlineProgress']) {
     assert.match(clientSource, new RegExp(`${field}:`));
   }
+});
+
+test('shutdown verifies that Chrome exited even when destroy resolves successfully', () => {
+  assert.match(clientSource, /waitForBrowserProcessExit\(browserProcess, BROWSER_EXIT_TIMEOUT_MS\)/);
+  assert.match(clientSource, /forceStopBrowserProcessTree\(browserProcess\.pid\)/);
+  assert.doesNotMatch(clientSource, /browserProcess && !browserProcess\.killed/);
+});
+
+test('a locked profile is recovered with backoff without restarting TireFlow', () => {
+  assert.match(clientSource, /isExpectedBrowserProfileConflict\(error, WHATSAPP_PROFILE_PATH\)/);
+  assert.match(clientSource, /recoverBrowserProfile\(WHATSAPP_PROFILE_PATH\)/);
+  assert.match(clientSource, /PROFILE_CONFLICT_MAX_RETRY_MS = 120_000/);
+});
+
+test('every startup failure uses the complete shutdown path before exiting', () => {
+  assert.match(
+    indexSource,
+    /catch \(error\) \{\s+console\.error\('Failed to start TireFlow:', error\);\s+await shutdown\('STARTUP_FAILURE', 1\)/,
+  );
+  assert.doesNotMatch(indexSource, /Failed to start TireFlow:[\s\S]{0,100}process\.exit\(1\)/);
 });

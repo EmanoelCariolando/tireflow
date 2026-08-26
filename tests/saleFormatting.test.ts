@@ -97,7 +97,7 @@ test('accepts numbered commission answers and keeps s or n compatible', () => {
   assert.equal(parseCityHallResponse('talvez'), null);
   assert.equal(
     formatCityHallQuestion(),
-    '✅ Nota recebida.\n\n💵*Comissão*\n*Essa Nota Tem Comissão?*\n1️⃣*Sim* | 2️⃣*Não*'
+    '✅ Nota recebida.\n\n💵 *Comissão*\n*Essa Nota Tem Comissão?*\n1️⃣ *Sim* | 2️⃣ *Não*'
   );
 
   const cityHallConfirmation = formatSaleConfirmation({

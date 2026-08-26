@@ -50,7 +50,7 @@ test('asks whether a received note has commission before requesting its name', a
   assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_city_hall_confirmation');
   assert.equal(
     replies.at(-1),
-    '✅ Nota recebida.\n\n💵*Comissão*\n*Essa Nota Tem Comissão?*\n1️⃣*Sim* | 2️⃣*Não*'
+    '✅ Nota recebida.\n\n💵 *Comissão*\n*Essa Nota Tem Comissão?*\n1️⃣ *Sim* | 2️⃣ *Não*'
   );
 
   await handleSaleConversation(createMessage(replies), '2');

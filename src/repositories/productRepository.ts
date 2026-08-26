@@ -241,4 +241,27 @@ export const productRepository = {
       ],
     });
   },
+
+  findActiveWithPositiveStock(client: PrismaClientOrTransaction = prisma) {
+    return client.product.findMany({
+      select: {
+        id: true,
+        reference: true,
+        description: true,
+        stock: true,
+        stockLocation: true,
+      },
+      where: {
+        isActive: true,
+        stock: {
+          gt: 0,
+        },
+      },
+      orderBy: [
+        { stockLocation: 'asc' },
+        { reference: 'asc' },
+        { description: 'asc' },
+      ],
+    });
+  },
 };

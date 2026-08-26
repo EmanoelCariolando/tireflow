@@ -16,6 +16,10 @@ import {
   isCommissionReportDue,
   isMonthlyReportDue,
 } from '../src/services/monthlyReportScheduler.js';
+import {
+  buildMonthlyInventoryPdf,
+  getTireRim,
+} from '../src/services/monthlyInventoryPdfService.js';
 
 const joao = {
   id: 'user-joao',
@@ -111,7 +115,7 @@ test('counts grouped item movements as one sale while preserving units and reven
   assert.equal(summary.paymentTotals.PIX, 350);
 });
 
-test('summarizes sellers, mixed payments, top tires and specific zero-stock events', () => {
+test('sends only the financial summary in text and moves inventory details to a PDF', async () => {
   const period = getPreviousMonthPeriod(new Date(2026, 7, 1, 8, 0));
   const movements = [
     movement('sale-one', new Date(2026, 6, 5, 10, 0), {
@@ -189,17 +193,64 @@ test('summarizes sellers, mixed payments, top tires and specific zero-stock even
   );
 
   const reports = formatMonthlyReport(summary);
-  assert.equal(reports.length, 3);
-  assert.match(reports[0]!, /RELATÓRIO MENSAL — JULHO\/2026/);
+  assert.equal(reports.length, 1);
+  assert.match(reports[0]!, /FATURAMENTO MENSAL — JULHO\/2026/);
   assert.match(reports[0]!, /Faturamento: \*R\$900,00\*/);
   assert.match(reports[0]!, /Dinheiro: \*R\$200,00\*/);
-  assert.match(reports[1]!, /🥇 \*175\/70 R14\* — \*DYNAMO 82T\*/);
   assert.doesNotMatch(reports.join('\n'), /DESEMPENHO DA EQUIPE|Comissão|Comissões/);
   assert.doesNotMatch(reports.join('\n'), /João|Maria/);
-  assert.match(reports[2]!, /\*175\/70 R14\* — \*DYNAMO 82T\*/);
-  assert.match(reports[2]!, /Situação no fechamento: \*Continua zerado\*/);
-  assert.match(reports[2]!, /Reposto: \*15\/07\/2026\*/);
-  assert.match(reports[2]!, /📍 Local: \*W3\*/);
+
+  const inventoryProducts = Array.from({ length: 80 }, (_, index) => ({
+    id: `inventory-${index}`,
+    reference: `${175 + index}/70 R14`,
+    description: `PNEU PARA CONFERÊNCIA ${index + 1}`,
+    stock: index + 1,
+    stockLocation: index % 2 === 0 ? 'PMAIS' : 'W3',
+  }));
+  const pdf = await buildMonthlyInventoryPdf({
+    report: summary,
+    products: inventoryProducts,
+    branchName: 'ATC PNEUS MONTEIRO',
+    generatedAt: new Date(2026, 7, 1, 8, 0),
+  });
+  const pdfSource = pdf.toString('latin1');
+  assert.equal(pdf.subarray(0, 5).toString('ascii'), '%PDF-');
+  assert.match(pdfSource, /%%EOF/);
+  const pageCount = (pdfSource.match(/\/Type \/Page\b/g) ?? []).length;
+  const mediaBoxes = [...pdfSource.matchAll(/\/MediaBox \[([^\]]+)\]/g)].map(
+    (match) => match[1]
+  );
+  assert.ok(pageCount >= 3);
+  assert.ok(pageCount <= 10, `PDF should not contain overflow pages; received ${pageCount}`);
+  assert.equal(mediaBoxes.length, pageCount);
+  assert.ok(mediaBoxes.every((mediaBox) => mediaBox === '0 0 841.89 595.28'));
+  assert.ok(pdf.length > 5_000 && pdf.length < 2_000_000);
+
+  const overflowPdf = await buildMonthlyInventoryPdf({
+    report: {
+      ...summary,
+      zeroStockProducts: Array.from({ length: 35 }, (_, index) => ({
+        ...summary.zeroStockProducts[0]!,
+        reference: `ZERADO-${index + 1}`,
+        description: `PNEU ZERADO PARA PAGINAÇÃO ${index + 1}`,
+      })),
+    },
+    products: inventoryProducts,
+    branchName: 'ATC PNEUS MONTEIRO',
+    generatedAt: new Date(2026, 7, 1, 8, 0),
+  });
+  const overflowSource = overflowPdf.toString('latin1');
+  const overflowPageCount = (overflowSource.match(/\/Type \/Page\b/g) ?? []).length;
+  assert.ok(overflowPageCount > pageCount);
+});
+
+test('identifies passenger, truck and agricultural tire rims for inventory grouping', () => {
+  assert.equal(getTireRim('175/70 R14'), 14);
+  assert.equal(getTireRim('295/80R22.5'), 22.5);
+  assert.equal(getTireRim('8.3/24'), 24);
+  assert.equal(getTireRim('10-16.5'), 16.5);
+  assert.equal(getTireRim('RODA 17.5X6.00'), 17.5);
+  assert.equal(getTireRim('RODA'), null);
 });
 
 test('excludes city hall invoices from commission without removing their revenue', () => {
@@ -233,7 +284,7 @@ test('excludes city hall invoices from commission without removing their revenue
   assert.match(report, /Comissão total: \*R\$8,00\*/);
 });
 
-test('omits Monteiro stock locations when the installation disables them', () => {
+test('keeps the financial message independent from stock-location configuration', () => {
   const period = getPreviousMonthPeriod(new Date(2026, 7, 1, 8, 0));
   const summary = summarizeMonthlyReport(
     period,
@@ -249,7 +300,8 @@ test('omits Monteiro stock locations when the installation disables them', () =>
     false
   );
 
-  assert.doesNotMatch(formatMonthlyReport(summary)[2]!, /📍 Local:/);
+  assert.equal(formatMonthlyReport(summary).length, 1);
+  assert.doesNotMatch(formatMonthlyReport(summary)[0]!, /📍 Local:/);
 });
 
 test('uses the previous calendar month and catches up after the first-day time', () => {
@@ -283,6 +335,8 @@ test('monthly scheduler sends only through the required private boss channel', (
     'utf8'
   );
   assert.match(source, /sendRequiredBossTextNotification/);
+  assert.match(source, /sendRequiredBossMediaNotification/);
+  assert.match(source, /application\/pdf/);
   assert.match(source, /BOSS_PRIVATE_NUMBER/);
   assert.doesNotMatch(source, /sendOwnerNotification/);
   assert.doesNotMatch(source, /WHATSAPP_OFFICIAL_GROUP_ID/);

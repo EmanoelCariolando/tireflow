@@ -1450,7 +1450,7 @@ export function formatCityHallQuestion(): string {
   return [
     '✅ Nota recebida.',
     '',
-    '💵*Comissão*',
+    '💵 *Comissão*',
     '*Essa Nota Tem Comissão?*',
     formatBinaryOptions(),
   ].join('\n');
@@ -1458,7 +1458,7 @@ export function formatCityHallQuestion(): string {
 
 export function formatTransferCityQuestion(): string {
   return [
-    '📍*Cidade*',
+    '📍 *Cidade*',
     '*Para Qual Cidade Vai esse Pneu?*',
   ].join('\n');
 }

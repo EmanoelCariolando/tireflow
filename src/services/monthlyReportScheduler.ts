@@ -1,17 +1,23 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
+import whatsappWeb from 'whatsapp-web.js';
 import env from '../config/env.js';
 import {
   COMMISSION_REPORT_STATE_PATH,
   MONTHLY_REPORT_STATE_PATH,
 } from '../config/appPaths.js';
-import { sendRequiredBossTextNotification } from './notificationService.js';
+import {
+  sendRequiredBossMediaNotification,
+  sendRequiredBossTextNotification,
+} from './notificationService.js';
 import {
   buildCommissionReport,
-  buildMonthlyReport,
+  buildMonthlyReportDelivery,
   getCommissionPeriod,
   getPreviousMonthPeriod,
 } from './monthlyReportService.js';
+
+const { MessageMedia: WhatsAppMessageMedia } = whatsappWeb;
 
 const CHECK_INTERVAL_MS = 30_000;
 
@@ -133,24 +139,33 @@ async function sendMonthlyReport(now: Date): Promise<void> {
       completedMonthlyPeriodKey = periodKey;
       return;
     }
-    const messages = await buildMonthlyReport(now, env.monthlyCommissionPercent);
+    const report = await buildMonthlyReportDelivery(now, env.monthlyCommissionPercent);
+    const deliveries = [
+      () => sendRequiredBossTextNotification(report.financialMessage),
+      () => sendRequiredBossMediaNotification(new WhatsAppMessageMedia(
+        'application/pdf',
+        report.pdfBuffer.toString('base64'),
+        report.pdfFileName,
+        report.pdfBuffer.length
+      )),
+    ];
     const sentParts = storedState?.periodKey === periodKey
-      ? Math.min(storedState.sentParts, messages.length)
+      ? Math.min(storedState.sentParts, deliveries.length)
       : 0;
 
-    for (let index = sentParts; index < messages.length; index++) {
-      await sendRequiredBossTextNotification(messages[index]!);
+    for (let index = sentParts; index < deliveries.length; index++) {
+      await deliveries[index]!();
       const nextSentParts = index + 1;
       await writeState(MONTHLY_REPORT_STATE_PATH, {
         periodKey,
         sentParts: nextSentParts,
-        completed: nextSentParts === messages.length,
+        completed: nextSentParts === deliveries.length,
       });
     }
 
     completedMonthlyPeriodKey = periodKey;
     console.log(
-      `[MONTHLY_REPORT] Report for ${periodKey} sent privately to BOSS_PRIVATE_NUMBER (${messages.length} parts).`
+      `[MONTHLY_REPORT] Financial message and inventory PDF for ${periodKey} sent privately to BOSS_PRIVATE_NUMBER.`
     );
   } catch (error) {
     console.error('[MONTHLY_REPORT] Error sending monthly report:', error);

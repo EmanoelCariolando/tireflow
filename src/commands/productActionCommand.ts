@@ -4,6 +4,12 @@ import { getLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { isCancellationResponse } from '../utils/operationResponse.js';
 import { getSaleSession } from '../utils/saleSessionStore.js';
+import { getEntrySession } from '../utils/entrySessionStore.js';
+import { getPriceSession } from '../utils/priceSessionStore.js';
+import { getAdjustmentSession } from '../utils/adjustmentSessionStore.js';
+import { getAddPhotoSession } from '../utils/addPhotoSessionStore.js';
+import { getLocationSession } from '../utils/locationSessionStore.js';
+import { hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
 import { formatQuantityQuestion } from '../utils/operationPrompts.js';
 import {
   clearProductActionSession,
@@ -19,7 +25,7 @@ import { handlePriceCommand } from './priceCommand.js';
 import { handleAddPhotoCommand, handlePhotoCommand } from './productPhotoCommand.js';
 import { handleSaleCommand } from './saleCommand.js';
 
-type IndexedCommandHandler = (message: Message, body: string) => Promise<void>;
+type IndexedCommandHandler = (message: Message, body: string) => Promise<boolean>;
 type SaleCommandStarter = (message: Message, body: string) => Promise<boolean>;
 
 export interface ProductActionDependencies {
@@ -40,12 +46,32 @@ const defaultDependencies: ProductActionDependencies = {
       getSaleSession(getMessageUserId(message), getMessageChatId(message))
     );
   },
-  entry: handleEntryCommand,
-  price: handlePriceCommand,
-  photo: handlePhotoCommand,
-  adjustment: handleAdjustmentCommand,
-  addPhoto: handleAddPhotoCommand,
-  location: handleLocationCommand,
+  entry: async (message, body) => {
+    await handleEntryCommand(message, body);
+    return Boolean(getEntrySession(getMessageUserId(message), getMessageChatId(message)));
+  },
+  price: async (message, body) => {
+    await handlePriceCommand(message, body);
+    return Boolean(getPriceSession(getMessageUserId(message), getMessageChatId(message)));
+  },
+  photo: async (message, body) => {
+    await handlePhotoCommand(message, body);
+    return false;
+  },
+  adjustment: async (message, body) => {
+    await handleAdjustmentCommand(message, body);
+    return Boolean(
+      getAdjustmentSession(getMessageUserId(message), getMessageChatId(message))
+    );
+  },
+  addPhoto: async (message, body) => {
+    await handleAddPhotoCommand(message, body);
+    return Boolean(getAddPhotoSession(getMessageUserId(message), getMessageChatId(message)));
+  },
+  location: async (message, body) => {
+    await handleLocationCommand(message, body);
+    return Boolean(getLocationSession(getMessageUserId(message), getMessageChatId(message)));
+  },
   inventoryLocationsEnabled: env.inventoryLocationsEnabled,
 };
 
@@ -175,10 +201,13 @@ export async function handleProductActionConversation(
       return true;
     }
 
-    clearProductActionSession(userId, chatId);
-    await zeroStockAction.handler(
+    await runIndexedAction(
       message,
-      `${zeroStockAction.command} ${optionNumber}`
+      zeroStockAction,
+      optionNumber,
+      userId,
+      chatId,
+      session.mode
     );
     return true;
   }
@@ -230,7 +259,40 @@ export async function handleProductActionConversation(
     return true;
   }
 
-  clearProductActionSession(userId, chatId);
-  await action.handler(message, `${action.command} ${optionNumber}`);
+  await runIndexedAction(
+    message,
+    action,
+    optionNumber,
+    userId,
+    chatId,
+    session.mode
+  );
   return true;
+}
+
+async function runIndexedAction(
+  message: Message,
+  action: { handler: IndexedCommandHandler; command: string },
+  optionNumber: number,
+  userId: string,
+  chatId: string,
+  mode: 'standard' | 'zero_stock'
+): Promise<void> {
+  clearProductActionSession(userId, chatId);
+  let actionStarted = false;
+  try {
+    actionStarted = await action.handler(message, `${action.command} ${optionNumber}`);
+  } finally {
+    // Read-only actions (such as viewing a photo) and actions that could not
+    // initialize must leave the menu usable for the next numeric choice.
+    if (!actionStarted && !hasActiveOperationSession(userId, chatId)) {
+      saveProductActionSession(
+        userId,
+        chatId,
+        'awaiting_action',
+        optionNumber,
+        mode
+      );
+    }
+  }
 }

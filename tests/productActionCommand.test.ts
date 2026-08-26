@@ -57,8 +57,9 @@ function saveQuery(): void {
 }
 
 function createDependencies(calls: string[]): ProductActionDependencies {
-  const handler = (name: string) => async (_message: Message, body: string): Promise<void> => {
+  const handler = (name: string) => async (_message: Message, body: string): Promise<boolean> => {
     calls.push(`${name}:${body}`);
+    return true;
   };
 
   return {
@@ -183,6 +184,70 @@ test('routes every additional product action to the selected tire', async () => 
   }
 });
 
+test('keeps the action menu active after viewing a photo so a sale can follow', async () => {
+  const replies: string[] = [];
+  const calls: string[] = [];
+  const dependencies = createDependencies(calls);
+  dependencies.photo = async (_message, body) => {
+    calls.push(`photo:${body}`);
+    replies.push('📷 Este produto ainda não possui foto cadastrada.');
+    return false;
+  };
+
+  try {
+    saveQuery();
+    saveProductActionSession(userId, chatId, 'awaiting_action', 2);
+
+    assert.equal(
+      await handleProductActionConversation(createMessage(replies), '4', dependencies),
+      true
+    );
+    assert.equal(replies.at(-1), '📷 Este produto ainda não possui foto cadastrada.');
+    assert.equal(getProductActionSession(userId, chatId)?.step, 'awaiting_action');
+    assert.equal(getProductActionSession(userId, chatId)?.optionNumber, 2);
+
+    assert.equal(
+      await handleProductActionConversation(createMessage(replies), '1', dependencies),
+      true
+    );
+    assert.equal(replies.at(-1), formatSaleQuantityQuestion());
+
+    assert.equal(
+      await handleProductActionConversation(createMessage(replies), '3', dependencies),
+      true
+    );
+    assert.deepEqual(calls, ['photo:foto 2', 'sale:venda 2 3']);
+  } finally {
+    clearProductActionSession(userId, chatId);
+    clearLastQuery(userId, chatId);
+  }
+});
+
+test('keeps the action menu active when another action cannot initialize', async () => {
+  const calls: string[] = [];
+  const dependencies = createDependencies(calls);
+  dependencies.adjustment = async (_message, body) => {
+    calls.push(`adjustment:${body}`);
+    return false;
+  };
+
+  try {
+    saveQuery();
+    saveProductActionSession(userId, chatId, 'awaiting_action', 2);
+
+    assert.equal(
+      await handleProductActionConversation(createMessage([]), '5', dependencies),
+      true
+    );
+    assert.deepEqual(calls, ['adjustment:ajuste 2']);
+    assert.equal(getProductActionSession(userId, chatId)?.step, 'awaiting_action');
+    assert.equal(getProductActionSession(userId, chatId)?.optionNumber, 2);
+  } finally {
+    clearProductActionSession(userId, chatId);
+    clearLastQuery(userId, chatId);
+  }
+});
+
 test('zero-stock selection offers and routes only entry, price and location', async () => {
   const expected = new Map([
     ['1', 'entry:entrada 2'],
@@ -233,6 +298,32 @@ test('zero-stock selection offers and routes only entry, price and location', as
       );
       assert.deepEqual(calls, [expectedCall]);
     }
+  } finally {
+    clearProductActionSession(userId, chatId);
+    clearLastQuery(userId, chatId);
+  }
+});
+
+test('keeps the zero-stock action menu active when an action cannot initialize', async () => {
+  const calls: string[] = [];
+  const dependencies = createDependencies(calls);
+  dependencies.location = async (_message, body) => {
+    calls.push(`location:${body}`);
+    return false;
+  };
+
+  try {
+    saveQuery();
+    saveProductActionSession(userId, chatId, 'awaiting_action', 2, 'zero_stock');
+
+    assert.equal(
+      await handleProductActionConversation(createMessage([]), '3', dependencies),
+      true
+    );
+    assert.deepEqual(calls, ['location:local 2']);
+    assert.equal(getProductActionSession(userId, chatId)?.step, 'awaiting_action');
+    assert.equal(getProductActionSession(userId, chatId)?.optionNumber, 2);
+    assert.equal(getProductActionSession(userId, chatId)?.mode, 'zero_stock');
   } finally {
     clearProductActionSession(userId, chatId);
     clearLastQuery(userId, chatId);

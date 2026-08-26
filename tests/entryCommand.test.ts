@@ -76,7 +76,6 @@ test('formats entry confirmation with supplier, invoice number and prices in com
     oldCreditPrice: 877.08,
     quantity: 4,
     supplier: 'GP',
-    invoiceName: 'GP',
     invoiceNumber: '201345',
     stockLocation: 'W3',
     updatedAt: Date.now(),
@@ -91,7 +90,6 @@ test('formats entry confirmation with supplier, invoice number and prices in com
       '📥 Quantidade: *+4*',
       '',
       '🚚 Fornecedor: *GP* | 📃 Número da nota: *201345*',
-      '🧾 Nome da nota: *GP*',
       '',
       '💰 À vista: *R$829,00* | 💳 A prazo: *R$877,08*',
       '',
@@ -164,10 +162,7 @@ test('asks whether to change prices before confirming an entry', async () => {
     assert.equal(replies.at(-1), '📦 *QUANTIDADE*\nQuantos pneus?');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_quantity');
     await handleEntryConversation(message, '10');
-    assert.equal(replies.at(-1), '🧾 *NOME DA NOTA*\nInforme o nome da nota fiscal:');
-    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_invoice_name');
-    await handleEntryConversation(message, 'Distribuidora Teste');
-    assert.equal(replies.at(-1), '🧾 *NÚMERO DA NOTA*\nInforme o número da nota fiscal:');
+    assert.equal(replies.at(-1), '📋 *NÚMERO DA NOTA*\nnúmero da nota fiscal:');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_invoice_number');
     await handleEntryConversation(message, 'nota #1');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_invoice_number');
@@ -179,11 +174,11 @@ test('asks whether to change prices before confirming an entry', async () => {
 
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_price_decision');
     assert.match(replies.at(-1) ?? '', /VOCÊ QUER ALTERAR O PREÇO/);
-    assert.match(replies.at(-1) ?? '', /1️⃣\*Sim\* \| 2️⃣\*Não\*/);
+    assert.match(replies.at(-1) ?? '', /1️⃣ \*Sim\* \| 2️⃣ \*Não\*/);
 
     await handleEntryConversation(message, 'talvez');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_price_decision');
-    assert.match(replies.at(-1) ?? '', /1️⃣\*Sim\* \| 2️⃣\*Não\*/);
+    assert.match(replies.at(-1) ?? '', /1️⃣ \*Sim\* \| 2️⃣ \*Não\*/);
 
     await handleEntryConversation(message, '1');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_cash_price');
@@ -199,7 +194,7 @@ test('asks whether to change prices before confirming an entry', async () => {
     await handleEntryConversation(message, '2');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_confirmation');
     assert.match(replies.at(-1) ?? '', /Fornecedor: \*ABC Pneus\* \| 📃 Número da nota: \*NF-2026\/001\*/);
-    assert.match(replies.at(-1) ?? '', /🧾 Nome da nota: \*Distribuidora Teste\*/);
+    assert.doesNotMatch(replies.at(-1) ?? '', /Nome da nota/);
     assert.match(replies.at(-1) ?? '', /À vista: R\$250,00 → \*R\$275,00\* \| 💳 A prazo: R\$264,50 → \*R\$290,95\*/);
   } finally {
     env.inventoryLocationsEnabled = previousLocationsFlag;
@@ -229,7 +224,6 @@ test('asks and validates the stock location after supplier only in Monteiro', as
 
     await handleEntryCommand(message, 'entrada 1');
     await handleEntryConversation(message, '10');
-    await handleEntryConversation(message, 'Distribuidora Monteiro');
     await handleEntryConversation(message, '987654');
     await handleEntryConversation(message, 'ABC Pneus');
 
@@ -274,7 +268,6 @@ test('adds the location transition only to the private entry notification', () =
     stockLocation: 'W3',
     newCashPrice: 389,
     newCreditPrice: 411.56,
-    invoiceName: 'Distribuidora Speedmax',
     invoiceNumber: 'NF-4455',
     updatedAt: Date.now(),
   };
@@ -291,9 +284,9 @@ test('adds the location transition only to the private entry notification', () =
   const bossMessage = formatBossEntryNotification(baseSession, 'Responsável', registered);
 
   assert.doesNotMatch(groupMessage, /📍 Local:/);
-  assert.match(groupMessage, /Nota: \*Distribuidora Speedmax\* \| Nº: \*NF-4455\*/);
+  assert.match(groupMessage, /Nº da nota: \*NF-4455\*/);
   assert.match(bossMessage, /📍 Local: \*CG → W3\*/);
-  assert.match(bossMessage, /Nota: \*Distribuidora Speedmax\* \| Nº: \*NF-4455\*/);
+  assert.match(bossMessage, /Nº da nota: \*NF-4455\*/);
 
   const firstLocationMessage = formatBossEntryNotification(
     baseSession,
@@ -324,7 +317,6 @@ test('keeps current prices when the entry price answer is 2', async () => {
 
     await handleEntryCommand(message, 'entrada 1');
     await handleEntryConversation(message, '4');
-    await handleEntryConversation(message, 'Fornecedor da Nota');
     await handleEntryConversation(message, '123456');
     await handleEntryConversation(message, 'Fornecedor Teste');
     await handleEntryConversation(message, '2');
@@ -368,7 +360,6 @@ test('adds another tire and keeps the final confirmation compact', async () => {
 
     await handleEntryCommand(message, 'entrada 1');
     await handleEntryConversation(message, '10');
-    await handleEntryConversation(message, 'Distribuidora Multi');
     await handleEntryConversation(message, 'NF-7788');
     await handleEntryConversation(message, 'Fornecedor A');
     await handleEntryConversation(message, '2');
@@ -477,7 +468,7 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.match(confirmation, /📥 Adicionou: \*\+10\* \| 🏷️ sem alteração/);
     assert.match(confirmation, /📥 Adicionou: \*\+3\* \| 💰 À vista: R\$2100,00/);
     assert.match(confirmation, /📃 A prazo: R\$2221,80/);
-    assert.match(confirmation, /Nota: \*Distribuidora Multi\* \| Nº: \*NF-7788\*\n📦 Total de itens: \*2\*/);
+    assert.match(confirmation, /Nº da nota: \*NF-7788\*\n📦 Total de itens: \*2\*/);
     assert.match(confirmation, /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
     assert.ok(confirmation.split('\n').length <= 15);
 
@@ -503,7 +494,7 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.match(registered, /📥 Adicionou: \*\+3\* \| 💰 À vista: R\$2100,00/);
     assert.match(registered, /📃 A prazo: R\$2221,80/);
     assert.match(registered, /📦 Estoque atual: \*3\*/);
-    assert.match(registered, /Nota: \*Distribuidora Multi\* \| Nº: \*NF-7788\*/);
+    assert.match(registered, /Nº da nota: \*NF-7788\*/);
     assert.doesNotMatch(registered, /#E-00000[12]/);
   } finally {
     env.inventoryLocationsEnabled = previousLocationsFlag;

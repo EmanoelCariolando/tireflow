@@ -2,9 +2,13 @@ import { MovementType } from '@prisma/client';
 import type { Movement, Product, User } from '@prisma/client';
 import env from '../config/env.js';
 import { movementRepository } from '../repositories/movementRepository.js';
+import { productRepository } from '../repositories/productRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
-import { formatStockLocationLine } from '../utils/stockLocation.js';
+import {
+  buildMonthlyInventoryPdf,
+  getMonthlyInventoryPdfFileName,
+} from './monthlyInventoryPdfService.js';
 
 export type MonthlyMovementWithRelations = Movement & {
   product: Product;
@@ -74,8 +78,13 @@ export interface CommissionReportFormatInput {
   sellers: SellerSummary[];
 }
 
+export interface MonthlyReportDelivery {
+  financialMessage: string;
+  pdfBuffer: Buffer;
+  pdfFileName: string;
+}
+
 const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
-const ZERO_STOCK_ITEMS_PER_MESSAGE = 8;
 
 export async function buildMonthlyReport(
   referenceDate = new Date(),
@@ -97,6 +106,37 @@ export async function buildMonthlyReport(
       env.inventoryLocationsEnabled
     )
   );
+}
+
+export async function buildMonthlyReportDelivery(
+  referenceDate = new Date(),
+  commissionPercent = env.monthlyCommissionPercent
+): Promise<MonthlyReportDelivery> {
+  const period = getPreviousMonthPeriod(referenceDate);
+  const previousPeriod = getPreviousMonthPeriod(period.start);
+  const [movements, previousMovements, products] = await Promise.all([
+    movementRepository.findByDateRange(period.start, period.end),
+    movementRepository.findByDateRange(previousPeriod.start, previousPeriod.end),
+    productRepository.findActiveWithPositiveStock(),
+  ]);
+  const report = summarizeMonthlyReport(
+    period,
+    movements,
+    previousMovements,
+    commissionPercent,
+    env.inventoryLocationsEnabled
+  );
+
+  return {
+    financialMessage: formatMonthlyReport(report)[0]!,
+    pdfBuffer: await buildMonthlyInventoryPdf({
+      report,
+      products,
+      branchName: env.branchName,
+      generatedAt: referenceDate,
+    }),
+    pdfFileName: getMonthlyInventoryPdfFileName(period.key),
+  };
 }
 
 export async function buildCommissionReport(
@@ -168,11 +208,7 @@ export function summarizeCommissionReport(
 }
 
 export function formatMonthlyReport(input: MonthlyReportFormatInput): string[] {
-  return [
-    formatFinancialSummary(input),
-    formatProducts(input),
-    ...formatZeroStockMessages(input),
-  ];
+  return [formatFinancialSummary(input)];
 }
 
 export function formatCommissionReport(input: CommissionReportFormatInput): string {
@@ -209,7 +245,7 @@ export function formatCommissionReport(input: CommissionReportFormatInput): stri
 function formatFinancialSummary(input: MonthlyReportFormatInput): string {
   const ticketAverage = input.saleCount > 0 ? input.totalRevenue / input.saleCount : 0;
   return [
-    `📊 *RELATÓRIO MENSAL — ${formatMonthLabel(input.period.start)}*`,
+    `📊 *FATURAMENTO MENSAL — ${formatMonthLabel(input.period.start)}*`,
     `Período: ${formatDate(input.period.start)} a ${formatDate(previousDay(input.period.end))}`,
     '',
     '💰 *RESULTADO DO MÊS*',
@@ -232,94 +268,8 @@ function formatFinancialSummary(input: MonthlyReportFormatInput): string {
     formatRevenueComparison(input.totalRevenue, input.previousMonthRevenue),
     formatUnitsComparison(input.unitsSold, input.previousMonthUnitsSold),
     '',
-    '_TireFlow • Relatório mensal automático_',
+    '_TireFlow • Faturamento mensal automático_',
   ].join('\n');
-}
-
-function formatProducts(input: MonthlyReportFormatInput): string {
-  const lines = [
-    `🏆 *PNEUS MAIS VENDIDOS — ${formatMonthLabel(input.period.start)}*`,
-    '',
-  ];
-  if (input.bestSellers.length === 0) {
-    lines.push('Nenhum pneu vendido no mês.');
-  } else {
-    const medals = ['🥇', '🥈', '🥉'];
-    for (const [index, product] of input.bestSellers.entries()) {
-      lines.push(
-        `${medals[index]} *${product.reference}* — *${product.description}*`,
-        `Vendidos: *${product.quantity}* | Faturamento: *${formatCurrency(product.totalValue)}*`,
-        ''
-      );
-    }
-    lines.pop();
-  }
-
-  return lines.join('\n');
-}
-
-function formatZeroStockMessages(input: MonthlyReportFormatInput): string[] {
-  const products = [...input.zeroStockProducts].sort((left, right) => {
-    if (left.endedAtZero !== right.endedAtZero) {
-      return left.endedAtZero ? -1 : 1;
-    }
-    return left.zeroedAt.getTime() - right.zeroedAt.getTime();
-  });
-
-  if (products.length === 0) {
-    return [
-      [
-        `⚠️ *PNEUS QUE ZERARAM — ${formatMonthLabel(input.period.start)}*`,
-        '',
-        'Nenhum pneu chegou a estoque zero no mês.',
-      ].join('\n'),
-    ];
-  }
-
-  const chunks: ZeroStockSummary[][] = [];
-  for (let index = 0; index < products.length; index += ZERO_STOCK_ITEMS_PER_MESSAGE) {
-    chunks.push(products.slice(index, index + ZERO_STOCK_ITEMS_PER_MESSAGE));
-  }
-
-  const continuingAtZero = products.filter((product) => product.endedAtZero).length;
-  return chunks.map((chunk, chunkIndex) => {
-    const lines = [
-      `⚠️ *PNEUS QUE ZERARAM — ${formatMonthLabel(input.period.start)}*`,
-      ...(chunks.length > 1 ? [`Parte ${chunkIndex + 1}/${chunks.length}`] : []),
-      '',
-    ];
-
-    for (const product of chunk) {
-      lines.push(
-        `${product.endedAtZero ? '🔴' : '🟡'} *${product.reference}* — *${product.description}*`,
-        `Vendidos: *${product.soldQuantity}* | Zerou: ${formatDate(product.zeroedAt)}`
-      );
-      const locationLine = formatStockLocationLine(
-        product.stockLocation,
-        input.showStockLocations
-      );
-      if (locationLine) {
-        lines.push(locationLine);
-      }
-      lines.push(
-        product.endedAtZero
-          ? 'Situação no fechamento: *Continua zerado*'
-          : `Reposto: *${product.replenishedAt ? formatDate(product.replenishedAt) : 'antes do fechamento'}*`,
-        ''
-      );
-    }
-
-    if (chunkIndex === chunks.length - 1) {
-      lines.push(
-        `Continuaram zerados: *${continuingAtZero}*`,
-        `Repostos no mês: *${products.length - continuingAtZero}*`
-      );
-    } else {
-      lines.pop();
-    }
-
-    return lines.join('\n');
-  });
 }
 
 function calculateMonthlyPaymentTotals(sales: MonthlyMovementWithRelations[]): PaymentTotals {
