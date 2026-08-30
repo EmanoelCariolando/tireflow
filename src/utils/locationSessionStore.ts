@@ -1,3 +1,5 @@
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+
 export type LocationSessionStep =
   | 'awaiting_location'
   | 'awaiting_confirmation'
@@ -16,7 +18,7 @@ export interface LocationSession {
 }
 
 const locationSessions = new Map<string, LocationSession>();
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;

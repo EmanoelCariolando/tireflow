@@ -5,6 +5,7 @@ import env from '../src/config/env.js';
 import {
   handleProductRegistrationConversation,
   handleProductRegistrationStart,
+  handleEntryProductRegistrationStart,
   isProductRegistrationCommand,
   normalizeProductDescription,
   parseNonNegativeInteger,
@@ -14,7 +15,13 @@ import { handleMenuCommand, handleMenuSelection } from '../src/commands/menuComm
 import {
   clearProductRegistrationSession,
   getProductRegistrationSession,
+  saveProductRegistrationSession,
 } from '../src/utils/productRegistrationSessionStore.js';
+import {
+  clearEntrySession,
+  getEntrySession,
+  saveEntrySession,
+} from '../src/utils/entrySessionStore.js';
 
 function createMessage(userId: string, chatId: string, replies: string[]): Message {
   return {
@@ -66,9 +73,8 @@ test('guides a zero-stock registration through validation and confirmation', asy
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
     assert.equal(
       replies.at(-1),
-      '🆕 *DIGITAR MEDIDA*\n' +
-        '*Digite apenas a medida:*\n\n' +
-        'Ex.: 175/70 R14, 110/90-17, 18.4/30'
+      '🆕 *MEDIDA*\n' +
+        '*Digite a medida:*'
     );
 
     await handleProductRegistrationConversation(message, 'medida errada');
@@ -163,6 +169,78 @@ test('guides wheel registration with RODA as the reference', async () => {
   }
 });
 
+test('asks for the measure separately and keeps the note context when registering during an entry', async () => {
+  const userId = 'entry-registration-user';
+  const chatId = 'entry-registration-group@g.us';
+  const replies: string[] = [];
+  const message = createMessage(userId, chatId, replies);
+  const previousLocationsFlag = env.inventoryLocationsEnabled;
+
+  try {
+    env.inventoryLocationsEnabled = false;
+    saveEntrySession({
+      userId,
+      chatId,
+      step: 'awaiting_additional_item',
+      productId: 'existing-product',
+      reference: '175/70 R14',
+      description: 'PNEU EXISTENTE',
+      oldCashPrice: 250,
+      oldCreditPrice: 264.5,
+      invoiceNumber: 'NF-100',
+      items: [{
+        productId: 'existing-product',
+        reference: '175/70 R14',
+        description: 'PNEU EXISTENTE',
+        oldCashPrice: 250,
+        oldCreditPrice: 264.5,
+        quantity: 4,
+        supplier: 'Fornecedor da Nota',
+      }],
+      additionalMeasure: '205/55 R16',
+      additionalProducts: [],
+      updatedAt: Date.now(),
+    });
+
+    await handleEntryProductRegistrationStart(message);
+    assert.equal(getProductRegistrationSession(userId, chatId)?.origin, 'entry');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.reference, undefined);
+    assert.equal(replies.at(-1), '🆕 *MEDIDA*\n*Digite a medida:*');
+
+    await handleProductRegistrationConversation(message, '205/55 R16');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.reference, '205/55 R16');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_description');
+    assert.match(replies.at(-1) ?? '', /MARCA DO PNEU/);
+
+    await handleProductRegistrationConversation(message, 'Michelin Primacy 4');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_initial_stock');
+    assert.equal(
+      replies.at(-1),
+      '📦 *QUANTIDADE NA NOTA*\nQuantos pneus serão adicionados?'
+    );
+
+    await handleProductRegistrationConversation(message, '0');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_initial_stock');
+    assert.match(replies.at(-1) ?? '', /Quantidade inválida/);
+
+    await handleProductRegistrationConversation(message, '3');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_cash_price');
+    assert.doesNotMatch(replies.at(-1) ?? '', /FORNECEDOR/);
+
+    await handleProductRegistrationConversation(message, '499,90');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_confirmation');
+    assert.match(replies.at(-1) ?? '', /CADASTRO NA NOTA — CONFIRMAR/);
+    assert.match(replies.at(-1) ?? '', /Quantidade na nota: \*\+3\*/);
+    assert.doesNotMatch(replies.at(-1) ?? '', /Fornecedor:/);
+    assert.equal(getEntrySession(userId, chatId)?.items?.length, 1);
+  } finally {
+    env.inventoryLocationsEnabled = previousLocationsFlag;
+    clearProductRegistrationSession(userId, chatId);
+    clearEntrySession(userId, chatId);
+  }
+});
+
 test('requires a supplier for initial stock and allows an optional valid location', async () => {
   const userId = 'new-product-stock-user';
   const chatId = 'new-product-stock-group@g.us';
@@ -214,7 +292,48 @@ test('shows product registration as menu option 3 and starts its isolated flow',
 
     assert.equal(await handleMenuSelection(message, '3'), true);
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
-    assert.match(replies.at(-1) ?? '', /DIGITAR MEDIDA/);
+    assert.equal(replies.at(-1), '🆕 *MEDIDA*\n*Digite a medida:*');
+  } finally {
+    clearProductRegistrationSession(userId, chatId);
+  }
+});
+
+test('asks whether to register another product after a menu registration', async () => {
+  const userId = 'additional-registration-user';
+  const chatId = 'additional-registration-group@g.us';
+  const replies: string[] = [];
+  const message = createMessage(userId, chatId, replies);
+
+  try {
+    saveProductRegistrationSession({
+      userId,
+      chatId,
+      step: 'awaiting_additional_decision',
+      registeredProductCount: 1,
+      updatedAt: Date.now(),
+    });
+
+    await handleProductRegistrationConversation(message, 'talvez');
+    assert.match(
+      replies.at(-1) ?? '',
+      /QUER ADICIONAR MAIS ALGUM PNEU\?\*\n\nItens preparados: \*1\*\n\n1️⃣ \*Sim\* \| 2️⃣ \*Não\*$/
+    );
+
+    await handleProductRegistrationConversation(message, '1');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.registeredProductCount, 1);
+    assert.equal(replies.at(-1), '🆕 *MEDIDA*\n*Digite a medida:*');
+
+    saveProductRegistrationSession({
+      userId,
+      chatId,
+      step: 'awaiting_additional_decision',
+      registeredProductCount: 2,
+      updatedAt: Date.now(),
+    });
+    await handleProductRegistrationConversation(message, '2');
+    assert.equal(getProductRegistrationSession(userId, chatId), null);
+    assert.equal(replies.at(-1), '✅ *CADASTRO FINALIZADO*\nPneus cadastrados: *2*');
   } finally {
     clearProductRegistrationSession(userId, chatId);
   }

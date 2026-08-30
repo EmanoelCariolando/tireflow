@@ -8,6 +8,13 @@ import { disconnectPrisma } from './database/prisma.js';
 import { installStructuredLogging } from './services/logger.js';
 import { runStartupChecks } from './services/startupService.js';
 import { startHealthMonitor, stopHealthMonitor } from './services/healthService.js';
+import {
+  cancelStartupRecoveryReset,
+  clearStartupRecoveryState,
+  recordStartupFailure,
+  scheduleStartupRecoveryReset,
+  waitForStartupRecoveryWindow,
+} from './services/startupRecoveryGuard.js';
 
 let isShuttingDown = false;
 
@@ -28,6 +35,11 @@ let isShuttingDown = false;
  */
 async function main(): Promise<void> {
   installStructuredLogging();
+  console.log('[PROCESS] TireFlow instance starting.', {
+    processId: process.pid,
+    nodeVersion: process.version,
+  });
+  await waitForStartupRecoveryWindow();
   console.log('========================================');
   console.log('   TireFlow - WhatsApp Bot (MVP)');
   console.log('========================================\n');
@@ -62,6 +74,7 @@ async function main(): Promise<void> {
     startDailyReportScheduler();
     startMonthlyReportScheduler();
     startHealthMonitor();
+    scheduleStartupRecoveryReset();
 
     console.log('Bot is running. Press Ctrl+C to stop.\n');
   } catch (error) {
@@ -86,6 +99,16 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   } catch (error) {
     console.error('Error while stopping WhatsApp client:', error);
   } finally {
+    cancelStartupRecoveryReset();
+    if (exitCode === 0) {
+      await clearStartupRecoveryState().catch((error: unknown) => {
+        console.error('[STARTUP_RECOVERY] Could not clear state during clean shutdown.', error);
+      });
+    } else {
+      await recordStartupFailure(signal).catch((error: unknown) => {
+        console.error('[STARTUP_RECOVERY] Could not record the startup failure.', error);
+      });
+    }
     await disconnectPrisma().catch((error: unknown) => {
       console.error('[DATABASE] Error disconnecting Prisma.', error);
     });

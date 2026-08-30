@@ -1,3 +1,5 @@
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+
 export type ProductActionSessionStep =
   | 'awaiting_product'
   | 'awaiting_action'
@@ -14,7 +16,7 @@ export interface ProductActionSession {
   expiresAt: number;
 }
 
-export const PRODUCT_ACTION_SESSION_TTL_MS = 9 * 60 * 1000;
+export const PRODUCT_ACTION_SESSION_TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 const productActionSessions = new Map<string, ProductActionSession>();
 

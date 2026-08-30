@@ -1,6 +1,8 @@
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+
 export type MenuSessionStep = 'awaiting_selection' | 'awaiting_low_stock_measure';
 
-const MENU_SESSION_TTL_MS = 5 * 60 * 1000;
+const MENU_SESSION_TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 interface MenuSession {
   userId: string;

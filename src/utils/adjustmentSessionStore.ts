@@ -1,3 +1,5 @@
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+
 export type AdjustmentSessionStep =
   | 'awaiting_new_stock'
   | 'awaiting_reason'
@@ -18,7 +20,7 @@ export interface AdjustmentSession {
 }
 
 const adjustmentSessions = new Map<string, AdjustmentSession>();
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;

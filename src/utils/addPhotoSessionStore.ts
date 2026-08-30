@@ -1,3 +1,5 @@
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+
 export type AddPhotoSessionStep = 'awaiting_image';
 
 export interface AddPhotoSession {
@@ -11,7 +13,7 @@ export interface AddPhotoSession {
 }
 
 const addPhotoSessions = new Map<string, AddPhotoSession>();
-export const ADD_PHOTO_SESSION_TTL_MS = 5 * 60 * 1000;
+export const ADD_PHOTO_SESSION_TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;

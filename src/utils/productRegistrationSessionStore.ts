@@ -1,3 +1,5 @@
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+
 export type ProductRegistrationSessionStep =
   | 'awaiting_measure'
   | 'awaiting_description'
@@ -6,12 +8,14 @@ export type ProductRegistrationSessionStep =
   | 'awaiting_cash_price'
   | 'awaiting_location'
   | 'awaiting_confirmation'
+  | 'awaiting_additional_decision'
   | 'processing';
 
 export interface ProductRegistrationSession {
   userId: string;
   chatId: string;
   step: ProductRegistrationSessionStep;
+  origin?: 'entry';
   reference?: string;
   description?: string;
   initialStock?: number;
@@ -19,11 +23,12 @@ export interface ProductRegistrationSession {
   cashPrice?: number;
   creditPrice?: number;
   stockLocation?: string | null;
+  registeredProductCount?: number;
   updatedAt: number;
 }
 
 const productRegistrationSessions = new Map<string, ProductRegistrationSession>();
-const TTL_MS = 10 * 60 * 1000;
+const TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;

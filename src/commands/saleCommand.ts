@@ -55,7 +55,6 @@ import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryRespons
 import env from '../config/env.js';
 
 const SALE_COMMAND_REGEX = /^venda\s+(\d+)\s+(\d+)$/i;
-const DISCOUNT_PERCENT = 3;
 const MAX_SALE_ITEMS = 20;
 const TRANSFER_PAYMENT_ENABLED = false;
 const MIXED_PAYMENT_MENU = [
@@ -160,6 +159,14 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   const normalizedBody = body.trim().toLowerCase();
 
+  if (
+    normalizedBody === '0' &&
+    (session.step === 'awaiting_discount_type' || session.step === 'awaiting_discount_value')
+  ) {
+    await handleDiscountBackStep(message, session);
+    return true;
+  }
+
   if (isCancellationResponse(normalizedBody)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ *OPERAÇÃO CANCELADA*');
@@ -203,6 +210,16 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   if (session.step === 'awaiting_price_type') {
     await handlePriceTypeStep(message, session, normalizedBody);
+    return true;
+  }
+
+  if (session.step === 'awaiting_discount_type') {
+    await handleDiscountTypeStep(message, session, normalizedBody);
+    return true;
+  }
+
+  if (session.step === 'awaiting_discount_value') {
+    await handleDiscountValueStep(message, session, body);
     return true;
   }
 
@@ -282,9 +299,9 @@ async function handlePaymentStep(
   }
 
   if (isDiscountSelection(normalizedBody)) {
-    if (session.discountPercent) {
+    if (hasDiscount(session)) {
       await message.reply(
-        `O desconto de ${session.discountPercent}% já foi aplicado.\n\n${formatPaymentMenu(session)}`
+        `Um desconto já foi aplicado nesta venda.\n\n${formatPaymentMenu(session)}`
       );
       return;
     }
@@ -296,24 +313,15 @@ async function handlePaymentStep(
       return;
     }
 
-    const originalTotalInCents = items.reduce(
-      (total, item) => total + Math.round(item.totalValue * 100),
-      0
-    );
-    const discountInCents = Math.round(originalTotalInCents * DISCOUNT_PERCENT / 100);
-    const totalValue = (originalTotalInCents - discountInCents) / 100;
-    const discountedSession: SaleSession = {
+    const discountSession: SaleSession = {
       ...session,
-      step: 'awaiting_discount_confirmation',
+      step: 'awaiting_discount_type',
       paymentMethod: undefined,
-      unitPrice: items.length === 1 ? totalValue / session.quantity : session.unitPrice,
-      totalValue,
-      originalTotalValue: originalTotalInCents / 100,
-      discountPercent: DISCOUNT_PERCENT,
+      pendingDiscountType: undefined,
       updatedAt: Date.now(),
     };
-    saveSaleSession(discountedSession);
-    await message.reply(formatDiscountPreview(discountedSession));
+    saveSaleSession(discountSession);
+    await message.reply(formatDiscountMenu());
     return;
   }
 
@@ -606,6 +614,120 @@ async function handlePriceTypeStep(
   await message.reply(formatPaymentMenu(nextSession));
 }
 
+async function handleDiscountTypeStep(
+  message: Message,
+  session: SaleSession,
+  normalizedBody: string
+): Promise<void> {
+  if (normalizedBody === '0' || isBackResponse(normalizedBody)) {
+    await handleDiscountBackStep(message, session);
+    return;
+  }
+
+  const discountType = parseDiscountType(normalizedBody);
+  if (!discountType) {
+    await message.reply(`❌ Opção inválida.\n\n${formatDiscountMenu()}`);
+    return;
+  }
+
+  saveSaleSession({
+    ...session,
+    step: 'awaiting_discount_value',
+    pendingDiscountType: discountType,
+    updatedAt: Date.now(),
+  });
+  await message.reply(formatDiscountValueQuestion(discountType));
+}
+
+async function handleDiscountValueStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  if (isBackResponse(body)) {
+    await handleDiscountBackStep(message, session);
+    return;
+  }
+
+  const items = getSaleItems(session);
+  const originalTotalInCents = items.reduce(
+    (total, item) => total + Math.round(item.totalValue * 100),
+    0
+  );
+
+  if (items.length === 0 || originalTotalInCents <= 0 || !session.pendingDiscountType) {
+    clearSaleSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão da venda. Faça a consulta novamente.');
+    return;
+  }
+
+  const discountPercent = session.pendingDiscountType === 'percent'
+    ? parseDiscountPercent(body)
+    : null;
+  const discountInCents = session.pendingDiscountType === 'percent'
+    ? discountPercent === null
+      ? null
+      : Math.round(originalTotalInCents * discountPercent / 100)
+    : parseCurrencyToCents(body);
+
+  if (
+    discountInCents === null ||
+    discountInCents <= 0 ||
+    discountInCents >= originalTotalInCents
+  ) {
+    await message.reply(
+      `❌ *DESCONTO INVÁLIDO*\n\n${formatDiscountValueQuestion(
+        session.pendingDiscountType,
+        originalTotalInCents / 100
+      )}`
+    );
+    return;
+  }
+
+  const totalValue = (originalTotalInCents - discountInCents) / 100;
+  const discountedSession: SaleSession = {
+    ...session,
+    step: 'awaiting_discount_confirmation',
+    unitPrice: items.length === 1 ? totalValue / session.quantity : session.unitPrice,
+    totalValue,
+    originalTotalValue: originalTotalInCents / 100,
+    discountPercent: session.pendingDiscountType === 'percent'
+      ? discountPercent ?? undefined
+      : undefined,
+    discountAmount: session.pendingDiscountType === 'amount'
+      ? discountInCents / 100
+      : undefined,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(discountedSession);
+  await message.reply(formatDiscountPreview(discountedSession));
+}
+
+async function handleDiscountBackStep(
+  message: Message,
+  session: SaleSession
+): Promise<void> {
+  if (session.step === 'awaiting_discount_value') {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_discount_type',
+      pendingDiscountType: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatDiscountMenu());
+    return;
+  }
+
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_payment',
+    pendingDiscountType: undefined,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply(formatPaymentMenu(nextSession));
+}
+
 async function handleDiscountConfirmationStep(
   message: Message,
   session: SaleSession,
@@ -623,15 +745,17 @@ async function handleDiscountConfirmationStep(
     const items = getSaleItems(session);
     const nextSession: SaleSession = {
       ...session,
-      step: 'awaiting_payment',
+      step: 'awaiting_discount_type',
       unitPrice: items.at(-1)?.unitPrice ?? session.unitPrice,
       totalValue: session.originalTotalValue ?? session.totalValue,
       originalTotalValue: undefined,
       discountPercent: undefined,
+      discountAmount: undefined,
+      pendingDiscountType: undefined,
       updatedAt: Date.now(),
     };
     saveSaleSession(nextSession);
-    await message.reply(formatPaymentMenu(nextSession));
+    await message.reply(formatDiscountMenu());
     return;
   }
 
@@ -643,6 +767,7 @@ async function handleDiscountConfirmationStep(
   const nextSession: SaleSession = {
     ...session,
     step: 'awaiting_payment',
+    pendingDiscountType: undefined,
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
@@ -1185,6 +1310,29 @@ function isDiscountSelection(value: string): boolean {
   return normalized === '6' || normalized === 'desconto';
 }
 
+function parseDiscountType(value: string): 'percent' | 'amount' | null {
+  const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (normalized === '1' || normalized === '%' || normalized === 'desconto %') {
+    return 'percent';
+  }
+  if (normalized === '2' || normalized === 'r$' || normalized === 'desconto r$') {
+    return 'amount';
+  }
+  return null;
+}
+
+function parseDiscountPercent(value: string): number | null {
+  const normalized = value.trim().replace(/%$/, '').replace(',', '.');
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
+    return null;
+  }
+
+  const percent = Number(normalized);
+  return Number.isFinite(percent) && percent > 0 && percent < 100
+    ? Math.round(percent * 100) / 100
+    : null;
+}
+
 function isAddItemSelection(value: string): boolean {
   const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   return (
@@ -1278,6 +1426,23 @@ function isNewOperationCommand(normalizedBody: string): boolean {
   return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
+function hasDiscount(session: SaleSession): boolean {
+  return Boolean(
+    (session.discountPercent !== undefined && session.discountPercent > 0) ||
+    (session.discountAmount !== undefined && session.discountAmount > 0)
+  );
+}
+
+function getDiscountInCents(session: SaleSession, originalTotalInCents: number): number {
+  if (session.discountPercent !== undefined && session.discountPercent > 0) {
+    return Math.round(originalTotalInCents * session.discountPercent / 100);
+  }
+  if (session.discountAmount !== undefined && session.discountAmount > 0) {
+    return Math.round(session.discountAmount * 100);
+  }
+  return 0;
+}
+
 function appendPricedItemToSession(
   session: SaleSession,
   priceType: SalePriceType
@@ -1299,9 +1464,7 @@ function appendPricedItemToSession(
     (total, item) => total + Math.round(item.totalValue * 100),
     0
   );
-  const discountInCents = session.discountPercent
-    ? Math.round(originalTotalInCents * session.discountPercent / 100)
-    : 0;
+  const discountInCents = getDiscountInCents(session, originalTotalInCents);
   const totalValue = (originalTotalInCents - discountInCents) / 100;
   const sharedPriceType = items.every((item) => item.priceType === items[0]?.priceType)
     ? items[0]?.priceType
@@ -1313,7 +1476,7 @@ function appendPricedItemToSession(
     priceType: sharedPriceType,
     unitPrice,
     totalValue,
-    originalTotalValue: session.discountPercent ? originalTotalInCents / 100 : undefined,
+    originalTotalValue: hasDiscount(session) ? originalTotalInCents / 100 : undefined,
   };
 }
 
@@ -1390,7 +1553,7 @@ function buildPersistenceItems(session: SaleSession): Array<{
 }
 
 function formatPaymentMenu(session?: SaleSession): string {
-  const discountApplied = Boolean(session?.discountPercent && session.totalValue !== undefined);
+  const discountApplied = Boolean(session && hasDiscount(session) && session.totalValue !== undefined);
   const selectedPrice = Boolean(session?.priceType && session.totalValue !== undefined);
   const items = session ? getSaleItems(session) : [];
   const multipleItems = items.length > 1;
@@ -1426,9 +1589,44 @@ function formatPaymentMenu(session?: SaleSession): string {
     '3️⃣ *Cartão*',
     '4️⃣ *Nota*',
     '5️⃣ *Pagamento misto*',
-    `6️⃣ *Desconto de ${DISCOUNT_PERCENT}%*${discountApplied ? ' ✅' : ''}`,
+    `6️⃣ *Desconto*${discountApplied ? ' ✅' : ''}`,
     '7️⃣ *Adicionar outro pneu*',
     ...(TRANSFER_PAYMENT_ENABLED ? ['8️⃣ *Transferencia*'] : []),
+  ].join('\n');
+}
+
+function formatDiscountMenu(): string {
+  return [
+    '🏷️ *DESCONTO*',
+    '1️⃣ *Desconto %*',
+    '2️⃣ *Desconto R$*',
+    '0️⃣ Voltar',
+  ].join('\n');
+}
+
+function formatDiscountValueQuestion(
+  discountType: 'percent' | 'amount',
+  originalTotal?: number
+): string {
+  if (discountType === 'percent') {
+    return [
+      '🏷️ *DESCONTO EM %*',
+      '*Quantos % deseja retirar?*',
+      '',
+      'Ex.: *5*',
+      '0️⃣ Voltar',
+    ].join('\n');
+  }
+
+  return [
+    '🏷️ *DESCONTO EM R$*',
+    '*Quantos reais deseja retirar?*',
+    ...(originalTotal !== undefined
+      ? [`O valor deve ser menor que *${formatCurrency(originalTotal)}*.`]
+      : []),
+    '',
+    'Ex.: *50,00*',
+    '0️⃣ Voltar',
   ].join('\n');
 }
 
@@ -1493,12 +1691,18 @@ function formatDiscountPreview(session: SaleSession): string {
   return formatOperationConfirmation(
     '🏷️ *DESCONTO — CONFIRMAR*',
     [
-      [`🏷️ Desconto: *${session.discountPercent}%* | Economia: *${formatCurrency(discountValue)}*`],
+      [formatDiscountSummary(session, discountValue)],
       [
         `💰 Total: ${formatCurrency(originalTotal)} → *${formatCurrency(session.totalValue ?? 0)}*`,
       ],
     ]
   );
+}
+
+function formatDiscountSummary(session: SaleSession, discountValue: number): string {
+  return session.discountPercent
+    ? `🏷️ Desconto: *${session.discountPercent}%* | Economia: *${formatCurrency(discountValue)}*`
+    : `🏷️ Desconto: *${formatCurrency(discountValue)}*`;
 }
 
 export function formatSaleConfirmation(session: SaleSession): string {
@@ -1752,7 +1956,7 @@ function formatConfirmationPaymentLines(session: SaleSession): string[] {
 
 function formatSaleItemLine(session: SaleSession, registered: boolean): string {
   const quantityLabel = registered ? 'unidades' : 'un.';
-  if (session.discountPercent) {
+  if (hasDiscount(session)) {
     return `*${session.quantity} ${quantityLabel}*`;
   }
   return `*${session.quantity} ${quantityLabel}* × ${formatCurrency(session.unitPrice ?? 0)}`;
@@ -1777,7 +1981,7 @@ function getDisplayedPriceType(session: SaleSession): string | undefined {
 
 function formatDiscountLines(session: SaleSession): string[] {
   if (
-    !session.discountPercent ||
+    !hasDiscount(session) ||
     session.originalTotalValue === undefined ||
     session.totalValue === undefined
   ) {
@@ -1787,6 +1991,8 @@ function formatDiscountLines(session: SaleSession): string[] {
   const discountValue = session.originalTotalValue - session.totalValue;
   return [
     `Valor original: ${formatCurrency(session.originalTotalValue)}`,
-    `*Desconto: ${session.discountPercent}%* (-${formatCurrency(discountValue)})`,
+    session.discountPercent
+      ? `*Desconto: ${session.discountPercent}%* (-${formatCurrency(discountValue)})`
+      : `*Desconto: ${formatCurrency(discountValue)}*`,
   ];
 }

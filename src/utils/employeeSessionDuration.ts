@@ -1,0 +1,1 @@
+export const EMPLOYEE_SESSION_TTL_MS = 12 * 60 * 1000;

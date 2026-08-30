@@ -28,8 +28,16 @@ import {
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
-import { findActiveProductsByReference } from '../services/productService.js';
-import { formatProductChoiceQuestion, formatProductList } from './pneuCommand.js';
+import {
+  findActiveProductsByReference,
+  findSuggestedActiveReferences,
+} from '../services/productService.js';
+import {
+  formatProductChoiceQuestion,
+  formatProductList,
+  formatReferenceSuggestions,
+  isTireSizeLikeCommand,
+} from './pneuCommand.js';
 import {
   formatAdditionalTireQuestion,
   formatCashPriceQuestion,
@@ -41,6 +49,7 @@ import env from '../config/env.js';
 import { parseStockLocationChoice } from '../utils/stockLocation.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryResponse.js';
+import { handleEntryProductRegistrationStart } from './productRegistrationCommand.js';
 
 const ENTRY_COMMAND_REGEX = /^entrada\s+(\d+)$/i;
 const MAX_ENTRY_ITEMS = 20;
@@ -67,8 +76,15 @@ export function formatAdditionalEntryProductChoiceQuestion(): string {
 
 export function formatAdditionalEntryHelp(): string {
   return [
-    'Não achou o Pneu?',
-    'Digite: *novo* para adicionar um pneu ou *voltar* para pesquisar uma medida diferente',
+    '🔎 *NÃO ACHOU O PNEU NA LISTA?*',
+    '',
+    '➕ *Cadastrar esta medida*',
+    'Digite *cadastro*.',
+    'O pneu será cadastrado e adicionado automaticamente à nota.',
+    '',
+    '🔄 *Pesquisar outra medida*',
+    'Digite a nova medida diretamente ou envie *voltar*.',
+    'Ex.: *175 70 13*',
   ].join('\n');
 }
 
@@ -469,9 +485,21 @@ async function handleAdditionalMeasureStep(
   const normalizedMeasure = normalizeTireSize(rawMeasure);
 
   if (!normalizedMeasure) {
-    await message.reply(
-      '❌ Medida inválida. Digite outra medida ou *voltar* para manter os pneus anteriores.'
-    );
+    try {
+      const suggestions = await findSuggestedActiveReferences(rawMeasure);
+      const suggestionText = formatReferenceSuggestions(suggestions);
+      await message.reply(
+        '❌ *MEDIDA INVÁLIDA*' +
+          (suggestionText
+            ? `\n\n${suggestionText}`
+            : '\n\nDigite novamente a medida correta ou envie *voltar*.')
+      );
+    } catch (error) {
+      console.error('[ENTRY] Error suggesting an additional tire measure:', error);
+      await message.reply(
+        '❌ *MEDIDA INVÁLIDA*\n\nDigite novamente a medida correta ou envie *voltar*.'
+      );
+    }
     return;
   }
 
@@ -481,8 +509,22 @@ async function handleAdditionalMeasureStep(
     );
 
     if (products.length === 0) {
+      const suggestions = await findSuggestedActiveReferences(rawMeasure);
+      const suggestionText = formatReferenceSuggestions(suggestions);
+      saveEntrySession({
+        ...session,
+        step: 'awaiting_additional_item',
+        additionalMeasure: normalizedMeasure,
+        additionalProducts: [],
+        updatedAt: Date.now(),
+      });
       await message.reply(
-        `Nenhum pneu encontrado para *${normalizedMeasure}*.\nDigite outra medida ou *voltar* para manter os pneus anteriores.`
+        [
+          `🔎 Nenhum pneu encontrado para *${normalizedMeasure}*.`,
+          ...(suggestionText ? ['', suggestionText] : []),
+          '',
+          formatAdditionalEntryHelp(),
+        ].join('\n')
       );
       return;
     }
@@ -550,15 +592,25 @@ async function handleAdditionalItemStep(
   session: EntrySession,
   body: string
 ): Promise<void> {
-  if (/^novo$/i.test(body.trim())) {
-    await requestAnotherEntryMeasure(message, session);
+  const trimmedBody = body.trim();
+
+  if (/^(cadastro|cadastrar)$/i.test(trimmedBody)) {
+    await handleEntryProductRegistrationStart(message);
     return;
   }
 
-  const optionNumber = parseAdditionalItemSelection(body);
+  const rawMeasure = trimmedBody.replace(/^pneu\s+/i, '');
+  if (normalizeTireSize(rawMeasure) || isTireSizeLikeCommand(rawMeasure)) {
+    await handleAdditionalMeasureStep(message, session, rawMeasure);
+    return;
+  }
+
+  const optionNumber = parseAdditionalItemSelection(trimmedBody);
 
   if (optionNumber === null) {
-    await message.reply(`❌ Opção inválida.\n\n${formatAdditionalEntryProductChoiceQuestion()}`);
+    await message.reply(
+      `❌ Opção inválida.\n\n${formatAdditionalEntryProductChoiceQuestion()}\n\n${formatAdditionalEntryHelp()}`
+    );
     return;
   }
 
@@ -676,15 +728,25 @@ async function handleConfirmationStep(
       }
     }
   } catch (error) {
-    clearEntrySession(session.userId, session.chatId);
-
     if (error instanceof EntryProductNotFoundError) {
+      clearEntrySession(session.userId, session.chatId);
       await message.reply('⚠️ Produto não está mais disponível. Faça uma nova consulta.');
       return;
     }
 
+    saveEntrySession({
+      ...session,
+      step: 'awaiting_confirmation',
+      updatedAt: Date.now(),
+    });
     console.error('[ENTRY] Error registering entry:', error);
-    await message.reply('Ocorreu um erro ao registrar a entrada. Tente novamente.');
+    await message.reply([
+      '❌ *NÃO FOI POSSÍVEL REGISTRAR A ENTRADA*',
+      'Nenhum item foi registrado e a nota continua preparada.',
+      '',
+      'Tente confirmar novamente ou escolha outra opção:',
+      formatConfirmationOptions(),
+    ].join('\n'));
     return;
   }
 

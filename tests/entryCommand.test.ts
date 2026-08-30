@@ -20,6 +20,12 @@ import {
 } from '../src/utils/entrySessionStore.js';
 import { clearLastQuery, saveLastQuery } from '../src/utils/lastQueryStore.js';
 import env from '../src/config/env.js';
+import {
+  clearProductRegistrationSession,
+  getProductRegistrationSession,
+} from '../src/utils/productRegistrationSessionStore.js';
+import { handleProductRegistrationConversation } from '../src/commands/productRegistrationCommand.js';
+import { productRepository } from '../src/repositories/productRepository.js';
 
 function createMessage(userId: string, chatId: string, replies: string[]): Message {
   return {
@@ -59,9 +65,118 @@ test('keeps the additional-entry choice clean and formats separate help', () => 
   );
   assert.equal(
     formatAdditionalEntryHelp(),
-    'Não achou o Pneu?\n' +
-      'Digite: *novo* para adicionar um pneu ou *voltar* para pesquisar uma medida diferente'
+    '🔎 *NÃO ACHOU O PNEU NA LISTA?*\n\n' +
+      '➕ *Cadastrar esta medida*\n' +
+      'Digite *cadastro*.\n' +
+      'O pneu será cadastrado e adicionado automaticamente à nota.\n\n' +
+      '🔄 *Pesquisar outra medida*\n' +
+      'Digite a nova medida diretamente ou envie *voltar*.\n' +
+      'Ex.: *175 70 13*'
   );
+});
+
+test('accepts another measure directly after an additional tire was not found', async () => {
+  const userId = 'entry-retry-measure-user';
+  const chatId = 'entry-retry-measure-group@g.us';
+  const replies: string[] = [];
+  const message = createMessage(userId, chatId, replies);
+  const mutableRepository = productRepository as unknown as {
+    findActiveByReferences: (references: string[]) => Promise<Array<Record<string, unknown>>>;
+    findDistinctActiveReferences: () => Promise<Array<{ reference: string }>>;
+  };
+  const originalFindActiveByReferences = mutableRepository.findActiveByReferences;
+  const originalFindDistinctActiveReferences = mutableRepository.findDistinctActiveReferences;
+
+  mutableRepository.findActiveByReferences = async (references) =>
+    references.includes('175/70 R13')
+      ? [{
+          id: 'entry-retry-found-product',
+          reference: '175/70 R13',
+          description: 'PNEU ENCONTRADO',
+          stock: 3,
+          stockLocation: null,
+          cashPrice: 300,
+          creditPrice: 317.4,
+          imagePath: null,
+        }]
+      : [];
+  mutableRepository.findDistinctActiveReferences = async () => [
+    { reference: '185/75 R15' },
+    { reference: '175/70 R13' },
+  ];
+
+  try {
+    saveEntrySession({
+      userId,
+      chatId,
+      step: 'awaiting_additional_measure',
+      productId: 'entry-retry-original',
+      reference: '185/65 R15',
+      description: 'PNEU ORIGINAL',
+      oldCashPrice: 350,
+      oldCreditPrice: 370.3,
+      updatedAt: Date.now(),
+    });
+
+    await handleEntryConversation(message, '185 75 14');
+    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_additional_item');
+    assert.match(replies.at(-1) ?? '', /Nenhum pneu encontrado para \*185\/75 R14\*/);
+    assert.match(replies.at(-1) ?? '', /Você quis dizer:/);
+    assert.match(replies.at(-1) ?? '', /185\/75 R15/);
+
+    await handleEntryConversation(message, '175 70 13');
+
+    const session = getEntrySession(userId, chatId);
+    assert.equal(session?.step, 'awaiting_additional_item');
+    assert.equal(session?.additionalMeasure, '175/70 R13');
+    assert.equal(session?.additionalProducts?.[0]?.id, 'entry-retry-found-product');
+    assert.match(replies.at(-2) ?? '', /PNEU ENCONTRADO/);
+    assert.equal(replies.at(-1), formatAdditionalEntryProductChoiceQuestion());
+  } finally {
+    mutableRepository.findActiveByReferences = originalFindActiveByReferences;
+    mutableRepository.findDistinctActiveReferences = originalFindDistinctActiveReferences;
+    clearEntrySession(userId, chatId);
+  }
+});
+
+test('suggests an existing measure during an additional-entry retry and no longer accepts novo', async () => {
+  const userId = 'entry-measure-suggestion-user';
+  const chatId = 'entry-measure-suggestion-group@g.us';
+  const replies: string[] = [];
+  const message = createMessage(userId, chatId, replies);
+  const mutableRepository = productRepository as unknown as {
+    findDistinctActiveReferences: () => Promise<Array<{ reference: string }>>;
+  };
+  const originalFindDistinctActiveReferences = mutableRepository.findDistinctActiveReferences;
+  mutableRepository.findDistinctActiveReferences = async () => [{ reference: '175/70 R14' }];
+
+  try {
+    saveEntrySession({
+      userId,
+      chatId,
+      step: 'awaiting_additional_item',
+      productId: 'entry-suggestion-original',
+      reference: '185/65 R15',
+      description: 'PNEU ORIGINAL',
+      oldCashPrice: 350,
+      oldCreditPrice: 370.3,
+      additionalMeasure: '185/75 R14',
+      additionalProducts: [],
+      updatedAt: Date.now(),
+    });
+
+    await handleEntryConversation(message, '175.70.14');
+    assert.match(replies.at(-1) ?? '', /Você quis dizer:/);
+    assert.match(replies.at(-1) ?? '', /175\/70 R14/);
+
+    await handleEntryConversation(message, 'novo');
+    assert.match(replies.at(-1) ?? '', /Opção inválida/);
+    assert.equal(getProductRegistrationSession(userId, chatId), null);
+  } finally {
+    mutableRepository.findDistinctActiveReferences = originalFindDistinctActiveReferences;
+    clearEntrySession(userId, chatId);
+    clearProductRegistrationSession(userId, chatId);
+  }
 });
 
 test('formats entry confirmation with supplier, invoice number and prices in compact rows', () => {
@@ -398,10 +513,22 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     await handleEntryConversation(message, 'x');
     assert.equal(
       replies.at(-1),
-      '❌ Opção inválida.\n\n*ESCOLHA UM PNEU 🛞*\n*Digite o número do pneu:*'
+      `❌ Opção inválida.\n\n*ESCOLHA UM PNEU 🛞*\n*Digite o número do pneu:*\n\n${formatAdditionalEntryHelp()}`
     );
 
-    await handleEntryConversation(message, 'novo');
+    await handleEntryConversation(message, 'cadastro');
+    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_additional_item');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.origin, 'entry');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');
+    assert.equal(getProductRegistrationSession(userId, chatId)?.reference, undefined);
+    assert.equal(replies.at(-1), '🆕 *MEDIDA*\n*Digite a medida:*');
+
+    await handleProductRegistrationConversation(message, 'cancelar');
+    assert.equal(getProductRegistrationSession(userId, chatId), null);
+    assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_additional_item');
+    assert.match(replies.at(-1) ?? '', /pneus já preparados continuam na nota/i);
+
+    await handleEntryConversation(message, 'voltar');
     assert.equal(getEntrySession(userId, chatId)?.step, 'awaiting_additional_measure');
     assert.equal(
       replies.at(-1),
@@ -498,7 +625,50 @@ test('adds another tire and keeps the final confirmation compact', async () => {
     assert.doesNotMatch(registered, /#E-00000[12]/);
   } finally {
     env.inventoryLocationsEnabled = previousLocationsFlag;
+    clearProductRegistrationSession(userId, chatId);
     clearEntrySession(userId, chatId);
     clearLastQuery(userId, chatId);
+  }
+});
+
+test('keeps the prepared note available when final entry registration fails unexpectedly', async () => {
+  const userId = 'entry-retry-confirmation-user';
+  const chatId = 'entry-retry-confirmation-group@g.us';
+  const replies: string[] = [];
+  const message = createMessage(userId, chatId, replies);
+
+  try {
+    saveEntrySession({
+      userId,
+      chatId,
+      step: 'awaiting_confirmation',
+      productId: 'entry-retry-confirmation-product',
+      reference: '175/75 R13',
+      description: 'PNEU PREPARADO',
+      oldCashPrice: 300,
+      oldCreditPrice: 317.4,
+      invoiceNumber: '26668',
+      items: [{
+        productId: 'entry-retry-confirmation-product',
+        reference: '175/75 R13',
+        description: 'PNEU PREPARADO',
+        oldCashPrice: 300,
+        oldCreditPrice: 317.4,
+        quantity: 2,
+        supplier: '',
+      }],
+      updatedAt: Date.now(),
+    });
+
+    await handleEntryConversation(message, '1');
+
+    const preservedSession = getEntrySession(userId, chatId);
+    assert.equal(preservedSession?.step, 'awaiting_confirmation');
+    assert.equal(preservedSession?.items?.length, 1);
+    assert.equal(preservedSession?.invoiceNumber, '26668');
+    assert.match(replies.at(-1) ?? '', /nota continua preparada/);
+    assert.match(replies.at(-1) ?? '', /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
+  } finally {
+    clearEntrySession(userId, chatId);
   }
 });

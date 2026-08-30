@@ -29,6 +29,7 @@ data/*.db
 data/*.db-*
 data/daily-report-state.json
 data/monthly-report-state.json
+data/startup-recovery-state.json
 
 # Runtime WhatsApp session stored under data
 data/wwebjs_auth/

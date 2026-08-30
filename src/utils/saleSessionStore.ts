@@ -1,5 +1,6 @@
 import type { Message } from 'whatsapp-web.js';
 import type { QueriedProduct } from './lastQueryStore.js';
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
 
 export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
 export type ReceiptPaymentMethod = MixedPaymentMethod | 'Nota';
@@ -35,6 +36,8 @@ export type SaleSessionStep =
   | 'awaiting_additional_measure'
   | 'awaiting_additional_item'
   | 'awaiting_additional_quantity'
+  | 'awaiting_discount_type'
+  | 'awaiting_discount_value'
   | 'awaiting_discount_confirmation'
   | 'awaiting_mixed_methods'
   | 'awaiting_mixed_amount'
@@ -59,6 +62,8 @@ export interface SaleSession {
   totalValue?: number;
   priceType?: SalePriceType;
   discountPercent?: number;
+  discountAmount?: number;
+  pendingDiscountType?: 'percent' | 'amount';
   originalTotalValue?: number;
   paymentMethod?: PaymentMethod;
   mixedPaymentMethods?: MixedPaymentMethod[];
@@ -78,7 +83,7 @@ export interface SaleSession {
 }
 
 const saleSessions = new Map<string, SaleSession>();
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;

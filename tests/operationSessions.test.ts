@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { saveSaleSession } from '../src/utils/saleSessionStore.js';
+import {
+  clearSaleSession,
+  getSaleSession,
+  saveSaleSession,
+} from '../src/utils/saleSessionStore.js';
 import { savePriceSession } from '../src/utils/priceSessionStore.js';
 import { saveLocationSession } from '../src/utils/locationSessionStore.js';
 import {
@@ -13,6 +17,39 @@ import {
   isOperationStartCommand,
 } from '../src/utils/operationSessionCoordinator.js';
 import { clearLastQuery, getLastQuery, saveLastQuery } from '../src/utils/lastQueryStore.js';
+import { EMPLOYEE_SESSION_TTL_MS } from '../src/utils/employeeSessionDuration.js';
+
+test('expires an unanswered employee session after twelve minutes', () => {
+  const userId = 'session-timeout-user';
+  const chatId = 'session-timeout-group@g.us';
+  const originalNow = Date.now;
+  let now = 1_000_000;
+
+  try {
+    Date.now = () => now;
+    saveSaleSession({
+      userId,
+      chatId,
+      step: 'awaiting_payment',
+      productId: 'timeout-product',
+      reference: '175/70 R14',
+      description: 'PNEU TESTE',
+      quantity: 1,
+      cashPrice: 100,
+      creditPrice: 105.8,
+      updatedAt: now,
+    });
+
+    now += EMPLOYEE_SESSION_TTL_MS;
+    assert.ok(getSaleSession(userId, chatId));
+
+    now += 1;
+    assert.equal(getSaleSession(userId, chatId), null);
+  } finally {
+    Date.now = originalNow;
+    clearSaleSession(userId, chatId);
+  }
+});
 
 test('clears every incompatible operation for the same user and group', () => {
   const userId = 'session-user';

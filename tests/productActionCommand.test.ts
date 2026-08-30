@@ -118,9 +118,9 @@ test('formats the three new instructional messages exactly', () => {
   );
 });
 
-test('keeps the consultation and its selection flow active for nine minutes', () => {
-  assert.equal(LAST_QUERY_TTL_MS, 9 * 60 * 1000);
-  assert.equal(PRODUCT_ACTION_SESSION_TTL_MS, 9 * 60 * 1000);
+test('keeps the consultation and its selection flow active for twelve minutes', () => {
+  assert.equal(LAST_QUERY_TTL_MS, 12 * 60 * 1000);
+  assert.equal(PRODUCT_ACTION_SESSION_TTL_MS, 12 * 60 * 1000);
 });
 
 test('selects a tire, opens the action menu and asks the sale quantity', async () => {
@@ -144,6 +144,51 @@ test('selects a tire, opens the action menu and asks the sale quantity', async (
     assert.equal(await handleProductActionConversation(message, '3', createDependencies(calls)), true);
     assert.deepEqual(calls, ['sale:venda 2 3']);
     assert.equal(getProductActionSession(userId, chatId), null);
+  } finally {
+    clearProductActionSession(userId, chatId);
+    clearLastQuery(userId, chatId);
+  }
+});
+
+test('shows and routes only sale and photo actions for a regular group member', async () => {
+  const replies: string[] = [];
+  const calls: string[] = [];
+  const dependencies = createDependencies(calls);
+  dependencies.isAdmin = async () => false;
+
+  try {
+    saveQuery();
+    saveProductActionSession(userId, chatId, 'awaiting_product');
+
+    await handleProductActionConversation(createMessage(replies), '1', dependencies);
+    assert.equal(
+      replies.at(-1),
+      [
+        '⚙️ ESCOLHA O QUE DESEJA FAZER',
+        '',
+        '1️⃣ Venda | 2️⃣ Foto',
+        '3️⃣ Adicionar foto',
+      ].join('\n')
+    );
+    assert.doesNotMatch(replies.at(-1) ?? '', /Entrada|Preço|Ajuste|Localização/);
+
+    await handleProductActionConversation(createMessage(replies), '2', dependencies);
+    assert.deepEqual(calls, ['photo:foto 1']);
+
+    saveProductActionSession(userId, chatId, 'awaiting_action', 1);
+    await handleProductActionConversation(createMessage(replies), '3', dependencies);
+    assert.deepEqual(calls, ['photo:foto 1', 'addPhoto:addfoto 1']);
+
+    saveProductActionSession(userId, chatId, 'awaiting_action', 1);
+    await handleProductActionConversation(createMessage(replies), '4', dependencies);
+    assert.match(replies.at(-1) ?? '', /Opção inválida/);
+    assert.doesNotMatch(replies.at(-1) ?? '', /Entrada|Preço|Ajuste|Localização/);
+
+    saveProductActionSession(userId, chatId, 'awaiting_action', 1);
+    await handleProductActionConversation(createMessage(replies), '1', dependencies);
+    assert.equal(replies.at(-1), formatSaleQuantityQuestion());
+    await handleProductActionConversation(createMessage(replies), '2', dependencies);
+    assert.deepEqual(calls, ['photo:foto 1', 'addPhoto:addfoto 1', 'sale:venda 1 2']);
   } finally {
     clearProductActionSession(userId, chatId);
     clearLastQuery(userId, chatId);

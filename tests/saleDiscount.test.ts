@@ -57,7 +57,7 @@ async function runInBranch(branchName: string, operation: () => Promise<void>): 
   }
 }
 
-test('applies one confirmed 3% discount and returns to the payment menu', async () => {
+test('chooses and confirms a percentage discount before returning to payment', async () => {
   await runInBranch('ATC PNEUS MONTEIRO', async () => {
   const ids = startSale('confirmed');
   const replies: string[] = [];
@@ -69,6 +69,17 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
   assert.match(replies.at(-1) ?? '', /Total: \*R\$1000,00\*/);
 
   await handleSaleConversation(message, '6');
+  assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_discount_type');
+  assert.equal(
+    replies.at(-1),
+    '🏷️ *DESCONTO*\n1️⃣ *Desconto %*\n2️⃣ *Desconto R$*\n0️⃣ Voltar'
+  );
+
+  await handleSaleConversation(message, '1');
+  assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_discount_value');
+  assert.match(replies.at(-1) ?? '', /Quantos % deseja retirar/);
+
+  await handleSaleConversation(message, '3');
   const previewSession = getSaleSession(ids.userId, ids.chatId);
   assert.equal(previewSession?.step, 'awaiting_discount_confirmation');
   assert.equal(previewSession?.originalTotalValue, 1000);
@@ -82,6 +93,7 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
 
   await handleSaleConversation(message, 'confirma');
   assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_payment');
+  assert.match(replies.at(-1) ?? '', /FORMAS DE PAGAMENTO/);
   assert.match(replies.at(-1) ?? '', /Total: \*R\$970,00\*/);
 
   await handleSaleConversation(message, '6');
@@ -109,6 +121,62 @@ test('applies one confirmed 3% discount and returns to the payment menu', async 
 
   clearSaleSession(ids.userId, ids.chatId);
   });
+});
+
+test('validates, reviews and applies a discount in reais', async () => {
+  const ids = startSale('amount');
+  const replies: string[] = [];
+  const message = createMessage(ids, replies);
+
+  try {
+    await handleSaleConversation(message, '1');
+    await handleSaleConversation(message, '6');
+    await handleSaleConversation(message, '0');
+    assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_payment');
+    assert.match(replies.at(-1) ?? '', /FORMAS DE PAGAMENTO/);
+
+    await handleSaleConversation(message, '6');
+    await handleSaleConversation(message, '2');
+
+    assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_discount_value');
+    assert.equal(
+      replies.at(-1),
+      '🏷️ *DESCONTO EM R$*\n*Quantos reais deseja retirar?*\n\nEx.: *50,00*\n0️⃣ Voltar'
+    );
+
+    await handleSaleConversation(message, '1000');
+    assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_discount_value');
+    assert.match(replies.at(-1) ?? '', /DESCONTO INVÁLIDO/);
+    assert.match(replies.at(-1) ?? '', /menor que \*R\$1000,00\*/);
+
+    await handleSaleConversation(message, '125,50');
+    const previewSession = getSaleSession(ids.userId, ids.chatId);
+    assert.equal(previewSession?.step, 'awaiting_discount_confirmation');
+    assert.equal(previewSession?.originalTotalValue, 1000);
+    assert.equal(previewSession?.discountAmount, 125.5);
+    assert.equal(previewSession?.discountPercent, undefined);
+    assert.equal(previewSession?.totalValue, 874.5);
+    assert.match(replies.at(-1) ?? '', /Desconto: \*R\$125,50\*/);
+    assert.match(replies.at(-1) ?? '', /Total: R\$1000,00 → \*R\$874,50\*/);
+    assert.match(replies.at(-1) ?? '', /1️⃣ ✅ Confirmar\n2️⃣ ↩️ Voltar\n0️⃣ ❌ Cancelar/);
+
+    await handleSaleConversation(message, '2');
+    const returnedSession = getSaleSession(ids.userId, ids.chatId);
+    assert.equal(returnedSession?.step, 'awaiting_discount_type');
+    assert.equal(returnedSession?.totalValue, 1000);
+    assert.equal(returnedSession?.discountAmount, undefined);
+    assert.equal(replies.at(-1), '🏷️ *DESCONTO*\n1️⃣ *Desconto %*\n2️⃣ *Desconto R$*\n0️⃣ Voltar');
+
+    await handleSaleConversation(message, '2');
+    await handleSaleConversation(message, '125,50');
+    await handleSaleConversation(message, '1');
+    assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_payment');
+    assert.equal(getSaleSession(ids.userId, ids.chatId)?.totalValue, 874.5);
+    assert.match(replies.at(-1) ?? '', /DESCONTO APLICADO/);
+    assert.match(replies.at(-1) ?? '', /FORMAS DE PAGAMENTO/);
+  } finally {
+    clearSaleSession(ids.userId, ids.chatId);
+  }
 });
 
 test('confirms a cash sale without requesting a photo outside Monteiro', async () => {

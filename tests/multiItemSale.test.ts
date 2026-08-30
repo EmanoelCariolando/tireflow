@@ -217,6 +217,8 @@ test('applies the discount when cart items use different price types', async () 
   } as unknown as Message;
 
   await handleSaleConversation(message, '6');
+  await handleSaleConversation(message, '1');
+  await handleSaleConversation(message, '3');
   const discounted = getSaleSession(ids.userId, ids.chatId);
   assert.equal(discounted?.step, 'awaiting_discount_confirmation');
   assert.equal(discounted?.originalTotalValue, 2450);

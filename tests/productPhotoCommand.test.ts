@@ -270,7 +270,7 @@ test('imagem muito grande é rejeitada sem encerrar a sessão addfoto', async ()
   clearAddPhotoSession(userId, 'official-group@g.us');
 });
 
-test('sessão addfoto expira após cinco minutos', async () => {
+test('sessão addfoto expira após doze minutos', async () => {
   const userId = 'upload-timeout';
   savePendingSession(userId, Date.now() - ADD_PHOTO_SESSION_TTL_MS - 1);
   const { message, replies } = fakeMessage({ userId });

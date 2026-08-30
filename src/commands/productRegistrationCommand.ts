@@ -35,6 +35,11 @@ import {
   formatSupplierQuestion,
 } from '../utils/operationPrompts.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
+import {
+  getEntrySession,
+  saveEntrySession,
+} from '../utils/entrySessionStore.js';
+import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryResponse.js';
 
 const PRODUCT_REGISTRATION_COMMAND_REGEX = /^(cadastrar|adicionar)\s+pneu$/i;
 const MAX_TEXT_LENGTH = 120;
@@ -67,6 +72,23 @@ export async function handleProductRegistrationStart(message: Message): Promise<
   await message.reply(formatMeasureQuestion());
 }
 
+export async function handleEntryProductRegistrationStart(
+  message: Message
+): Promise<void> {
+  const userId = getMessageUserId(message);
+  const chatId = getMessageChatId(message);
+
+  saveProductRegistrationSession({
+    userId,
+    chatId,
+    step: 'awaiting_measure',
+    origin: 'entry',
+    updatedAt: Date.now(),
+  });
+
+  await message.reply(formatMeasureQuestion());
+}
+
 export async function handleProductRegistrationConversation(
   message: Message,
   body: string
@@ -85,9 +107,34 @@ export async function handleProductRegistrationConversation(
     return false;
   }
 
+  if (session.origin === 'entry') {
+    const entrySession = getEntrySession(userId, chatId);
+    if (!entrySession) {
+      clearProductRegistrationSession(userId, chatId);
+      await message.reply('⌛ *ENTRADA EXPIRADA*\nInicie a entrada novamente.');
+      return true;
+    }
+    saveEntrySession(entrySession);
+  }
+
   const normalizedBody = body.trim().toLowerCase();
 
   if (isCancellationResponse(normalizedBody)) {
+    if (session.origin === 'entry') {
+      clearProductRegistrationSession(userId, chatId);
+      await message.reply([
+        '❌ *CADASTRO CANCELADO*',
+        'Os pneus já preparados continuam na nota.',
+        '',
+        'Digite *cadastro* para tentar novamente ou *voltar* para pesquisar outra medida.',
+      ].join('\n'));
+      return true;
+    }
+    if (session.step === 'awaiting_additional_decision') {
+      clearProductRegistrationSession(userId, chatId);
+      await message.reply(formatProductRegistrationFinished(session.registeredProductCount ?? 1));
+      return true;
+    }
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ *CADASTRO CANCELADO*\nNenhuma informação foi salva.');
     return true;
@@ -121,6 +168,9 @@ export async function handleProductRegistrationConversation(
       return true;
     case 'awaiting_confirmation':
       await handleConfirmationStep(message, session, normalizedBody);
+      return true;
+    case 'awaiting_additional_decision':
+      await handleAdditionalRegistrationDecisionStep(message, session, normalizedBody);
       return true;
     case 'processing':
       await message.reply('⏳ *CADASTRANDO PNEU...*');
@@ -188,7 +238,7 @@ async function handleDescriptionStep(
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatProductQuantityQuestion(session.reference));
+  await message.reply(formatProductQuantityQuestion(session.reference, session.origin));
 }
 
 async function handleInitialStockStep(
@@ -198,22 +248,28 @@ async function handleInitialStockStep(
 ): Promise<void> {
   const initialStock = parseNonNegativeInteger(body);
 
-  if (initialStock === null) {
+  if (initialStock === null || (session.origin === 'entry' && initialStock === 0)) {
     await message.reply(
-      `❌ Estoque inválido. Digite um inteiro maior ou igual a zero.\n\n${formatProductQuantityQuestion(session.reference)}`
+      session.origin === 'entry'
+        ? `❌ Quantidade inválida. Digite um inteiro maior que zero.\n\n${formatProductQuantityQuestion(session.reference, session.origin)}`
+        : `❌ Estoque inválido. Digite um inteiro maior ou igual a zero.\n\n${formatProductQuantityQuestion(session.reference)}`
     );
     return;
   }
 
   const nextSession: ProductRegistrationSession = {
     ...session,
-    step: initialStock > 0 ? 'awaiting_supplier' : 'awaiting_cash_price',
+    step: session.origin === 'entry'
+      ? 'awaiting_cash_price'
+      : initialStock > 0
+        ? 'awaiting_supplier'
+        : 'awaiting_cash_price',
     initialStock,
     updatedAt: Date.now(),
   };
   saveProductRegistrationSession(nextSession);
 
-  if (initialStock > 0) {
+  if (session.origin !== 'entry' && initialStock > 0) {
     await message.reply(formatSupplierQuestion());
     return;
   }
@@ -267,7 +323,7 @@ async function handleCashPriceStep(
   saveProductRegistrationSession(nextSession);
 
   if (env.inventoryLocationsEnabled) {
-    await message.reply(formatProductRegistrationLocationQuestion());
+    await message.reply(formatProductRegistrationLocationQuestion(session.origin !== 'entry'));
     return;
   }
 
@@ -280,14 +336,17 @@ async function handleLocationStep(
   body: string
 ): Promise<void> {
   const normalizedBody = body.trim().toLowerCase();
-  const stockLocation = normalizedBody === 'pular' ? null : parseStockLocationChoice(body);
+  const canSkipLocation = session.origin !== 'entry';
+  const stockLocation = canSkipLocation && normalizedBody === 'pular'
+    ? null
+    : parseStockLocationChoice(body);
 
-  if (normalizedBody !== 'pular' && !stockLocation) {
+  if (!stockLocation && !(canSkipLocation && normalizedBody === 'pular')) {
     await message.reply(
       [
         '❌ *LOCAL INVÁLIDO*',
         '',
-        formatProductRegistrationLocationQuestion(),
+        formatProductRegistrationLocationQuestion(canSkipLocation),
       ].join('\n')
     );
     return;
@@ -311,6 +370,16 @@ async function handleConfirmationStep(
   const action = parseConfirmationAction(normalizedBody);
 
   if (action === 'cancel') {
+    if (session.origin === 'entry') {
+      clearProductRegistrationSession(session.userId, session.chatId);
+      await message.reply([
+        '❌ *CADASTRO CANCELADO*',
+        'Os pneus já preparados continuam na nota.',
+        '',
+        'Digite *cadastro* para tentar novamente ou *voltar* para pesquisar outra medida.',
+      ].join('\n'));
+      return;
+    }
     clearAllOperationSessions(session.userId, session.chatId);
     await message.reply('❌ *CADASTRO CANCELADO*\nNenhuma informação foi salva.');
     return;
@@ -327,7 +396,7 @@ async function handleConfirmationStep(
     });
     await message.reply(
       env.inventoryLocationsEnabled
-        ? formatProductRegistrationLocationQuestion()
+        ? formatProductRegistrationLocationQuestion(session.origin !== 'entry')
         : formatCashPriceQuestion()
     );
     return;
@@ -354,6 +423,11 @@ async function handleConfirmationStep(
 
   const responsibleName = await getResponsibleName(message, session.userId);
 
+  if (session.origin === 'entry') {
+    await registerProductInsideEntry(message, session, responsibleName);
+    return;
+  }
+
   try {
     const registered = await registerNewProduct({
       reference: session.reference,
@@ -366,9 +440,20 @@ async function handleConfirmationStep(
       responsibleName,
     });
 
+    const registeredProductCount = (session.registeredProductCount ?? 0) + 1;
+    saveProductRegistrationSession({
+      userId: session.userId,
+      chatId: session.chatId,
+      step: 'awaiting_additional_decision',
+      registeredProductCount,
+      updatedAt: Date.now(),
+    });
+
     await Promise.all([
       runPostCommitTask('product registration group confirmation', () =>
-        message.reply(formatRegisteredProduct(session, registered.movementCode))
+        message.reply(
+          formatRegisteredProduct(session, registered.movementCode, registeredProductCount)
+        )
       ),
       runPostCommitTask('product registration private owner notification', () =>
         sendBossTextNotification(
@@ -381,6 +466,7 @@ async function handleConfirmationStep(
       ),
     ]);
   } catch (error) {
+    clearProductRegistrationSession(session.userId, session.chatId);
     if (error instanceof ProductAlreadyExistsError) {
       await message.reply(
         [
@@ -402,8 +488,140 @@ async function handleConfirmationStep(
         'Ocorreu um erro ao cadastrar o pneu. Nenhuma confirmação adicional é necessária. Consulte a medida antes de tentar novamente.'
       );
     }
-  } finally {
+  }
+}
+
+async function handleAdditionalRegistrationDecisionStep(
+  message: Message,
+  session: ProductRegistrationSession,
+  normalizedBody: string
+): Promise<void> {
+  const shouldRegisterAnother = parseBinaryResponse(normalizedBody);
+
+  if (shouldRegisterAnother === true) {
+    saveProductRegistrationSession({
+      userId: session.userId,
+      chatId: session.chatId,
+      step: 'awaiting_measure',
+      registeredProductCount: session.registeredProductCount ?? 1,
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatMeasureQuestion());
+    return;
+  }
+
+  if (shouldRegisterAnother === false) {
+    const registeredProductCount = session.registeredProductCount ?? 1;
     clearProductRegistrationSession(session.userId, session.chatId);
+    await message.reply(formatProductRegistrationFinished(registeredProductCount));
+    return;
+  }
+
+  await message.reply(
+    `❌ Resposta inválida.\n\n${formatAdditionalProductRegistrationQuestion(session.registeredProductCount ?? 1)}`
+  );
+}
+
+async function registerProductInsideEntry(
+  message: Message,
+  session: ProductRegistrationSession & {
+    reference: string;
+    description: string;
+    initialStock: number;
+    cashPrice: number;
+    creditPrice: number;
+    stockLocation: string | null;
+  },
+  responsibleName: string
+): Promise<void> {
+  const entrySession = getEntrySession(session.userId, session.chatId);
+  const preparedItems = entrySession?.items ?? [];
+  const noteSupplier = preparedItems[0]?.supplier;
+
+  if (!entrySession || preparedItems.length === 0 || !noteSupplier) {
+    clearProductRegistrationSession(session.userId, session.chatId);
+    await message.reply(
+      'Ocorreu um erro ao recuperar a nota em andamento. Nenhum pneu foi cadastrado.'
+    );
+    return;
+  }
+
+  try {
+    const registered = await registerNewProduct({
+      reference: session.reference,
+      description: session.description,
+      initialStock: 0,
+      cashPrice: session.cashPrice,
+      stockLocation: session.stockLocation,
+      responsiblePhone: session.userId,
+      responsibleName,
+    });
+
+    const stockLocation = session.stockLocation ?? undefined;
+    const nextItems = [
+      ...preparedItems,
+      {
+        productId: registered.productId,
+        reference: session.reference,
+        description: session.description,
+        oldCashPrice: session.cashPrice,
+        oldCreditPrice: session.creditPrice,
+        quantity: session.initialStock,
+        supplier: noteSupplier,
+        stockLocation,
+      },
+    ];
+
+    saveEntrySession({
+      ...entrySession,
+      step: 'awaiting_additional_decision',
+      productId: registered.productId,
+      reference: session.reference,
+      description: session.description,
+      oldCashPrice: session.cashPrice,
+      oldCreditPrice: session.creditPrice,
+      quantity: session.initialStock,
+      supplier: noteSupplier,
+      stockLocation,
+      newCashPrice: undefined,
+      newCreditPrice: undefined,
+      items: nextItems,
+      additionalMeasure: undefined,
+      additionalProducts: undefined,
+      updatedAt: Date.now(),
+    });
+    clearProductRegistrationSession(session.userId, session.chatId);
+
+    await Promise.all([
+      runPostCommitTask('entry product registration group confirmation', async () => {
+        await message.reply(formatEntryProductRegistered(session));
+        await message.reply(formatAdditionalProductRegistrationQuestion(nextItems.length));
+      }),
+      runPostCommitTask('entry product registration private owner notification', () =>
+        sendBossTextNotification(
+          formatBossEntryProductRegistrationNotification(session, responsibleName)
+        )
+      ),
+    ]);
+  } catch (error) {
+    clearProductRegistrationSession(session.userId, session.chatId);
+
+    if (error instanceof ProductAlreadyExistsError) {
+      await message.reply([
+        '⚠️ *PNEU JÁ CADASTRADO*',
+        `${error.reference} — ${error.description}`,
+        '',
+        'Nenhum cadastro duplicado foi criado e os itens anteriores continuam na nota.',
+        'Digite *voltar* para pesquisar a medida novamente.',
+      ].join('\n'));
+      return;
+    }
+
+    console.error('[PRODUCT_REGISTRATION] Error registering product inside entry:', error);
+    await message.reply([
+      'Ocorreu um erro ao cadastrar o pneu. Nenhuma informação nova foi salva.',
+      'Os itens anteriores continuam na nota. Digite *cadastro* para tentar novamente ou *voltar*.',
+    ].join('\n'));
   }
 }
 
@@ -459,13 +677,17 @@ export function formatProductRegistrationConfirmation(
   session: ProductRegistrationSession
 ): string {
   return formatOperationConfirmation(
-    '🧾 *CADASTRO — CONFIRMAR*',
+    session.origin === 'entry'
+      ? '🧾 *CADASTRO NA NOTA — CONFIRMAR*'
+      : '🧾 *CADASTRO — CONFIRMAR*',
     [
       [
         `🛞 *${session.reference} — ${session.description}*`,
-        `📦 Estoque inicial: *${session.initialStock}*`,
+        session.origin === 'entry'
+          ? `📥 Quantidade na nota: *+${session.initialStock}*`
+          : `📦 Estoque inicial: *${session.initialStock}*`,
       ],
-      ...(session.initialStock
+      ...(session.origin !== 'entry' && session.initialStock
         ? [[`🚚 Fornecedor: *${session.supplier}*`]]
         : []),
       [
@@ -478,16 +700,14 @@ export function formatProductRegistrationConfirmation(
   );
 }
 
-function formatProductRegistrationLocationQuestion(): string {
-  return formatStockLocationQuestion(true);
+function formatProductRegistrationLocationQuestion(canSkip = true): string {
+  return formatStockLocationQuestion(canSkip);
 }
 
 function formatMeasureQuestion(): string {
   return [
-    '🆕 *DIGITAR MEDIDA*',
-    '*Digite apenas a medida:*',
-    '',
-    'Ex.: 175/70 R14, 110/90-17, 18.4/30',
+    '🆕 *MEDIDA*',
+    '*Digite a medida:*',
   ].join('\n');
 }
 
@@ -508,7 +728,16 @@ function formatDescriptionQuestion(reference: string): string {
   ].join('\n');
 }
 
-function formatProductQuantityQuestion(reference: string | undefined): string {
+function formatProductQuantityQuestion(
+  reference: string | undefined,
+  origin?: ProductRegistrationSession['origin']
+): string {
+  if (origin === 'entry') {
+    return reference === 'RODA'
+      ? '📦 *QUANTIDADE NA NOTA*\nQuantas rodas serão adicionadas?'
+      : '📦 *QUANTIDADE NA NOTA*\nQuantos pneus serão adicionados?';
+  }
+
   if (reference === 'RODA') {
     return '📦 *QUANTIDADE*\nQuantas rodas?';
   }
@@ -528,16 +757,49 @@ function isCompleteSession(session: ProductRegistrationSession): session is Prod
     session.reference &&
       session.description &&
       session.initialStock !== undefined &&
-      (session.initialStock === 0 || session.supplier) &&
+      (session.origin === 'entry' || session.initialStock === 0 || session.supplier) &&
       session.cashPrice !== undefined &&
       session.creditPrice !== undefined &&
       session.stockLocation !== undefined
   );
 }
 
+function formatEntryProductRegistered(session: ProductRegistrationSession): string {
+  return [
+    '✅ *PNEU CADASTRADO E ADICIONADO À NOTA*',
+    '',
+    `🛞 *${session.reference} — ${session.description}*`,
+    `📥 Quantidade: *+${session.initialStock}*`,
+    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}* | 💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
+    ...(env.inventoryLocationsEnabled && session.stockLocation
+      ? [`📍 Local: *${session.stockLocation}*`]
+      : []),
+  ].join('\n');
+}
+
+function formatBossEntryProductRegistrationNotification(
+  session: ProductRegistrationSession,
+  responsibleName: string
+): string {
+  return [
+    '🆕 *NOVO PNEU CADASTRADO DURANTE UMA ENTRADA*',
+    '',
+    `🛞 *${session.reference} — ${session.description}*`,
+    `📥 Quantidade preparada na nota: *+${session.initialStock}*`,
+    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
+    `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
+    ...(env.inventoryLocationsEnabled && session.stockLocation
+      ? [`📍 Local: *${session.stockLocation}*`]
+      : []),
+    '',
+    `👤 Responsável: *${responsibleName}*`,
+  ].join('\n');
+}
+
 function formatRegisteredProduct(
   session: ProductRegistrationSession,
-  movementCode: string | null
+  movementCode: string | null,
+  registeredProductCount: number
 ): string {
   return [
     '✅ *PNEU CADASTRADO*',
@@ -559,6 +821,25 @@ function formatRegisteredProduct(
     ...(session.initialStock === 0
       ? ['', 'ℹ️ O pneu foi cadastrado, mas a consulta informará estoque zero até que seja feita uma entrada.']
       : []),
+    '',
+    formatAdditionalProductRegistrationQuestion(registeredProductCount),
+  ].join('\n');
+}
+
+function formatAdditionalProductRegistrationQuestion(registeredProductCount: number): string {
+  return [
+    '➕ *QUER ADICIONAR MAIS ALGUM PNEU?*',
+    '',
+    `Itens preparados: *${registeredProductCount}*`,
+    '',
+    formatBinaryOptions(),
+  ].join('\n');
+}
+
+function formatProductRegistrationFinished(registeredProductCount: number): string {
+  return [
+    '✅ *CADASTRO FINALIZADO*',
+    `Pneus cadastrados: *${registeredProductCount}*`,
   ].join('\n');
 }
 

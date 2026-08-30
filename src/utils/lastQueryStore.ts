@@ -1,7 +1,9 @@
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+
 /**
  * In-memory store for the last tire consultation per user.
  * 
- * Fase 2: Save last query for 9 minutes to support indexed selection (e.g. venda 1 5).
+ * Fase 2: Save the last query for the employee session duration to support indexed selection.
  * 
  * This will be used in Fase 3, but the storage mechanism is part of Fase 2.
  */
@@ -27,7 +29,7 @@ interface StoredQuery {
 
 const lastQueries = new Map<string, StoredQuery>();
 
-export const LAST_QUERY_TTL_MS = 9 * 60 * 1000;
+export const LAST_QUERY_TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;

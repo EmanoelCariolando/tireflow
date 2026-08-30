@@ -1,4 +1,5 @@
 import type { QueriedProduct } from './lastQueryStore.js';
+import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
 
 export interface EntryItem {
   productId: string;
@@ -49,7 +50,7 @@ export interface EntrySession {
 }
 
 const entrySessions = new Map<string, EntrySession>();
-const TTL_MS = 5 * 60 * 1000;
+const TTL_MS = EMPLOYEE_SESSION_TTL_MS;
 
 function buildKey(userId: string, chatId: string): string {
   return `${chatId}:${userId}`;

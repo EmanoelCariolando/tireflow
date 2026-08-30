@@ -61,3 +61,10 @@ test('every startup failure uses the complete shutdown path before exiting', () 
   );
   assert.doesNotMatch(indexSource, /Failed to start TireFlow:[\s\S]{0,100}process\.exit\(1\)/);
 });
+
+test('abnormal exits are persisted for process-independent startup backoff', () => {
+  assert.match(indexSource, /await waitForStartupRecoveryWindow\(\)/);
+  assert.match(indexSource, /scheduleStartupRecoveryReset\(\)/);
+  assert.match(indexSource, /await recordStartupFailure\(signal\)/);
+  assert.match(indexSource, /await clearStartupRecoveryState\(\)/);
+});
