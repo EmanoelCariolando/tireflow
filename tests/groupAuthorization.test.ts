@@ -70,6 +70,83 @@ test('resolves the real group administrator and caches the result briefly', asyn
   }
 });
 
+test('matches an admin message LID to the participant phone identifier and caches the alias', async () => {
+  const authorLid = '120675746508822@lid';
+  const participantPhoneId = '5567999999999@c.us';
+  let getChatCalls = 0;
+  let getContactCalls = 0;
+  const message = {
+    author: authorLid,
+    from: 'authorization-lid-group@g.us',
+    getChat: async () => {
+      getChatCalls += 1;
+      return {
+        participants: [{
+          id: {
+            user: '5567999999999',
+            server: 'c.us',
+            _serialized: participantPhoneId,
+          },
+          isAdmin: true,
+          isSuperAdmin: false,
+        }],
+      };
+    },
+    getContact: async () => {
+      getContactCalls += 1;
+      return {
+        id: {
+          user: '5567999999999',
+          server: 'c.us',
+          _serialized: participantPhoneId,
+        },
+        number: '5567999999999',
+      };
+    },
+  } as unknown as Message;
+
+  try {
+    assert.equal(await isMessageFromGroupAdmin(message), true);
+    assert.equal(await isMessageFromGroupAdmin(message), true);
+    assert.equal(getChatCalls, 1);
+    assert.equal(getContactCalls, 1);
+  } finally {
+    clearGroupAdminCache();
+  }
+});
+
+test('does not promote a regular LID participant while resolving its phone alias', async () => {
+  const message = {
+    author: '120600000000001@lid',
+    from: 'authorization-regular-lid-group@g.us',
+    getChat: async () => ({
+      participants: [{
+        id: {
+          user: '5567888888888',
+          server: 'c.us',
+          _serialized: '5567888888888@c.us',
+        },
+        isAdmin: false,
+        isSuperAdmin: false,
+      }],
+    }),
+    getContact: async () => ({
+      id: {
+        user: '5567888888888',
+        server: 'c.us',
+        _serialized: '5567888888888@c.us',
+      },
+      number: '5567888888888',
+    }),
+  } as unknown as Message;
+
+  try {
+    assert.equal(await isMessageFromGroupAdmin(message), false);
+  } finally {
+    clearGroupAdminCache();
+  }
+});
+
 test('silently hides menu and direct administrative commands from regular members', async () => {
   const previousGroupId = env.whatsappOfficialGroupId;
   const previousPrivateMode = env.allowPrivateTestMode;
