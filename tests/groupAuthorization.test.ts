@@ -156,6 +156,46 @@ test('does not promote a regular LID participant while resolving its phone alias
   }
 });
 
+test('falls back to direct group metadata when message.getChat fails on the server', async () => {
+  const authorLid = '120600000000099@lid';
+  const administratorPhoneId = '5567777777777@c.us';
+  let directMetadataCalls = 0;
+  const message = {
+    author: authorLid,
+    from: 'authorization-direct-metadata-group@g.us',
+    getChat: async () => {
+      throw new Error('r');
+    },
+    client: {
+      pupPage: {
+        evaluate: async (
+          _pageFunction: (groupId: string) => Promise<unknown>,
+          groupId: string
+        ) => {
+          directMetadataCalls += 1;
+          assert.equal(groupId, 'authorization-direct-metadata-group@g.us');
+          return [{
+            id: administratorPhoneId,
+            isAdmin: true,
+            isSuperAdmin: false,
+          }];
+        },
+      },
+      getContactLidAndPhone: async () => [{
+        lid: authorLid,
+        pn: administratorPhoneId,
+      }],
+    },
+  } as unknown as Message;
+
+  try {
+    assert.equal(await isMessageFromGroupAdmin(message), true);
+    assert.equal(directMetadataCalls, 1);
+  } finally {
+    clearGroupAdminCache();
+  }
+});
+
 test('silently hides menu and direct administrative commands from regular members', async () => {
   const previousGroupId = env.whatsappOfficialGroupId;
   const previousPrivateMode = env.allowPrivateTestMode;

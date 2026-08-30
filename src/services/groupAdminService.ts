@@ -14,7 +14,19 @@ interface MessageWithIdentifierResolver {
     getContactLidAndPhone?: (
       userIds: string[]
     ) => Promise<Array<{ lid?: string; pn?: string }>>;
+    pupPage?: {
+      evaluate: (
+        pageFunction: (groupId: string) => Promise<GroupParticipantSnapshot[]>,
+        groupId: string
+      ) => Promise<GroupParticipantSnapshot[]>;
+    };
   };
+}
+
+interface GroupParticipantSnapshot {
+  id: string;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 const groupRoleCache = new Map<string, CachedGroupRoles>();
@@ -62,15 +74,12 @@ export async function isMessageFromGroupAdmin(message: Message): Promise<boolean
 }
 
 async function loadGroupRoles(message: Message): Promise<CachedGroupRoles> {
-  const chat = await message.getChat();
-  const participants = 'participants' in chat
-    ? (chat.participants as GroupParticipant[])
-    : [];
+  const participants = await loadGroupParticipants(message);
   const administrators = new Set<string>();
   const participantRoles = new Map<string, boolean>();
 
   for (const participant of participants) {
-    const participantId = normalizeWhatsAppId(participant.id._serialized);
+    const participantId = normalizeWhatsAppId(participant.id);
     const isAdmin = Boolean(participant.isAdmin || participant.isSuperAdmin);
     participantRoles.set(participantId, isAdmin);
     if (isAdmin) {
@@ -82,7 +91,7 @@ async function loadGroupRoles(message: Message): Promise<CachedGroupRoles> {
     message,
     participants
       .filter((participant) => participant.isAdmin || participant.isSuperAdmin)
-      .map((participant) => participant.id._serialized),
+      .map((participant) => participant.id),
     administrators,
     participantRoles
   );
@@ -101,6 +110,90 @@ async function loadGroupRoles(message: Message): Promise<CachedGroupRoles> {
     participantRoles,
     expiresAt: Date.now() + GROUP_ADMIN_CACHE_TTL_MS,
   };
+}
+
+async function loadGroupParticipants(message: Message): Promise<GroupParticipantSnapshot[]> {
+  try {
+    const chat = await message.getChat();
+    const participants = 'participants' in chat
+      ? (chat.participants as GroupParticipant[])
+      : [];
+
+    if (participants.length > 0) {
+      return participants.map((participant) => ({
+        id: participant.id._serialized,
+        isAdmin: Boolean(participant.isAdmin),
+        isSuperAdmin: Boolean(participant.isSuperAdmin),
+      }));
+    }
+  } catch (error) {
+    console.warn(
+      '[AUTHORIZATION] Standard group lookup failed; using direct metadata fallback.',
+      error
+    );
+  }
+
+  return loadGroupParticipantsDirectly(message, getMessageChatId(message));
+}
+
+async function loadGroupParticipantsDirectly(
+  message: Message,
+  groupId: string
+): Promise<GroupParticipantSnapshot[]> {
+  const client = (message as unknown as MessageWithIdentifierResolver).client;
+  const page = client?.pupPage;
+  if (!page) {
+    throw new Error('WhatsApp page is unavailable for the group metadata fallback.');
+  }
+
+  return page.evaluate(async (currentGroupId) => {
+    interface BrowserParticipant {
+      id?: { _serialized?: string };
+      isAdmin?: boolean;
+      isSuperAdmin?: boolean;
+    }
+    interface BrowserGroup {
+      groupMetadata?: {
+        participants?: {
+          serialize?: () => BrowserParticipant[];
+        };
+      };
+    }
+
+    const requireModule = (globalThis as unknown as {
+      require: (moduleName: string) => unknown;
+    }).require;
+    const widFactory = requireModule('WAWebWidFactory') as {
+      createWid: (value: string) => unknown;
+    };
+    const collections = requireModule('WAWebCollections') as {
+      Chat: {
+        get: (id: unknown) => BrowserGroup | undefined;
+        find: (id: unknown) => Promise<BrowserGroup | undefined>;
+      };
+    };
+    const groupQuery = requireModule('WAWebGroupQueryJob') as {
+      queryAndUpdateGroupMetadataById: (input: { id: string }) => Promise<unknown>;
+    };
+    const groupWid = widFactory.createWid(currentGroupId);
+    let group = collections.Chat.get(groupWid) ?? await collections.Chat.find(groupWid);
+
+    try {
+      await groupQuery.queryAndUpdateGroupMetadataById({ id: currentGroupId });
+      group = collections.Chat.get(groupWid) ?? group;
+    } catch {
+      // Cached metadata is still useful when WhatsApp refuses an explicit refresh.
+    }
+
+    const serializedParticipants = group?.groupMetadata?.participants?.serialize?.() ?? [];
+    return serializedParticipants
+      .map((participant) => ({
+        id: participant.id?._serialized ?? '',
+        isAdmin: Boolean(participant.isAdmin),
+        isSuperAdmin: Boolean(participant.isSuperAdmin),
+      }))
+      .filter((participant) => Boolean(participant.id));
+  }, groupId);
 }
 
 async function addAdministratorAliases(
