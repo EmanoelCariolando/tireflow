@@ -9,6 +9,14 @@ interface CachedGroupRoles {
   expiresAt: number;
 }
 
+interface MessageWithIdentifierResolver {
+  client?: {
+    getContactLidAndPhone?: (
+      userIds: string[]
+    ) => Promise<Array<{ lid?: string; pn?: string }>>;
+  };
+}
+
 const groupRoleCache = new Map<string, CachedGroupRoles>();
 const pendingGroupRoleLoads = new Map<string, Promise<CachedGroupRoles>>();
 
@@ -70,11 +78,64 @@ async function loadGroupRoles(message: Message): Promise<CachedGroupRoles> {
     }
   }
 
+  await addAdministratorAliases(
+    message,
+    participants
+      .filter((participant) => participant.isAdmin || participant.isSuperAdmin)
+      .map((participant) => participant.id._serialized),
+    administrators,
+    participantRoles
+  );
+
+  console.log('[AUTHORIZATION] Group roles loaded.', {
+    participantCount: participants.length,
+    administratorCount: participants.filter(
+      (participant) => participant.isAdmin || participant.isSuperAdmin
+    ).length,
+    administratorIdentifierCount: administrators.size,
+    messageAuthorIdType: getWhatsAppIdType(getMessageUserId(message)),
+  });
+
   return {
     administrators,
     participantRoles,
     expiresAt: Date.now() + GROUP_ADMIN_CACHE_TTL_MS,
   };
+}
+
+async function addAdministratorAliases(
+  message: Message,
+  administratorIds: string[],
+  administrators: Set<string>,
+  participantRoles: Map<string, boolean>
+): Promise<void> {
+  if (administratorIds.length === 0) {
+    return;
+  }
+
+  const client = (message as unknown as MessageWithIdentifierResolver).client;
+  const resolveIdentifiers = client?.getContactLidAndPhone;
+  if (typeof resolveIdentifiers !== 'function') {
+    return;
+  }
+
+  try {
+    const mappings = await resolveIdentifiers.call(client, administratorIds);
+
+    for (const mapping of mappings) {
+      for (const identifier of [mapping.lid, mapping.pn]) {
+        if (!identifier) continue;
+        const alias = normalizeWhatsAppId(identifier);
+        administrators.add(alias);
+        participantRoles.set(alias, true);
+      }
+    }
+  } catch (error) {
+    console.warn(
+      '[AUTHORIZATION] Could not resolve LID/phone aliases for group administrators.',
+      error
+    );
+  }
 }
 
 async function resolveParticipantRole(
@@ -115,6 +176,12 @@ async function resolveParticipantRole(
   }
 
   return isAdmin;
+}
+
+function getWhatsAppIdType(value: string): string {
+  const normalized = normalizeWhatsAppId(value);
+  const separatorIndex = normalized.indexOf('@');
+  return separatorIndex >= 0 ? normalized.slice(separatorIndex + 1) : 'unknown';
 }
 
 export function clearGroupAdminCache(): void {

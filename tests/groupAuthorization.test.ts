@@ -75,9 +75,17 @@ test('matches an admin message LID to the participant phone identifier and cache
   const participantPhoneId = '5567999999999@c.us';
   let getChatCalls = 0;
   let getContactCalls = 0;
+  let identifierResolverCalls = 0;
   const message = {
     author: authorLid,
     from: 'authorization-lid-group@g.us',
+    client: {
+      getContactLidAndPhone: async (ids: string[]) => {
+        identifierResolverCalls += 1;
+        assert.deepEqual(ids, [participantPhoneId]);
+        return [{ lid: authorLid, pn: participantPhoneId }];
+      },
+    },
     getChat: async () => {
       getChatCalls += 1;
       return {
@@ -96,11 +104,11 @@ test('matches an admin message LID to the participant phone identifier and cache
       getContactCalls += 1;
       return {
         id: {
-          user: '5567999999999',
-          server: 'c.us',
-          _serialized: participantPhoneId,
+          user: '120675746508822',
+          server: 'lid',
+          _serialized: authorLid,
         },
-        number: '5567999999999',
+        number: '120675746508822',
       };
     },
   } as unknown as Message;
@@ -109,7 +117,8 @@ test('matches an admin message LID to the participant phone identifier and cache
     assert.equal(await isMessageFromGroupAdmin(message), true);
     assert.equal(await isMessageFromGroupAdmin(message), true);
     assert.equal(getChatCalls, 1);
-    assert.equal(getContactCalls, 1);
+    assert.equal(identifierResolverCalls, 1);
+    assert.equal(getContactCalls, 0);
   } finally {
     clearGroupAdminCache();
   }
