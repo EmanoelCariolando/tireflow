@@ -8,7 +8,11 @@ import {
   hasExpiredAdjustmentSession,
   saveAdjustmentSession,
 } from '../utils/adjustmentSessionStore.js';
-import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import {
+  clearAllOperationSessions,
+  hasActiveOperationSession,
+  isNewOperationConversationCommand as isNewOperationCommand,
+} from '../utils/operationSessionCoordinator.js';
 import { runPostCommitTask } from '../services/postCommitTask.js';
 import {
   AdjustmentProductNotFoundError,
@@ -276,10 +280,6 @@ async function handleConfirmationStep(
   );
 
   clearAdjustmentSession(session.userId, session.chatId);
-}
-
-function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
 function formatAdjustmentConfirmation(session: AdjustmentSession): string {

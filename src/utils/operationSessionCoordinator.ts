@@ -64,3 +64,13 @@ export function isOperationStartCommand(body: string): boolean {
     body.trim()
   );
 }
+
+export function isNewOperationConversationCommand(body: string): boolean {
+  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(body.trim());
+}
+
+export function isProductRegistrationNavigationCommand(body: string): boolean {
+  return /^(menu|venda|entrada|ajuste|pre[cç]o|local|addfoto|cadastrar\s+pneu|adicionar\s+pneu)\b/i.test(
+    body.trim()
+  );
+}

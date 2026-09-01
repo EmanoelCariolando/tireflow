@@ -3,6 +3,7 @@ import { constants } from 'node:fs';
 import { prisma } from '../database/prisma.js';
 import { PRODUCT_UPLOAD_DIRECTORY } from '../config/appPaths.js';
 import env, { assertRuntimeEnvironment } from '../config/env.js';
+import { assertDatabaseMigrationsApplied } from '../database/migrationStatus.js';
 
 export async function runStartupChecks(): Promise<void> {
   assertRuntimeEnvironment();
@@ -13,6 +14,7 @@ export async function runStartupChecks(): Promise<void> {
   await access(env.chromeExecutablePath, constants.F_OK);
 
   await prisma.$queryRawUnsafe('SELECT 1');
+  await assertDatabaseMigrationsApplied();
   await prisma.$queryRawUnsafe('PRAGMA busy_timeout = 10000');
   await prisma.$queryRawUnsafe('PRAGMA journal_mode = WAL');
   const integrityRows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(
@@ -23,5 +25,5 @@ export async function runStartupChecks(): Promise<void> {
     throw new Error('Falha na verificação de integridade do banco SQLite. Restaure um backup válido.');
   }
 
-  console.log('[STARTUP] Configuration, database integrity and uploads directory validated.');
+  console.log('[STARTUP] Configuration, migrations, database integrity and uploads directory validated.');
 }

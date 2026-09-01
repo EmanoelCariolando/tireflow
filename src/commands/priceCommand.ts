@@ -9,7 +9,11 @@ import {
   PriceSession,
   savePriceSession,
 } from '../utils/priceSessionStore.js';
-import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import {
+  clearAllOperationSessions,
+  hasActiveOperationSession,
+  isNewOperationConversationCommand as isNewOperationCommand,
+} from '../utils/operationSessionCoordinator.js';
 import { runPostCommitTask } from '../services/postCommitTask.js';
 import { PriceProductNotFoundError, registerPriceChange } from '../services/priceService.js';
 import { sendBossNotification } from '../services/notificationService.js';
@@ -250,10 +254,6 @@ function parsePriceValue(value: string): number | null {
   }
 
   return Math.round(price * 100) / 100;
-}
-
-function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }
 
 function formatPriceConfirmation(session: PriceSession): string {

@@ -1,16 +1,18 @@
 import { Message } from 'whatsapp-web.js';
 import { getLastQuery, updateLastQueryProductLocation } from '../utils/lastQueryStore.js';
-import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
   clearEntrySession,
-  EntryItem,
   EntrySession,
   getEntrySession,
   hasExpiredEntrySession,
   saveEntrySession,
 } from '../utils/entrySessionStore.js';
-import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
+import {
+  clearAllOperationSessions,
+  hasActiveOperationSession,
+  isNewOperationConversationCommand as isNewOperationCommand,
+} from '../utils/operationSessionCoordinator.js';
 import { runPostCommitTask } from '../services/postCommitTask.js';
 import {
   EntryProductNotFoundError,
@@ -20,20 +22,17 @@ import {
 import { sendBossNotification } from '../services/notificationService.js';
 import {
   formatConfirmationOptions,
-  formatOperationConfirmation,
   isBackResponse,
   isCancellationResponse,
   parseConfirmationAction,
 } from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
-import { formatCurrency } from '../utils/formatCurrency.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import {
   findActiveProductsByReference,
   findSuggestedActiveReferences,
 } from '../services/productService.js';
 import {
-  formatProductChoiceQuestion,
   formatProductList,
   formatReferenceSuggestions,
   isTireSizeLikeCommand,
@@ -42,51 +41,49 @@ import {
   formatAdditionalTireQuestion,
   formatCashPriceQuestion,
   formatQuantityQuestion,
-  formatStockLocationQuestion,
   formatSupplierQuestion,
 } from '../utils/operationPrompts.js';
 import env from '../config/env.js';
 import { parseStockLocationChoice } from '../utils/stockLocation.js';
-import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
-import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryResponse.js';
+import { parseBinaryResponse } from '../utils/binaryResponse.js';
 import { handleEntryProductRegistrationStart } from './productRegistrationCommand.js';
+import {
+  buildCurrentEntryItem,
+  getEntryItems,
+  getExplicitEntryItems,
+  MAX_ENTRY_INVOICE_NUMBER_LENGTH as MAX_INVOICE_NUMBER_LENGTH,
+  normalizeEntryInvoiceNumber as normalizeInvoiceNumber,
+  orderEntryProductsByStock,
+  parseAdditionalEntryItemSelection as parseAdditionalItemSelection,
+  parseEntryPriceValue as parsePriceValue,
+} from '../utils/entrySessionHelpers.js';
+import {
+  formatAdditionalDecisionQuestion,
+  formatAdditionalEntryHelp,
+  formatAdditionalEntryProductChoiceQuestion,
+  formatBossEntryNotification,
+  formatEntryConfirmation,
+  formatEntryLocationQuestion,
+  formatInvoiceNumberQuestion,
+  formatPriceDecisionQuestion,
+  formatRegisteredEntry,
+} from './entryFormatting.js';
+
+export { orderEntryProductsByStock } from '../utils/entrySessionHelpers.js';
+export {
+  formatAdditionalEntryHelp,
+  formatAdditionalEntryProductChoiceQuestion,
+  formatBossEntryNotification,
+  formatEntryConfirmation,
+  formatEntryLocationQuestion,
+  formatInvoiceNumberQuestion,
+  formatRegisteredEntry,
+} from './entryFormatting.js';
 
 const ENTRY_COMMAND_REGEX = /^entrada\s+(\d+)$/i;
 const MAX_ENTRY_ITEMS = 20;
-const MAX_INVOICE_NUMBER_LENGTH = 40;
 const ADDITIONAL_ENTRY_HELP_DELAY_MS = 30_000;
 const additionalEntryHelpTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-export function orderEntryProductsByStock(
-  products: QueriedProduct[]
-): QueriedProduct[] {
-  const available: QueriedProduct[] = [];
-  const zeroStock: QueriedProduct[] = [];
-
-  for (const product of products) {
-    (product.stock > 0 ? available : zeroStock).push(product);
-  }
-
-  return [...available, ...zeroStock];
-}
-
-export function formatAdditionalEntryProductChoiceQuestion(): string {
-  return formatProductChoiceQuestion();
-}
-
-export function formatAdditionalEntryHelp(): string {
-  return [
-    '🔎 *NÃO ACHOU O PNEU NA LISTA?*',
-    '',
-    '➕ *Cadastrar esta medida*',
-    'Digite *cadastro*.',
-    'O pneu será cadastrado e adicionado automaticamente à nota.',
-    '',
-    '🔄 *Pesquisar outra medida*',
-    'Digite a nova medida diretamente ou envie *voltar*.',
-    'Ex.: *175 70 13*',
-  ].join('\n');
-}
 
 export function isEntryCommand(body: string): boolean {
   return ENTRY_COMMAND_REGEX.test(body.trim());
@@ -765,20 +762,6 @@ async function handleConfirmationStep(
   clearEntrySession(session.userId, session.chatId);
 }
 
-function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
-}
-
-function parseAdditionalItemSelection(value: string): number | null {
-  const match = value.trim().match(/^(?:entrada\s+)?(\d+)$/i);
-  if (!match) {
-    return null;
-  }
-
-  const optionNumber = Number(match[1]);
-  return Number.isInteger(optionNumber) && optionNumber > 0 ? optionNumber : null;
-}
-
 function canReturnFromAdditionalEntry(session: EntrySession): boolean {
   return getExplicitEntryItems(session).length > 0 && [
     'awaiting_additional_measure',
@@ -822,324 +805,6 @@ async function returnToPreparedEntry(
     '',
     formatAdditionalDecisionQuestion(nextSession),
   ].join('\n'));
-}
-
-function parsePriceValue(value: string): number | null {
-  const trimmed = value.trim();
-  const normalized = trimmed.includes(',')
-    ? trimmed.replace(/\./g, '').replace(',', '.')
-    : trimmed;
-  const price = Number(normalized);
-
-  if (!Number.isFinite(price) || price < 0) {
-    return null;
-  }
-
-  return Math.round(price * 100) / 100;
-}
-
-function normalizeInvoiceNumber(value: string): string | null {
-  const normalized = value.trim().replace(/\s+/g, ' ');
-
-  if (
-    !normalized ||
-    normalized.length > MAX_INVOICE_NUMBER_LENGTH ||
-    !/^[\p{L}\p{N}][\p{L}\p{N} ./-]*$/u.test(normalized)
-  ) {
-    return null;
-  }
-
-  return normalized;
-}
-
-function buildCurrentEntryItem(session: EntrySession): EntryItem | null {
-  if (!session.quantity || !session.supplier) {
-    return null;
-  }
-
-  return {
-    productId: session.productId,
-    reference: session.reference,
-    description: session.description,
-    oldCashPrice: session.oldCashPrice,
-    oldCreditPrice: session.oldCreditPrice,
-    quantity: session.quantity,
-    supplier: session.supplier,
-    stockLocation: session.stockLocation,
-    newCashPrice: session.newCashPrice,
-    newCreditPrice: session.newCreditPrice,
-  };
-}
-
-function getExplicitEntryItems(session: EntrySession): EntryItem[] {
-  return session.items?.map((item) => ({ ...item })) ?? [];
-}
-
-function getEntryItems(session: EntrySession): EntryItem[] {
-  const items = getExplicitEntryItems(session);
-  if (items.length > 0) {
-    return items;
-  }
-
-  const currentItem = buildCurrentEntryItem(session);
-  return currentItem ? [currentItem] : [];
-}
-
-function formatAdditionalDecisionQuestion(session: EntrySession): string {
-  return [
-    '➕ *QUER ADICIONAR MAIS ALGUM PNEU?*',
-    '',
-    `Itens preparados: *${getEntryItems(session).length}*`,
-    '',
-    formatBinaryOptions(),
-  ].join('\n');
-}
-
-function formatPriceDecisionQuestion(): string {
-  return `💰 *VOCÊ QUER ALTERAR O PREÇO?*\n${formatBinaryOptions()}`;
-}
-
-export function formatInvoiceNumberQuestion(): string {
-  return '📋 *NÚMERO DA NOTA*\nnúmero da nota fiscal:';
-}
-
-export function formatEntryLocationQuestion(): string {
-  return formatStockLocationQuestion();
-}
-
-export function formatEntryConfirmation(session: EntrySession): string {
-  const items = getEntryItems(session);
-  const invoiceLine = formatEntryInvoiceLine(session);
-  if (items.length > 1) {
-    return formatOperationConfirmation(
-      '📦 *ENTRADA — CONFIRMAR*',
-      [
-        formatCompactEntryItemLines(items),
-        [
-          ...(invoiceLine ? [invoiceLine] : []),
-          `📦 Total de itens: *${items.length}*`,
-        ],
-      ]
-    );
-  }
-
-  const item = items[0] ?? buildCurrentEntryItem(session);
-  if (!item) {
-    return 'Ocorreu um erro na sessão da entrada. Faça a consulta novamente.';
-  }
-
-  const prices = item.newCashPrice !== undefined && item.newCreditPrice !== undefined
-    ? `💰 À vista: ${formatCurrency(item.oldCashPrice)} → *${formatCurrency(item.newCashPrice)}* | 💳 A prazo: ${formatCurrency(item.oldCreditPrice)} → *${formatCurrency(item.newCreditPrice)}*`
-    : `💰 À vista: *${formatCurrency(item.oldCashPrice)}* | 💳 A prazo: *${formatCurrency(item.oldCreditPrice)}*`;
-
-  return formatOperationConfirmation(
-    '📦 *ENTRADA — CONFIRMAR*',
-    [
-      [
-        `🛞 *${item.reference} — ${item.description}*`,
-        `📥 Quantidade: *+${item.quantity}*`,
-      ],
-      formatEntrySupplierAndInvoiceLines(item, session),
-      [prices],
-      ...(item.stockLocation ? [[`📍 Local: *${item.stockLocation}*`]] : []),
-    ]
-  );
-}
-
-export function formatRegisteredEntry(
-  session: EntrySession,
-  responsibleName: string,
-  registeredItems: RegisteredEntry[]
-): string {
-  const items = getEntryItems(session);
-  if (items.length > 1) {
-    return formatRegisteredEntryItems(
-      '✅ *ENTRADAS REGISTRADAS*',
-      formatEntryInvoiceLine(session),
-      items,
-      responsibleName,
-      registeredItems,
-      false
-    );
-  }
-
-  const item = items[0]!;
-  const registered = registeredItems[0]!;
-  return [
-    '✅ *ENTRADA REGISTRADA*',
-    '',
-    `🛞 *${item.reference} — ${item.description}*`,
-    '',
-    `📥 Entrada: *+${item.quantity}*`,
-    `📦 Estoque atual: *${registered.currentStock}*`,
-    `🚚 Fornecedor: *${item.supplier}*`,
-    ...formatOptionalEntryInvoiceLine(session),
-    ...(item.newCashPrice !== undefined && item.newCreditPrice !== undefined
-      ? [
-          '',
-          `💰 À vista: ${formatCurrency(item.oldCashPrice)} → *${formatCurrency(item.newCashPrice)}*`,
-          `💳 A prazo: ${formatCurrency(item.oldCreditPrice)} → *${formatCurrency(item.newCreditPrice)}*`,
-        ]
-      : []),
-    '',
-    ...formatMovementNumberMessage(`🧾 Movimentação: *${registered.movementCode}*`),
-    `👤 Responsável: *${responsibleName}*`,
-  ].join('\n');
-}
-
-export function formatBossEntryNotification(
-  session: EntrySession,
-  responsibleName: string,
-  registeredItems: RegisteredEntry[]
-): string {
-  const items = getEntryItems(session);
-  if (items.length > 1) {
-    return formatRegisteredEntryItems(
-      '📦 *NOVAS ENTRADAS*',
-      formatEntryInvoiceLine(session),
-      items,
-      responsibleName,
-      registeredItems,
-      true
-    );
-  }
-
-  const item = items[0]!;
-  const registered = registeredItems[0]!;
-  return [
-    '📦 *NOVA ENTRADA*',
-    '',
-    `🛞 *${item.reference} — ${item.description}*`,
-    '',
-    `📥 Entrada: *+${item.quantity}*`,
-    `📦 Estoque atual: *${registered.currentStock}*`,
-    `🚚 Fornecedor: *${item.supplier}*`,
-    ...formatOptionalEntryInvoiceLine(session),
-    ...(item.newCashPrice !== undefined && item.newCreditPrice !== undefined
-      ? [
-          '',
-          `💰 À vista: ${formatCurrency(item.oldCashPrice)} → *${formatCurrency(item.newCashPrice)}*`,
-          `💳 A prazo: ${formatCurrency(item.oldCreditPrice)} → *${formatCurrency(item.newCreditPrice)}*`,
-        ]
-      : []),
-    ...formatEntryLocationChange(registered),
-    '',
-    ...formatMovementNumberMessage(`🧾 Movimentação: *${registered.movementCode}*`),
-    `👤 Responsável: *${responsibleName}*`,
-  ].join('\n');
-}
-
-function formatCompactEntryItemLines(items: EntryItem[]): string[] {
-  return items.flatMap((item, index) => formatCompactEntryItem(item, index));
-}
-
-function formatCompactEntryItem(
-  item: EntryItem,
-  index: number,
-  includeLocation = true
-): string[] {
-  const itemHeader = `${index + 1}. *${item.reference} — ${item.description}*`;
-
-  if (item.newCashPrice !== undefined && item.newCreditPrice !== undefined) {
-    return [
-      itemHeader,
-      `📥 Adicionou: *+${item.quantity}* | 💰 À vista: ${formatCurrency(item.newCashPrice)}`,
-      `📃 A prazo: ${formatCurrency(item.newCreditPrice)}`,
-      ...(includeLocation && item.stockLocation
-        ? [`📍 Local: *${item.stockLocation}*`]
-        : []),
-    ];
-  }
-
-  return [
-    itemHeader,
-    `📥 Adicionou: *+${item.quantity}* | 🏷️ sem alteração`,
-    ...(includeLocation && item.stockLocation
-      ? [`📍 Local: *${item.stockLocation}*`]
-      : []),
-  ];
-}
-
-function formatEntrySupplierAndInvoiceLines(
-  item: EntryItem,
-  session: Pick<EntrySession, 'invoiceName' | 'invoiceNumber'>
-): string[] {
-  return [
-    [
-      `🚚 Fornecedor: *${item.supplier}*`,
-      ...(session.invoiceNumber
-        ? [`📃 Número da nota: *${session.invoiceNumber}*`]
-        : []),
-    ].join(' | '),
-    ...(session.invoiceName
-      ? [`🧾 Nome da nota: *${session.invoiceName}*`]
-      : []),
-  ];
-}
-
-function formatRegisteredEntryItems(
-  title: string,
-  invoiceLine: string | null,
-  items: EntryItem[],
-  responsibleName: string,
-  registeredItems: RegisteredEntry[],
-  includeLocationChange: boolean
-): string {
-  const lines = items.flatMap((item, index) => {
-    const registered = registeredItems[index];
-    return [
-      ...formatCompactEntryItem(item, index, false),
-      ...(includeLocationChange && registered
-        ? formatEntryLocationChange(registered)
-        : []),
-      ...formatMovementNumberMessage(
-        `📦 Estoque atual: *${registered?.currentStock ?? '?'}* | 🧾 *${registered?.movementCode ?? '?'}*`,
-        `📦 Estoque atual: *${registered?.currentStock ?? '?'}*`
-      ),
-    ];
-  });
-
-  return [
-    title,
-    '',
-    ...lines,
-    '',
-    ...(invoiceLine ? [invoiceLine] : []),
-    `👤 Responsável: *${responsibleName}*`,
-  ].join('\n');
-}
-
-function formatEntryInvoiceLine(
-  session: Pick<EntrySession, 'invoiceName' | 'invoiceNumber'>
-): string | null {
-  if (session.invoiceName && session.invoiceNumber) {
-    return `🧾 Nota: *${session.invoiceName}* | Nº: *${session.invoiceNumber}*`;
-  }
-
-  if (session.invoiceNumber) {
-    return `🧾 Nº da nota: *${session.invoiceNumber}*`;
-  }
-
-  return session.invoiceName ? `🧾 Nome da nota: *${session.invoiceName}*` : null;
-}
-
-function formatOptionalEntryInvoiceLine(
-  session: Pick<EntrySession, 'invoiceName' | 'invoiceNumber'>
-): string[] {
-  const line = formatEntryInvoiceLine(session);
-  return line ? [line] : [];
-}
-
-function formatEntryLocationChange(registered: RegisteredEntry): string[] {
-  if (!registered.currentLocation) return [];
-
-  const location =
-    registered.previousLocation &&
-    registered.previousLocation !== registered.currentLocation
-      ? `${registered.previousLocation} → ${registered.currentLocation}`
-      : registered.currentLocation;
-
-  return ['', `📍 Local: *${location}*`];
 }
 
 async function getResponsibleName(message: Message, fallback: string): Promise<string> {

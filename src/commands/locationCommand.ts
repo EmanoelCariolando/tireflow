@@ -21,6 +21,7 @@ import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
   clearAllOperationSessions,
   hasActiveOperationSession,
+  isNewOperationConversationCommand as isNewOperationCommand,
 } from '../utils/operationSessionCoordinator.js';
 import { normalizeStockLocation } from '../utils/stockLocation.js';
 import {
@@ -314,8 +315,4 @@ function formatRegisteredLocation(session: LocationSession, currentLocation: str
 
 function formatLocation(location: string | null): string {
   return location ?? 'não cadastrado';
-}
-
-function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(normalizedBody);
 }

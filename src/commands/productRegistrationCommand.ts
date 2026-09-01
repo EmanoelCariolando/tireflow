@@ -1,6 +1,5 @@
 import type { Message } from 'whatsapp-web.js';
 import env from '../config/env.js';
-import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import {
@@ -14,6 +13,7 @@ import { parseStockLocationChoice } from '../utils/stockLocation.js';
 import {
   clearAllOperationSessions,
   hasActiveOperationSession,
+  isProductRegistrationNavigationCommand as isNewOperationCommand,
 } from '../utils/operationSessionCoordinator.js';
 import {
   ProductAlreadyExistsError,
@@ -23,26 +23,48 @@ import { runPostCommitTask } from '../services/postCommitTask.js';
 import { sendBossTextNotification } from '../services/notificationService.js';
 import {
   formatConfirmationOptions,
-  formatOperationConfirmation,
   isCancellationResponse,
   parseConfirmationAction,
 } from '../utils/operationResponse.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import {
   formatCashPriceQuestion,
-  formatQuantityQuestion,
-  formatStockLocationQuestion,
   formatSupplierQuestion,
 } from '../utils/operationPrompts.js';
-import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 import {
   getEntrySession,
   saveEntrySession,
 } from '../utils/entrySessionStore.js';
-import { formatBinaryOptions, parseBinaryResponse } from '../utils/binaryResponse.js';
+import { parseBinaryResponse } from '../utils/binaryResponse.js';
+import {
+  normalizeProductDescription,
+  normalizeProductShortText as normalizeShortText,
+  MAX_PRODUCT_TEXT_LENGTH as MAX_TEXT_LENGTH,
+  parseNonNegativeInteger,
+  parseProductRegistrationPrice,
+} from './productRegistrationParsers.js';
+import {
+  formatAdditionalProductRegistrationQuestion,
+  formatBossEntryProductRegistrationNotification,
+  formatBossProductRegistrationNotification,
+  formatEntryProductRegistered,
+  formatProductDescriptionQuestion as formatDescriptionQuestion,
+  formatProductMeasureQuestion as formatMeasureQuestion,
+  formatProductQuantityQuestion,
+  formatProductRegistrationConfirmation,
+  formatProductRegistrationFinished,
+  formatProductRegistrationLocationQuestion,
+  formatRegisteredProduct,
+} from './productRegistrationFormatting.js';
+
+export {
+  normalizeProductDescription,
+  parseNonNegativeInteger,
+  parseProductRegistrationPrice,
+} from './productRegistrationParsers.js';
+export { formatProductRegistrationConfirmation } from './productRegistrationFormatting.js';
 
 const PRODUCT_REGISTRATION_COMMAND_REGEX = /^(cadastrar|adicionar)\s+pneu$/i;
-const MAX_TEXT_LENGTH = 120;
 
 export function isProductRegistrationCommand(body: string): boolean {
   return PRODUCT_REGISTRATION_COMMAND_REGEX.test(body.trim());
@@ -625,126 +647,6 @@ async function registerProductInsideEntry(
   }
 }
 
-export function normalizeProductDescription(value: string): string | null {
-  const normalized = value.trim().replace(/\s+/g, ' ').toUpperCase();
-  return normalized.length >= 2 && normalized.length <= MAX_TEXT_LENGTH ? normalized : null;
-}
-
-function normalizeShortText(value: string): string | null {
-  const normalized = value.trim().replace(/\s+/g, ' ');
-  return normalized.length >= 2 && normalized.length <= MAX_TEXT_LENGTH ? normalized : null;
-}
-
-export function parseNonNegativeInteger(value: string): number | null {
-  const trimmed = value.trim();
-
-  if (!/^\d+$/.test(trimmed)) {
-    return null;
-  }
-
-  const parsed = Number(trimmed);
-  return Number.isSafeInteger(parsed) ? parsed : null;
-}
-
-export function parseProductRegistrationPrice(value: string): number | null {
-  const compact = value.trim().replace(/^R\$\s*/i, '').replace(/\s+/g, '');
-  let normalized: string;
-
-  if (/^\d+$/.test(compact)) {
-    normalized = compact;
-  } else if (/^\d+,\d{1,2}$/.test(compact)) {
-    normalized = compact.replace(',', '.');
-  } else if (/^\d+\.\d{1,2}$/.test(compact)) {
-    normalized = compact;
-  } else if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(compact)) {
-    normalized = compact.replace(/\./g, '').replace(',', '.');
-  } else if (/^\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$/.test(compact)) {
-    normalized = compact.replace(/,/g, '');
-  } else {
-    return null;
-  }
-
-  const price = Number(normalized);
-
-  if (!Number.isFinite(price) || price < 0) {
-    return null;
-  }
-
-  return Math.round(price * 100) / 100;
-}
-
-export function formatProductRegistrationConfirmation(
-  session: ProductRegistrationSession
-): string {
-  return formatOperationConfirmation(
-    session.origin === 'entry'
-      ? '🧾 *CADASTRO NA NOTA — CONFIRMAR*'
-      : '🧾 *CADASTRO — CONFIRMAR*',
-    [
-      [
-        `🛞 *${session.reference} — ${session.description}*`,
-        session.origin === 'entry'
-          ? `📥 Quantidade na nota: *+${session.initialStock}*`
-          : `📦 Estoque inicial: *${session.initialStock}*`,
-      ],
-      ...(session.origin !== 'entry' && session.initialStock
-        ? [[`🚚 Fornecedor: *${session.supplier}*`]]
-        : []),
-      [
-        `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}* | 💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
-      ],
-      ...(env.inventoryLocationsEnabled
-        ? [[`📍 Local: *${session.stockLocation ?? 'não cadastrado'}*`]]
-        : []),
-    ]
-  );
-}
-
-function formatProductRegistrationLocationQuestion(canSkip = true): string {
-  return formatStockLocationQuestion(canSkip);
-}
-
-function formatMeasureQuestion(): string {
-  return [
-    '🆕 *MEDIDA*',
-    '*Digite a medida:*',
-  ].join('\n');
-}
-
-function formatDescriptionQuestion(reference: string): string {
-  if (reference === 'RODA') {
-    return [
-      '🏷️ *CADASTRO — DESCRIÇÃO DA RODA*',
-      'Informe modelo, quantidade de furos e medida.',
-      'Ex.: *275 8 FUROS (22.5X7.50)*',
-    ].join('\n');
-  }
-
-  return [
-    '🏷️*MARCA DO PNEU*',
-    '*Informe marca/modelo:*',
-    '',
-    'Ex.: PIRELLI MT60 TRASEIRO 60P',
-  ].join('\n');
-}
-
-function formatProductQuantityQuestion(
-  reference: string | undefined,
-  origin?: ProductRegistrationSession['origin']
-): string {
-  if (origin === 'entry') {
-    return reference === 'RODA'
-      ? '📦 *QUANTIDADE NA NOTA*\nQuantas rodas serão adicionadas?'
-      : '📦 *QUANTIDADE NA NOTA*\nQuantos pneus serão adicionados?';
-  }
-
-  if (reference === 'RODA') {
-    return '📦 *QUANTIDADE*\nQuantas rodas?';
-  }
-
-  return formatQuantityQuestion();
-}
-
 function isCompleteSession(session: ProductRegistrationSession): session is ProductRegistrationSession & {
   reference: string;
   description: string;
@@ -761,112 +663,6 @@ function isCompleteSession(session: ProductRegistrationSession): session is Prod
       session.cashPrice !== undefined &&
       session.creditPrice !== undefined &&
       session.stockLocation !== undefined
-  );
-}
-
-function formatEntryProductRegistered(session: ProductRegistrationSession): string {
-  return [
-    '✅ *PNEU CADASTRADO E ADICIONADO À NOTA*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    `📥 Quantidade: *+${session.initialStock}*`,
-    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}* | 💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
-    ...(env.inventoryLocationsEnabled && session.stockLocation
-      ? [`📍 Local: *${session.stockLocation}*`]
-      : []),
-  ].join('\n');
-}
-
-function formatBossEntryProductRegistrationNotification(
-  session: ProductRegistrationSession,
-  responsibleName: string
-): string {
-  return [
-    '🆕 *NOVO PNEU CADASTRADO DURANTE UMA ENTRADA*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    `📥 Quantidade preparada na nota: *+${session.initialStock}*`,
-    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
-    `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
-    ...(env.inventoryLocationsEnabled && session.stockLocation
-      ? [`📍 Local: *${session.stockLocation}*`]
-      : []),
-    '',
-    `👤 Responsável: *${responsibleName}*`,
-  ].join('\n');
-}
-
-function formatRegisteredProduct(
-  session: ProductRegistrationSession,
-  movementCode: string | null,
-  registeredProductCount: number
-): string {
-  return [
-    '✅ *PNEU CADASTRADO*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `📦 Estoque inicial: *${session.initialStock}*`,
-    ...(movementCode
-      ? formatMovementNumberMessage(`🧾 Entrada inicial: *${movementCode}*`)
-      : []),
-    '',
-    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
-    `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
-    ...(env.inventoryLocationsEnabled
-      ? [`📍 Local: *${session.stockLocation ?? 'não cadastrado'}*`]
-      : []),
-    '',
-    `🔎 Consultar: *pneu ${session.reference}*`,
-    ...(session.initialStock === 0
-      ? ['', 'ℹ️ O pneu foi cadastrado, mas a consulta informará estoque zero até que seja feita uma entrada.']
-      : []),
-    '',
-    formatAdditionalProductRegistrationQuestion(registeredProductCount),
-  ].join('\n');
-}
-
-function formatAdditionalProductRegistrationQuestion(registeredProductCount: number): string {
-  return [
-    '➕ *QUER ADICIONAR MAIS ALGUM PNEU?*',
-    '',
-    `Itens preparados: *${registeredProductCount}*`,
-    '',
-    formatBinaryOptions(),
-  ].join('\n');
-}
-
-function formatProductRegistrationFinished(registeredProductCount: number): string {
-  return [
-    '✅ *CADASTRO FINALIZADO*',
-    `Pneus cadastrados: *${registeredProductCount}*`,
-  ].join('\n');
-}
-
-function formatBossProductRegistrationNotification(
-  session: ProductRegistrationSession,
-  movementCode: string | null,
-  responsibleName: string
-): string {
-  return [
-    '🆕 *NOVO PNEU CADASTRADO*',
-    '',
-    `🛞 *${session.reference} — ${session.description}*`,
-    '',
-    `📦 Estoque inicial: *${session.initialStock}*`,
-    ...(movementCode
-      ? formatMovementNumberMessage(`🧾 Entrada inicial: *${movementCode}*`)
-      : []),
-    `💰 À vista: *${formatCurrency(session.cashPrice ?? 0)}*`,
-    `💳 A prazo: *${formatCurrency(session.creditPrice ?? 0)}*`,
-    '',
-    `👤 Responsável: *${responsibleName}*`,
-  ].join('\n');
-}
-
-function isNewOperationCommand(normalizedBody: string): boolean {
-  return /^(menu|venda|entrada|ajuste|pre[cç]o|local|addfoto|cadastrar\s+pneu|adicionar\s+pneu)\b/i.test(
-    normalizedBody
   );
 }
 
