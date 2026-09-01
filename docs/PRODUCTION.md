@@ -93,6 +93,35 @@ npm run sync:stocks -- data/seed/initial_products.csv --apply
 
 O único dado operacional alterado é o estoque; o metadado `updatedAt` também é atualizado
 automaticamente. Preços, descrições, fotos, localizações, vendas e demais dados são preservados.
+
+Para atualizar estoques e preços, preservando os nomes dos produtos existentes e permitindo o
+cadastro controlado de produtos novos, use primeiro a simulação:
+
+```powershell
+npm run sync:catalog -- data/seed/initial_products.csv
+```
+
+Se não houver candidatos, aplique com `--apply`. Quando houver, crie um CSV de decisões. Use
+`CREATE` somente para produto realmente novo e `MATCH` para associar a linha da planilha a um
+produto existente sem alterar seu nome ou referência:
+
+```csv
+csv_reference,csv_description,action,existing_reference,existing_description
+205/55 R16,PRODUTO REALMENTE NOVO,CREATE,,
+175/70 R14,NOME DA PLANILHA,MATCH,175/70 R14,NOME EXISTENTE NO BANCO
+```
+
+Confira com o arquivo de decisões e somente depois aplique:
+
+```powershell
+npm run sync:catalog -- data/seed/initial_products.csv --resolution data/seed/congo_catalog_resolution.csv
+npm run sync:catalog -- data/seed/initial_products.csv --resolution data/seed/congo_catalog_resolution.csv --apply
+```
+
+O comando nunca renomeia, remove ou desativa produtos existentes. Produtos do banco ausentes do
+CSV são preservados, assim como IDs, fotos, localizações, vendas e demais históricos. A execução
+com `--apply` é bloqueada enquanto existir qualquer candidato sem decisão explícita.
+
 Para executar Congo e Monteiro no mesmo servidor, siga
 [CONGO_ON_MONTEIRO_SERVER.md](CONGO_ON_MONTEIRO_SERVER.md).
 
