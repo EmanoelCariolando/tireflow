@@ -15,6 +15,10 @@ import {
   scheduleStartupRecoveryReset,
   waitForStartupRecoveryWindow,
 } from './services/startupRecoveryGuard.js';
+import {
+  startPendingSaleReminderScheduler,
+  stopPendingSaleReminderScheduler,
+} from './services/pendingSaleReminderScheduler.js';
 
 let isShuttingDown = false;
 
@@ -73,6 +77,7 @@ async function main(): Promise<void> {
     // 6. Start daily report scheduler
     startDailyReportScheduler();
     startMonthlyReportScheduler();
+    startPendingSaleReminderScheduler();
     startHealthMonitor();
     scheduleStartupRecoveryReset();
 
@@ -94,6 +99,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   try {
     stopDailyReportScheduler();
     stopMonthlyReportScheduler();
+    stopPendingSaleReminderScheduler();
     stopHealthMonitor();
     await stopWhatsAppClient();
   } catch (error) {

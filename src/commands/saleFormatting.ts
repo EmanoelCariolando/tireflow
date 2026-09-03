@@ -36,6 +36,7 @@ export function formatPaymentMenu(session?: SaleSession): string {
   const selectedPrice = Boolean(session?.priceType && session.totalValue !== undefined);
   const items = session ? getSaleItems(session) : [];
   const multipleItems = items.length > 1;
+  const resolvingPendingSale = Boolean(session?.pendingSaleId);
   return [
     ...(multipleItems && session
       ? [
@@ -68,9 +69,14 @@ export function formatPaymentMenu(session?: SaleSession): string {
     '3️⃣ *Cartão*',
     '4️⃣ *Nota*',
     '5️⃣ *Pagamento misto*',
-    `6️⃣ *Desconto*${discountApplied ? ' ✅' : ''}`,
-    '7️⃣ *Adicionar outro pneu*',
-    ...(TRANSFER_PAYMENT_ENABLED ? ['8️⃣ *Transferencia*'] : []),
+    ...(!resolvingPendingSale
+      ? [
+          `6️⃣ *Desconto*${discountApplied ? ' ✅' : ''}`,
+          '7️⃣ *Adicionar outro pneu*',
+          '8️⃣ *Pendência*',
+          ...(TRANSFER_PAYMENT_ENABLED ? ['9️⃣ *Transferência*'] : []),
+        ]
+      : []),
   ].join('\n');
 }
 
@@ -231,6 +237,7 @@ export function formatRegisteredSale(
     '',
     `📦 Estoque: *${currentStock}*`,
     ...formatMovementNumberMessage(`Movimentação: ${movementCode}`),
+    ...formatPendingOriginLines(session),
     `Vendedor: ${sellerName}`,
   ].join('\n');
 }
@@ -267,6 +274,7 @@ export function formatBossSaleNotification(
     '',
     `📦 Estoque: *${currentStock}*`,
     ...formatMovementNumberMessage(`Movimentação: ${movementCode}`),
+    ...formatPendingOriginLines(session),
     `Vendedor: ${sellerName}`,
   ].join('\n');
 }
@@ -294,6 +302,7 @@ function formatRegisteredMultiItemSale(
       `🧾 *${saleGroupCode}* | Vendedor: ${sellerName}`,
       `Vendedor: ${sellerName}`
     ),
+    ...formatPendingOriginLines(session),
   ].join('\n');
 }
 
@@ -439,4 +448,8 @@ function formatDiscountLines(session: SaleSession): string[] {
       ? `*Desconto: ${session.discountPercent}%* (-${formatCurrency(discountValue)})`
       : `*Desconto: ${formatCurrency(discountValue)}*`,
   ];
+}
+
+function formatPendingOriginLines(session: SaleSession): string[] {
+  return session.wasPending ? ['⏳ _Estava pendente_'] : [];
 }

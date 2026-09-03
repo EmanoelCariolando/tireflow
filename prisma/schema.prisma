@@ -14,6 +14,12 @@ enum MovementType {
   PRICE_CHANGE
 }
 
+enum PendingSaleStatus {
+  OPEN
+  SOLD
+  RETURNED
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -26,6 +32,8 @@ model User {
   movements      Movement[]
   userSessions   UserSession[]
   searchSessions SearchSession[]
+  createdPendingSales  PendingSale[] @relation("PendingSaleCreator")
+  assignedPendingSales PendingSale[] @relation("PendingSaleAssignee")
 
   @@map("users")
 }
@@ -45,6 +53,7 @@ model Product {
   updatedAt   DateTime @updatedAt
 
   movements Movement[]
+  pendingSaleItems PendingSaleItem[]
 
   @@index([reference])
   @@index([isActive])
@@ -117,4 +126,53 @@ model SearchSession {
   @@unique([userId, chatId])
   @@index([expiresAt])
   @@map("search_sessions")
+}
+
+model PendingSale {
+  id                     String            @id @default(cuid())
+  code                   String            @unique
+  status                 PendingSaleStatus @default(OPEN)
+  createdByUserId        String
+  assignedUserId         String
+  totalValue             Decimal
+  originalTotalValue     Decimal?
+  discountPercent        Decimal?
+  discountAmount         Decimal?
+  completedSaleGroupCode String?
+  resolvedAt             DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  createdBy User @relation("PendingSaleCreator", fields: [createdByUserId], references: [id])
+  assignedTo User @relation("PendingSaleAssignee", fields: [assignedUserId], references: [id])
+  items PendingSaleItem[]
+
+  @@index([status, createdAt])
+  @@index([assignedUserId, status])
+  @@map("pending_sales")
+}
+
+model PendingSaleItem {
+  id             String   @id @default(cuid())
+  pendingSaleId  String
+  position       Int
+  productId      String
+  reference      String
+  description    String
+  quantity       Int
+  cashPrice      Decimal
+  creditPrice    Decimal
+  priceType      String
+  unitPrice      Decimal
+  totalValue     Decimal
+  previousStock  Int
+  reservedStock  Int
+  createdAt      DateTime @default(now())
+
+  pendingSale PendingSale @relation(fields: [pendingSaleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([pendingSaleId, position])
+  @@index([productId])
+  @@map("pending_sale_items")
 }

@@ -66,6 +66,11 @@ import { getPriceSession } from '../utils/priceSessionStore.js';
 import { getLocationSession } from '../utils/locationSessionStore.js';
 import { clearMenuSession, getMenuSession } from '../utils/menuSessionStore.js';
 import { isMessageFromGroupAdmin } from '../services/groupAdminService.js';
+import {
+  handlePendingSaleCommand,
+  handlePendingSaleConversation,
+  isPendingSaleCommand,
+} from '../commands/pendingSaleCommand.js';
 
 /**
  * Message Handler (Fase 3)
@@ -209,6 +214,10 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
+  if (await handlePendingSaleConversation(message, body)) {
+    return;
+  }
+
   if (await handleProductActionConversation(message, body)) {
     return;
   }
@@ -298,6 +307,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isTodayReportCommand(body)) {
     await handleTodayReportCommand(message);
+    return;
+  }
+
+  if (isPendingSaleCommand(body)) {
+    await handlePendingSaleCommand(message);
     return;
   }
 }

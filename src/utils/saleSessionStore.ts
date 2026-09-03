@@ -4,7 +4,7 @@ import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
 
 export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
 export type ReceiptPaymentMethod = MixedPaymentMethod | 'Nota';
-export type PaymentMethod = MixedPaymentMethod | 'Nota' | 'Misto';
+export type PaymentMethod = MixedPaymentMethod | 'Nota' | 'Misto' | 'Pendência';
 export type SalePriceType = 'À vista' | 'A prazo';
 
 export interface PaymentBreakdownPart {
@@ -46,6 +46,7 @@ export type SaleSessionStep =
   | 'awaiting_city_hall_confirmation'
   | 'awaiting_invoice_name'
   | 'awaiting_confirmation'
+  | 'awaiting_pending_assignee'
   | 'processing';
 
 export interface SaleSession {
@@ -75,6 +76,10 @@ export interface SaleSession {
   transferCity?: string;
   isCityHallSale?: boolean;
   invoiceName?: string;
+  pendingSaleId?: string;
+  pendingAssigneeId?: string;
+  pendingAssigneeName?: string;
+  wasPending?: boolean;
   items?: SaleItem[];
   additionalMeasure?: string;
   additionalProducts?: QueriedProduct[];

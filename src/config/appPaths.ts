@@ -10,4 +10,5 @@ export const DAILY_REPORT_STATE_PATH = path.join(DATA_DIRECTORY, 'daily-report-s
 export const MONTHLY_REPORT_STATE_PATH = path.join(DATA_DIRECTORY, 'monthly-report-state.json');
 export const COMMISSION_REPORT_STATE_PATH = path.join(DATA_DIRECTORY, 'commission-report-state.json');
 export const STARTUP_RECOVERY_STATE_PATH = path.join(DATA_DIRECTORY, 'startup-recovery-state.json');
+export const PENDING_REMINDER_STATE_PATH = path.join(DATA_DIRECTORY, 'pending-reminder-state.json');
 export const PRODUCT_SEED_CSV_PATH = path.join(DATA_DIRECTORY, 'seed', 'initial_products.csv');

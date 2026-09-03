@@ -22,6 +22,11 @@ import {
   hasExpiredProductRegistrationSession,
 } from './productRegistrationSessionStore.js';
 import { clearProductActionSession } from './productActionSessionStore.js';
+import {
+  clearPendingSaleResolutionSession,
+  getPendingSaleResolutionSession,
+  hasExpiredPendingSaleResolutionSession,
+} from './pendingSaleSessionStore.js';
 
 export function hasActiveOperationSession(userId: string, chatId: string): boolean {
   return Boolean(
@@ -32,6 +37,7 @@ export function hasActiveOperationSession(userId: string, chatId: string): boole
       getAddPhotoSession(userId, chatId) ||
       getLocationSession(userId, chatId) ||
       getProductRegistrationSession(userId, chatId)
+      || getPendingSaleResolutionSession(userId, chatId)
   );
 }
 
@@ -44,6 +50,7 @@ export function clearAllOperationSessions(userId: string, chatId: string): void 
   clearAddPhotoSession(userId, chatId);
   clearLocationSession(userId, chatId);
   clearProductRegistrationSession(userId, chatId);
+  clearPendingSaleResolutionSession(userId, chatId);
 }
 
 export function clearExpiredOperationSessions(userId: string, chatId: string): boolean {
@@ -55,18 +62,19 @@ export function clearExpiredOperationSessions(userId: string, chatId: string): b
     hasExpiredAddPhotoSession(userId, chatId),
     hasExpiredLocationSession(userId, chatId),
     hasExpiredProductRegistrationSession(userId, chatId),
+    hasExpiredPendingSaleResolutionSession(userId, chatId),
   ];
   return expired.some(Boolean);
 }
 
 export function isOperationStartCommand(body: string): boolean {
-  return /^(venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|pre[cç]o\s+\d+|addfoto\s+\d+|local\s+\d+|(cadastrar|adicionar)\s+pneu)$/i.test(
+  return /^(pendentes?|venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|pre[cç]o\s+\d+|addfoto\s+\d+|local\s+\d+|(cadastrar|adicionar)\s+pneu)$/i.test(
     body.trim()
   );
 }
 
 export function isNewOperationConversationCommand(body: string): boolean {
-  return /^(venda|entrada|ajuste|pre[cç]o|local)\b/i.test(body.trim());
+  return /^(pendentes?|venda|entrada|ajuste|pre[cç]o|local)\b/i.test(body.trim());
 }
 
 export function isProductRegistrationNavigationCommand(body: string): boolean {

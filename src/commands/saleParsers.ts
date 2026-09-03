@@ -27,9 +27,12 @@ export function parsePaymentMethod(
   if (normalized === '5' || normalized === 'misto' || normalized === 'pagamento misto') {
     return 'Misto';
   }
+  if (normalized === '8' || normalized === 'pendencia' || normalized === 'pendente') {
+    return 'Pendência';
+  }
   if (
     TRANSFER_PAYMENT_ENABLED &&
-    (normalized === '8' || normalized === 'transferencia')
+    (normalized === '9' || normalized === 'transferencia')
   ) {
     return 'Transferência';
   }

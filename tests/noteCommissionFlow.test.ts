@@ -86,7 +86,7 @@ test('keeps the transfer payment option disabled', async () => {
     updatedAt: Date.now(),
   });
 
-  await handleSaleConversation(message, '8');
+  await handleSaleConversation(message, '9');
   assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_payment');
   assert.equal(getSaleSession(userId, chatId)?.paymentMethod, undefined);
   assert.match(replies.at(-1) ?? '', /Forma de pagamento inválida/);

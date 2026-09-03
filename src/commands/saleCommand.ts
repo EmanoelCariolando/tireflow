@@ -47,6 +47,12 @@ import {
 import { formatProductChoiceQuestion, formatProductList } from './pneuCommand.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatAdditionalTireQuestion, formatQuantityQuestion } from '../utils/operationPrompts.js';
+import { registerPendingSale } from '../services/pendingSaleService.js';
+import {
+  formatPendingAssigneeQuestion,
+  formatPendingSaleConfirmation,
+  formatPendingSaleRegistered,
+} from './pendingSaleFormatting.js';
 import {
   isAddItemSelection,
   isDiscountSelection,
@@ -188,6 +194,12 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   const normalizedBody = body.trim().toLowerCase();
 
+  if (session.step === 'awaiting_pending_assignee' && normalizedBody === '0') {
+    clearAllOperationSessions(userId, chatId);
+    await message.reply('❌ *OPERAÇÃO CANCELADA*');
+    return true;
+  }
+
   if (
     normalizedBody === '0' &&
     (session.step === 'awaiting_discount_type' || session.step === 'awaiting_discount_value')
@@ -234,6 +246,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
 
   if (session.step === 'awaiting_payment') {
     await handlePaymentStep(message, session, normalizedBody);
+    return true;
+  }
+
+  if (session.step === 'awaiting_pending_assignee') {
+    await handlePendingAssigneeStep(message, session);
     return true;
   }
 
@@ -305,6 +322,11 @@ async function handlePaymentStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
+  if (session.pendingSaleId && (isAddItemSelection(normalizedBody) || isDiscountSelection(normalizedBody))) {
+    await message.reply(`Essa pendência já possui itens e valores definidos.\n\n${formatPaymentMenu(session)}`);
+    return;
+  }
+
   if (isAddItemSelection(normalizedBody)) {
     const items = getSaleItems(session);
     if (items.length >= MAX_SALE_ITEMS) {
@@ -361,6 +383,11 @@ async function handlePaymentStep(
     return;
   }
 
+  if (session.pendingSaleId && paymentMethod === 'Pendência') {
+    await message.reply(`Uma pendência não pode gerar outra pendência.\n\n${formatPaymentMenu(session)}`);
+    return;
+  }
+
   if (paymentMethod === 'Misto') {
     saveSaleSession({
       ...session,
@@ -369,6 +396,19 @@ async function handlePaymentStep(
       updatedAt: Date.now(),
     });
     await message.reply(MIXED_PAYMENT_MENU);
+    return;
+  }
+
+  if (paymentMethod === 'Pendência') {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_pending_assignee',
+      paymentMethod,
+      pendingAssigneeId: undefined,
+      pendingAssigneeName: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatPendingAssigneeQuestion());
     return;
   }
 
@@ -395,7 +435,7 @@ async function handlePaymentStep(
 async function continueDirectPayment(
   message: Message,
   pricedSession: SaleSession,
-  paymentMethod: Exclude<PaymentMethod, 'Misto'>
+  paymentMethod: Exclude<PaymentMethod, 'Misto' | 'Pendência'>
 ): Promise<void> {
   const cleanSession: SaleSession = {
     ...pricedSession,
@@ -404,7 +444,7 @@ async function continueDirectPayment(
     transferCity: undefined,
   };
 
-  if (!isPaymentReceiptRequired(paymentMethod)) {
+  if (!isPaymentReceiptRequired(paymentMethod) && !cleanSession.pendingSaleId) {
     const confirmationSession: SaleSession = {
       ...cleanSession,
       step: 'awaiting_confirmation',
@@ -437,6 +477,48 @@ async function continueDirectPayment(
   }
 
   await message.reply('📎 *COMPROVANTE*\nEnvie a foto.');
+}
+
+async function handlePendingAssigneeStep(
+  message: Message,
+  session: SaleSession
+): Promise<void> {
+  const mentionedIds = [...new Set(message.mentionedIds ?? [])];
+  if (mentionedIds.length !== 1) {
+    await message.reply([
+      mentionedIds.length > 1
+        ? '❌ Marque apenas *um funcionário*.'
+        : '❌ Marque o funcionário responsável usando *@*.',
+      '',
+      formatPendingAssigneeQuestion(),
+    ].join('\n'));
+    return;
+  }
+
+  const assignedId = mentionedIds[0]!;
+  let assignedName = assignedId;
+  try {
+    const contacts = await message.getMentions();
+    const assignedContact = contacts.find((contact) => contact.id._serialized === assignedId)
+      ?? contacts[0];
+    assignedName = assignedContact?.pushname
+      || assignedContact?.name
+      || assignedContact?.number
+      || assignedId;
+  } catch {
+    // The WhatsApp id is enough to keep the assignment functional.
+  }
+
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_confirmation',
+    paymentMethod: 'Pendência',
+    pendingAssigneeId: assignedId,
+    pendingAssigneeName: assignedName,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply(formatPendingSaleConfirmation(nextSession));
 }
 
 async function handleAdditionalMeasureStep(
@@ -909,7 +991,7 @@ async function handleMixedAmountStep(
     .map((part) => part.method)
     .filter((method): method is MixedPaymentMethod =>
       (method === 'Dinheiro' || method === 'PIX' || method === 'Cartão') &&
-      isPaymentReceiptRequired(method)
+      (Boolean(session.pendingSaleId) || isPaymentReceiptRequired(method))
     );
   const nextSession: SaleSession = {
     ...session,
@@ -1098,6 +1180,18 @@ async function handleConfirmationStep(
   }
 
   if (action === 'back') {
+    if (session.paymentMethod === 'Pendência' && !session.pendingSaleId) {
+      saveSaleSession({
+        ...session,
+        step: 'awaiting_pending_assignee',
+        pendingAssigneeId: undefined,
+        pendingAssigneeName: undefined,
+        updatedAt: Date.now(),
+      });
+      await message.reply(formatPendingAssigneeQuestion());
+      return;
+    }
+
     if (session.paymentMethod === 'Nota' && session.isTransferSale && session.transferCity) {
       saveSaleSession({
         ...session,
@@ -1157,18 +1251,62 @@ async function handleConfirmationStep(
 
   const sellerName = await getSellerName(message, session.userId);
 
+  if (session.paymentMethod === 'Pendência') {
+    if (!session.pendingAssigneeId || !session.pendingAssigneeName) {
+      clearSaleSession(session.userId, session.chatId);
+      await message.reply('Ocorreu um erro ao identificar o responsável. Inicie novamente.');
+      return;
+    }
+
+    try {
+      const pendingSale = await registerPendingSale({
+        items: buildPendingPersistenceItems(session),
+        createdByPhone: session.userId,
+        createdByName: sellerName,
+        assignedPhone: session.pendingAssigneeId,
+        assignedName: session.pendingAssigneeName,
+        totalValue: session.totalValue,
+        originalTotalValue: session.originalTotalValue,
+        discountPercent: session.discountPercent,
+        discountAmount: session.discountAmount,
+      });
+      const confirmation = formatPendingSaleRegistered(pendingSale);
+      await Promise.all([
+        runPostCommitTask('pending sale group confirmation', () => message.reply(confirmation)),
+        runPostCommitTask('pending sale boss notification', () =>
+          sendBossTextNotification(`🔔 *NOVA PENDÊNCIA*\n\n${confirmation}`)
+        ),
+      ]);
+    } catch (error) {
+      if (error instanceof InsufficientStockError) {
+        await message.reply(
+          `⚠️ Pendência cancelada. Estoque atual: *${error.currentStock}* | Solicitado: *${error.requestedQuantity}*`
+        );
+      } else if (error instanceof SaleProductNotFoundError) {
+        await message.reply('⚠️ Produto não está mais disponível. Faça uma nova consulta.');
+      } else {
+        console.error('[PENDING_SALE] Error registering pending sale:', error);
+        await message.reply('Ocorreu um erro ao registrar a pendência. Tente novamente.');
+      }
+    } finally {
+      clearSaleSession(session.userId, session.chatId);
+    }
+    return;
+  }
+
   let registeredSale: Awaited<ReturnType<typeof registerSaleItems>>;
 
   try {
     registeredSale = await registerSaleItems({
       items: buildPersistenceItems(session),
-      sellerPhone: session.userId,
-      sellerName,
+      sellerPhone: session.pendingAssigneeId ?? session.userId,
+      sellerName: session.pendingAssigneeName ?? sellerName,
       totalValue: session.totalValue,
       paymentMethod: session.paymentMethod,
       paymentBreakdown: session.paymentBreakdown,
       invoiceName: session.invoiceName,
       isCityHallSale: session.isCityHallSale,
+      pendingSaleId: session.pendingSaleId,
     });
   } catch (error) {
     clearSaleSession(session.userId, session.chatId);
@@ -1203,14 +1341,14 @@ async function handleConfirmationStep(
   const groupMessage = formatRegisteredSale(
     session,
     registeredSale.saleGroupCode,
-    sellerName,
+    session.pendingAssigneeName ?? sellerName,
     registeredSale.items[0]?.currentStock ?? 0,
     registeredSale.items
   );
   const bossMessage = formatBossSaleNotification(
     session,
     registeredSale.saleGroupCode,
-    sellerName,
+    session.pendingAssigneeName ?? sellerName,
     registeredSale.items[0]?.currentStock ?? 0,
     registeredSale.items
   );
@@ -1223,6 +1361,16 @@ async function handleConfirmationStep(
   await forwardSaleReceiptsToBoss(session);
 
   clearSaleSession(session.userId, session.chatId);
+}
+
+function buildPendingPersistenceItems(session: SaleSession) {
+  const displayItems = getSaleItems(session);
+  const persistedItems = buildPersistenceItems(session);
+  return displayItems.map((item, index) => ({
+    ...item,
+    unitPrice: persistedItems[index]!.unitPrice,
+    totalValue: persistedItems[index]!.totalValue,
+  }));
 }
 
 async function forwardSaleReceiptsToBoss(session: SaleSession): Promise<void> {

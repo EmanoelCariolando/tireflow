@@ -1,4 +1,4 @@
-import { MovementType } from '@prisma/client';
+import { MovementType, PendingSaleStatus } from '@prisma/client';
 import { prisma } from '../database/prisma.js';
 import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
@@ -56,7 +56,7 @@ interface RegisteredSale {
   previousStock: number;
 }
 
-interface RegisterSaleItemsInput {
+export interface RegisterSaleItemsInput {
   items: RegisterSaleItemInput[];
   sellerPhone: string;
   sellerName: string;
@@ -65,6 +65,7 @@ interface RegisterSaleItemsInput {
   paymentBreakdown?: PaymentBreakdownPart[];
   invoiceName?: string;
   isCityHallSale?: boolean;
+  pendingSaleId?: string;
 }
 
 export interface RegisteredSaleItem extends RegisteredSale {
@@ -117,6 +118,28 @@ export async function registerSaleItems(
   }
 
   return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
+    const pendingSale = input.pendingSaleId
+      ? await tx.pendingSale.findUnique({
+          where: { id: input.pendingSaleId },
+          include: { items: { orderBy: { position: 'asc' } } },
+        })
+      : null;
+    if (input.pendingSaleId) {
+      if (
+        !pendingSale ||
+        pendingSale.status !== PendingSaleStatus.OPEN ||
+        !matchesReservedPendingItems(input.items, pendingSale.items) ||
+        Math.round(Number(pendingSale.totalValue) * 100) !== Math.round(input.totalValue * 100)
+      ) {
+        throw new SaleProductNotFoundError();
+      }
+      const claimed = await tx.pendingSale.updateMany({
+        where: { id: input.pendingSaleId, status: PendingSaleStatus.OPEN },
+        data: { status: PendingSaleStatus.SOLD, resolvedAt: new Date() },
+      });
+      if (claimed.count !== 1) throw new SaleProductNotFoundError();
+    }
+
     const requestedByProduct = new Map<string, number>();
     for (const item of input.items) {
       requestedByProduct.set(
@@ -132,7 +155,7 @@ export async function registerSaleItems(
         throw new SaleProductNotFoundError();
       }
 
-      if (product.stock < requestedQuantity) {
+      if (!pendingSale && product.stock < requestedQuantity) {
         throw new InsufficientStockError(product.stock, requestedQuantity, productId);
       }
     }
@@ -152,19 +175,21 @@ export async function registerSaleItems(
         throw new SaleProductNotFoundError();
       }
 
-      const stockUpdate = await productRepository.decreaseStockIfAvailable(
-        item.productId,
-        item.quantity,
-        tx
-      );
-
-      if (stockUpdate.count === 0) {
-        const freshProduct = await productRepository.findById(item.productId, tx);
-        throw new InsufficientStockError(
-          freshProduct?.stock ?? 0,
-          requestedByProduct.get(item.productId) ?? item.quantity,
-          item.productId
+      if (!pendingSale) {
+        const stockUpdate = await productRepository.decreaseStockIfAvailable(
+          item.productId,
+          item.quantity,
+          tx
         );
+
+        if (stockUpdate.count === 0) {
+          const freshProduct = await productRepository.findById(item.productId, tx);
+          throw new InsufficientStockError(
+            freshProduct?.stock ?? 0,
+            requestedByProduct.get(item.productId) ?? item.quantity,
+            item.productId
+          );
+        }
       }
 
       const updatedProduct = await productRepository.findById(item.productId, tx);
@@ -174,7 +199,9 @@ export async function registerSaleItems(
 
       const movementCode = generateMovementCode('V', saleCount + index + 1);
       const currentStock = updatedProduct.stock;
-      const previousStock = currentStock + item.quantity;
+      const reservedItem = pendingSale?.items[index];
+      const previousStock = reservedItem?.previousStock ?? currentStock + item.quantity;
+      const movementNewStock = reservedItem?.reservedStock ?? currentStock;
 
       await movementRepository.create(
         {
@@ -189,7 +216,7 @@ export async function registerSaleItems(
           },
           quantity: item.quantity,
           previousStock,
-          newStock: currentStock,
+          newStock: movementNewStock,
           unitPrice: item.unitPrice,
           totalValue: item.totalValue,
           paymentMethod: input.paymentMethod,
@@ -207,6 +234,13 @@ export async function registerSaleItems(
         movementCode,
         currentStock,
         previousStock,
+      });
+    }
+
+    if (pendingSale) {
+      await tx.pendingSale.update({
+        where: { id: pendingSale.id },
+        data: { completedSaleGroupCode: saleGroupCode },
       });
     }
 
@@ -235,7 +269,10 @@ function hasValidPaymentBreakdown(
   input: Pick<RegisterSaleItemsInput, 'paymentMethod' | 'paymentBreakdown' | 'totalValue'>
 ): boolean {
   if (input.paymentMethod !== 'Misto') {
-    return input.paymentBreakdown === undefined;
+    return (
+      ['Dinheiro', 'PIX', 'Cartão', 'Nota'].includes(input.paymentMethod) &&
+      input.paymentBreakdown === undefined
+    );
   }
 
   const parts = input.paymentBreakdown;
@@ -260,4 +297,28 @@ function hasValidPaymentBreakdown(
     0
   );
   return partsTotalInCents === Math.round(input.totalValue * 100);
+}
+
+function matchesReservedPendingItems(
+  items: RegisterSaleItemInput[],
+  reservedItems: Array<{
+    productId: string;
+    quantity: number;
+    unitPrice: unknown;
+    totalValue: unknown;
+  }>
+): boolean {
+  return (
+    items.length === reservedItems.length &&
+    items.every((item, index) => {
+      const reserved = reservedItems[index];
+      return Boolean(
+        reserved &&
+        item.productId === reserved.productId &&
+        item.quantity === reserved.quantity &&
+        Math.round(item.unitPrice * 100) === Math.round(Number(reserved.unitPrice) * 100) &&
+        Math.round(item.totalValue * 100) === Math.round(Number(reserved.totalValue) * 100)
+      );
+    })
+  );
 }

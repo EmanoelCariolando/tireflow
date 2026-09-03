@@ -223,6 +223,17 @@ export async function sendOwnerNotification(text: string): Promise<void> {
   await sendPrivateOwnerTextMessage(ownerChatId, text, 'owner notification');
 }
 
+export async function sendOfficialGroupNotification(
+  text: string,
+  mentions: string[] = []
+): Promise<void> {
+  const groupId = env.whatsappOfficialGroupId.trim();
+  if (!groupId) {
+    throw new Error('WHATSAPP_OFFICIAL_GROUP_ID não está configurado.');
+  }
+  await withTimeout(whatsappClient.sendMessage(groupId, text, { mentions }));
+}
+
 async function sendPrivateOwnerTextMessage(
   chatId: string,
   text: string,
