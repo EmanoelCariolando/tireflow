@@ -12,7 +12,7 @@ import {
   type SaleSession,
 } from '../src/utils/saleSessionStore.js';
 
-test('adds Pendência as option 8 and removes sale-changing actions while resolving it', () => {
+test('allows discounts but removes item-changing actions while resolving a pending sale', () => {
   assert.equal(parsePaymentMethod('8'), 'Pendência');
   assert.equal(parsePaymentMethod('pendencia'), 'Pendência');
   assert.match(formatPaymentMenu(), /8️⃣ \*Pendência\*/);
@@ -23,9 +23,59 @@ test('adds Pendência as option 8 and removes sale-changing actions while resolv
     totalValue: 300,
   } as SaleSession;
   const menu = formatPaymentMenu(resolvingSession);
-  assert.doesNotMatch(menu, /Pendência|Desconto|Adicionar outro pneu/);
+  assert.match(menu, /6️⃣ \*Desconto\*/);
+  assert.doesNotMatch(menu, /Pendência|Adicionar outro pneu/);
   assert.match(menu, /1️⃣ \*Dinheiro\*/);
   assert.match(menu, /5️⃣ \*Pagamento misto\*/);
+});
+
+test('applies a discount before choosing payment for a pending sale', async () => {
+  const userId = 'pending-discount-user';
+  const chatId = 'pending-discount-chat';
+  const replies: string[] = [];
+  saveSaleSession({
+    userId,
+    chatId,
+    step: 'awaiting_payment',
+    productId: 'pending-discount-product',
+    reference: '175/70 R13',
+    description: 'SPM MH01',
+    quantity: 1,
+    cashPrice: 300,
+    creditPrice: 320,
+    unitPrice: 300,
+    totalValue: 300,
+    priceType: 'À vista',
+    pendingSaleId: 'pending-discount-id',
+    updatedAt: Date.now(),
+  });
+  const message = {
+    author: userId,
+    from: chatId,
+    hasMedia: false,
+    type: 'chat',
+    rawData: {},
+    reply: async (text: string) => {
+      replies.push(text);
+      return undefined;
+    },
+  } as unknown as Message;
+
+  await handleSaleConversation(message, '6');
+  assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_discount_type');
+
+  await handleSaleConversation(message, '2');
+  await handleSaleConversation(message, '50');
+  await handleSaleConversation(message, '1');
+
+  const discounted = getSaleSession(userId, chatId);
+  assert.equal(discounted?.step, 'awaiting_payment');
+  assert.equal(discounted?.pendingSaleId, 'pending-discount-id');
+  assert.equal(discounted?.originalTotalValue, 300);
+  assert.equal(discounted?.discountAmount, 50);
+  assert.equal(discounted?.totalValue, 250);
+  assert.match(replies.at(-1) ?? '', /6️⃣ \*Desconto\* ✅/);
+  clearSaleSession(userId, chatId);
 });
 
 test('asks for exactly one mentioned employee before confirming a pending sale', async () => {

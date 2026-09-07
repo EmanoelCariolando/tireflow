@@ -56,6 +56,8 @@ import {
 import {
   isAddItemSelection,
   isDiscountSelection,
+  MAX_SALE_INVOICE_NUMBER_LENGTH,
+  normalizeSaleInvoiceNumber,
   parseAdditionalItemSelection,
   parseCityHallResponse,
   parseDiscountPercent,
@@ -86,6 +88,7 @@ import {
   formatReceiptRequest,
   formatRegisteredSale,
   formatSaleConfirmation,
+  formatSaleInvoiceNumberQuestion,
   formatTransferCityQuestion,
   isPaymentReceiptRequired,
   MIXED_PAYMENT_MENU,
@@ -97,6 +100,7 @@ export {
   formatCityHallQuestion,
   formatRegisteredSale,
   formatSaleConfirmation,
+  formatSaleInvoiceNumberQuestion,
   formatTransferCityQuestion,
   isCashReceiptRequired,
 } from './saleFormatting.js';
@@ -304,6 +308,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (session.step === 'awaiting_invoice_number') {
+    await handleInvoiceNumberStep(message, session, body);
+    return true;
+  }
+
   if (session.step === 'awaiting_confirmation') {
     await handleConfirmationStep(message, session, normalizedBody);
     return true;
@@ -322,7 +331,7 @@ async function handlePaymentStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
-  if (session.pendingSaleId && (isAddItemSelection(normalizedBody) || isDiscountSelection(normalizedBody))) {
+  if (session.pendingSaleId && isAddItemSelection(normalizedBody)) {
     await message.reply(`Essa pendência já possui itens e valores definidos.\n\n${formatPaymentMenu(session)}`);
     return;
   }
@@ -423,6 +432,7 @@ async function handlePaymentStep(
       transferCity: undefined,
       isCityHallSale: undefined,
       invoiceName: undefined,
+      invoiceNumber: undefined,
       updatedAt: Date.now(),
     });
     await message.reply('📎 *NOTA/PEDIDO*\nEnvie a foto.');
@@ -1158,8 +1168,43 @@ async function handleInvoiceNameStep(
 
   const nextSession: SaleSession = {
     ...session,
-    step: 'awaiting_confirmation',
+    step: 'awaiting_invoice_number',
     invoiceName,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply(formatSaleInvoiceNumberQuestion());
+}
+
+async function handleInvoiceNumberStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  if (isBackResponse(body)) {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_invoice_name',
+      invoiceName: undefined,
+      invoiceNumber: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply('🧾 *NOME DA NOTA*\nEx.: *Prefeitura de Congo*');
+    return;
+  }
+
+  const invoiceNumber = normalizeSaleInvoiceNumber(body);
+  if (!invoiceNumber) {
+    await message.reply(
+      `❌ Número do talão inválido. Use até ${MAX_SALE_INVOICE_NUMBER_LENGTH} caracteres (letras, números, espaços, ponto, barra ou hífen).\n\n${formatSaleInvoiceNumberQuestion()}`
+    );
+    return;
+  }
+
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_confirmation',
+    invoiceNumber,
     updatedAt: Date.now(),
   };
   saveSaleSession(nextSession);
@@ -1202,6 +1247,17 @@ async function handleConfirmationStep(
       return;
     }
 
+    if (session.paymentMethod === 'Nota' && session.invoiceNumber) {
+      saveSaleSession({
+        ...session,
+        step: 'awaiting_invoice_number',
+        invoiceNumber: undefined,
+        updatedAt: Date.now(),
+      });
+      await message.reply(formatSaleInvoiceNumberQuestion());
+      return;
+    }
+
     if (session.paymentMethod === 'Nota' && session.invoiceName) {
       saveSaleSession({
         ...session,
@@ -1225,6 +1281,7 @@ async function handleConfirmationStep(
       transferCity: undefined,
       isCityHallSale: undefined,
       invoiceName: undefined,
+      invoiceNumber: undefined,
       updatedAt: Date.now(),
     };
     saveSaleSession(nextSession);
@@ -1305,8 +1362,12 @@ async function handleConfirmationStep(
       paymentMethod: session.paymentMethod,
       paymentBreakdown: session.paymentBreakdown,
       invoiceName: session.invoiceName,
+      invoiceNumber: session.invoiceNumber,
       isCityHallSale: session.isCityHallSale,
       pendingSaleId: session.pendingSaleId,
+      originalTotalValue: session.originalTotalValue,
+      discountPercent: session.discountPercent,
+      discountAmount: session.discountAmount,
     });
   } catch (error) {
     clearSaleSession(session.userId, session.chatId);

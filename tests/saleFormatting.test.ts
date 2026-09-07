@@ -104,6 +104,7 @@ test('accepts numbered commission answers and keeps s or n compatible', () => {
     ...session,
     paymentMethod: 'Nota',
     invoiceName: 'Prefeitura de Congo',
+    invoiceNumber: 'TL-2026/015',
     isCityHallSale: true,
   });
   const customerConfirmation = formatSaleConfirmation({
@@ -114,7 +115,22 @@ test('accepts numbered commission answers and keeps s or n compatible', () => {
   });
 
   assert.match(cityHallConfirmation, /Destino da nota: \*Prefeitura \(sem comissão\)\*/);
+  assert.match(cityHallConfirmation, /Número do talão: \*TL-2026\/015\*/);
   assert.match(customerConfirmation, /Destino da nota: \*Cliente \(com comissão\)\*/);
+
+  const bossNotification = formatBossSaleNotification(
+    {
+      ...session,
+      paymentMethod: 'Nota',
+      invoiceName: 'Prefeitura de Congo',
+      invoiceNumber: 'TL-2026/015',
+      isCityHallSale: true,
+    },
+    'VEN-015',
+    'Vendedor',
+    8
+  );
+  assert.match(bossNotification, /Número do talão: \*TL-2026\/015\*/);
 });
 
 test('shows the discount and chosen price clearly to the seller and owner', () => {

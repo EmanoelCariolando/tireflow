@@ -69,9 +69,9 @@ export function formatPaymentMenu(session?: SaleSession): string {
     '3️⃣ *Cartão*',
     '4️⃣ *Nota*',
     '5️⃣ *Pagamento misto*',
+    `6️⃣ *Desconto*${discountApplied ? ' ✅' : ''}`,
     ...(!resolvingPendingSale
       ? [
-          `6️⃣ *Desconto*${discountApplied ? ' ✅' : ''}`,
           '7️⃣ *Adicionar outro pneu*',
           '8️⃣ *Pendência*',
           ...(TRANSFER_PAYMENT_ENABLED ? ['9️⃣ *Transferência*'] : []),
@@ -139,6 +139,10 @@ export function formatTransferCityQuestion(): string {
   return ['📍 *Cidade*', '*Para Qual Cidade Vai esse Pneu?*'].join('\n');
 }
 
+export function formatSaleInvoiceNumberQuestion(): string {
+  return '📜 *NUMERO DA NOTA*\nDigite o Numero Do Talão:';
+}
+
 function formatTransferLines(session: SaleSession): string[] {
   if (!session.isTransferSale || !session.transferCity) {
     return [];
@@ -148,16 +152,22 @@ function formatTransferLines(session: SaleSession): string[] {
 }
 
 function formatInvoiceLines(session: SaleSession): string[] {
-  if (!session.invoiceName) {
-    return [];
+  const lines: string[] = [];
+
+  if (session.invoiceName) {
+    lines.push(
+      session.isCityHallSale
+        ? 'Destino da nota: *Prefeitura (sem comissão)*'
+        : 'Destino da nota: *Cliente (com comissão)*',
+      `Nome da nota: *${session.invoiceName}*`,
+    );
   }
 
-  return [
-    session.isCityHallSale
-      ? 'Destino da nota: *Prefeitura (sem comissão)*'
-      : 'Destino da nota: *Cliente (com comissão)*',
-    `Nome da nota: *${session.invoiceName}*`,
-  ];
+  if (session.invoiceNumber) {
+    lines.push(`Número do talão: *${session.invoiceNumber}*`);
+  }
+
+  return lines;
 }
 
 export function formatDiscountPreview(session: SaleSession): string {

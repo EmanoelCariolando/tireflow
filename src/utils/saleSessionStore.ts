@@ -45,6 +45,7 @@ export type SaleSessionStep =
   | 'awaiting_transfer_city'
   | 'awaiting_city_hall_confirmation'
   | 'awaiting_invoice_name'
+  | 'awaiting_invoice_number'
   | 'awaiting_confirmation'
   | 'awaiting_pending_assignee'
   | 'processing';
@@ -76,6 +77,7 @@ export interface SaleSession {
   transferCity?: string;
   isCityHallSale?: boolean;
   invoiceName?: string;
+  invoiceNumber?: string;
   pendingSaleId?: string;
   pendingAssigneeId?: string;
   pendingAssigneeName?: string;

@@ -47,6 +47,7 @@ interface RegisterSaleInput extends RegisterSaleItemInput {
   paymentMethod: PaymentMethod;
   paymentBreakdown?: PaymentBreakdownPart[];
   invoiceName?: string;
+  invoiceNumber?: string;
   isCityHallSale?: boolean;
 }
 
@@ -64,8 +65,12 @@ export interface RegisterSaleItemsInput {
   paymentMethod: PaymentMethod;
   paymentBreakdown?: PaymentBreakdownPart[];
   invoiceName?: string;
+  invoiceNumber?: string;
   isCityHallSale?: boolean;
   pendingSaleId?: string;
+  originalTotalValue?: number;
+  discountPercent?: number;
+  discountAmount?: number;
 }
 
 export interface RegisteredSaleItem extends RegisteredSale {
@@ -105,6 +110,7 @@ export async function registerSale(input: RegisterSaleInput): Promise<Registered
     paymentMethod: input.paymentMethod,
     paymentBreakdown: input.paymentBreakdown,
     invoiceName: input.invoiceName,
+    invoiceNumber: input.invoiceNumber,
     isCityHallSale: input.isCityHallSale,
   });
   return registeredGroup.items[0]!;
@@ -125,17 +131,27 @@ export async function registerSaleItems(
         })
       : null;
     if (input.pendingSaleId) {
+      const pendingTotalInCents = Math.round(Number(pendingSale?.totalValue) * 100);
+      const resolvedTotalInCents = Math.round(input.totalValue * 100);
       if (
         !pendingSale ||
         pendingSale.status !== PendingSaleStatus.OPEN ||
         !matchesReservedPendingItems(input.items, pendingSale.items) ||
-        Math.round(Number(pendingSale.totalValue) * 100) !== Math.round(input.totalValue * 100)
+        resolvedTotalInCents <= 0 ||
+        resolvedTotalInCents > pendingTotalInCents
       ) {
         throw new SaleProductNotFoundError();
       }
       const claimed = await tx.pendingSale.updateMany({
         where: { id: input.pendingSaleId, status: PendingSaleStatus.OPEN },
-        data: { status: PendingSaleStatus.SOLD, resolvedAt: new Date() },
+        data: {
+          status: PendingSaleStatus.SOLD,
+          resolvedAt: new Date(),
+          totalValue: input.totalValue,
+          originalTotalValue: input.originalTotalValue,
+          discountPercent: input.discountPercent,
+          discountAmount: input.discountAmount,
+        },
       });
       if (claimed.count !== 1) throw new SaleProductNotFoundError();
     }
@@ -224,6 +240,7 @@ export async function registerSaleItems(
             ? serializePaymentBreakdown(itemPaymentBreakdowns[index])
             : undefined,
           invoiceName: input.paymentMethod === 'Nota' ? input.invoiceName : undefined,
+          invoiceNumber: input.paymentMethod === 'Nota' ? input.invoiceNumber : undefined,
           isCityHallSale: input.paymentMethod === 'Nota' && input.isCityHallSale === true,
         },
         tx
@@ -312,12 +329,14 @@ function matchesReservedPendingItems(
     items.length === reservedItems.length &&
     items.every((item, index) => {
       const reserved = reservedItems[index];
+      const itemTotalInCents = Math.round(item.totalValue * 100);
+      const calculatedTotalInCents = Math.round(item.unitPrice * item.quantity * 100);
       return Boolean(
         reserved &&
         item.productId === reserved.productId &&
         item.quantity === reserved.quantity &&
-        Math.round(item.unitPrice * 100) === Math.round(Number(reserved.unitPrice) * 100) &&
-        Math.round(item.totalValue * 100) === Math.round(Number(reserved.totalValue) * 100)
+        itemTotalInCents === calculatedTotalInCents &&
+        itemTotalInCents <= Math.round(Number(reserved.totalValue) * 100)
       );
     })
   );

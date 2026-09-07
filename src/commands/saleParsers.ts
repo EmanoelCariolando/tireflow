@@ -2,6 +2,7 @@ import { parseBinaryResponse } from '../utils/binaryResponse.js';
 import type { PaymentMethod, SalePriceType } from '../utils/saleSessionStore.js';
 
 export const TRANSFER_PAYMENT_ENABLED = false;
+export const MAX_SALE_INVOICE_NUMBER_LENGTH = 40;
 
 export interface AdditionalSaleItemSelection {
   optionNumber: number;
@@ -13,6 +14,20 @@ export function parseCityHallResponse(value: string): boolean | null {
 
   // The stored flag represents a city-hall/no-commission sale, the inverse of this question.
   return hasCommission === null ? null : !hasCommission;
+}
+
+export function normalizeSaleInvoiceNumber(value: string): string | null {
+  const normalized = value.trim().replace(/\s+/g, ' ');
+
+  if (
+    !normalized ||
+    normalized.length > MAX_SALE_INVOICE_NUMBER_LENGTH ||
+    !/^[\p{L}\p{N}][\p{L}\p{N} ./-]*$/u.test(normalized)
+  ) {
+    return null;
+  }
+
+  return normalized;
 }
 
 export function parsePaymentMethod(

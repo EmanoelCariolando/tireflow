@@ -341,6 +341,34 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
       (await prisma.product.findUniqueOrThrow({ where: { id: multiEntryProducts[0].id } })).stock,
       7
     );
+
+    const noteSaleProduct = await prisma.product.create({
+      data: {
+        reference: '185/65/15', description: 'PNEU VENDA NA NOTA', stock: 2,
+        minStock: 0, cashPrice: 280, creditPrice: 295,
+      },
+    });
+    await registerSale({
+      productId: noteSaleProduct.id,
+      sellerPhone: 'note-seller',
+      sellerName: 'Note Seller',
+      quantity: 1,
+      unitPrice: 295,
+      totalValue: 295,
+      paymentMethod: 'Nota',
+      invoiceName: 'Prefeitura de Congo',
+      invoiceNumber: 'TL-2026/015',
+      isCityHallSale: true,
+    });
+    const noteMovement = await prisma.movement.findFirstOrThrow({
+      where: { productId: noteSaleProduct.id, type: 'SALE' },
+      select: { invoiceName: true, invoiceNumber: true, isCityHallSale: true },
+    });
+    assert.deepEqual(noteMovement, {
+      invoiceName: 'Prefeitura de Congo',
+      invoiceNumber: 'TL-2026/015',
+      isCityHallSale: true,
+    });
   } finally {
     await prisma.$disconnect();
     await rm(temporaryRoot, { recursive: true, force: true });

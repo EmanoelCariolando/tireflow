@@ -51,17 +51,43 @@ test('keeps pending stock atomic until sale or return', async () => {
     assert.match(formatPendingSaleList([pending]), /Fulano/);
     assert.match(formatPendingReminder([pending]), /digite: \*pendente\*/);
 
-    await registerSaleItems({
-      items: [{ productId: product.id, quantity: 1, unitPrice: 300, totalValue: 300 }],
+    await assert.rejects(() => registerSaleItems({
+      items: [{ productId: product.id, quantity: 1, unitPrice: 330, totalValue: 330 }],
       sellerPhone: pending.assignedTo.phone,
       sellerName: pending.assignedTo.name,
-      totalValue: 300,
+      totalValue: 330,
       paymentMethod: 'PIX',
       pendingSaleId: pending.id,
+    }));
+    assert.equal(
+      (await prisma.pendingSale.findUniqueOrThrow({ where: { id: pending.id } })).status,
+      'OPEN'
+    );
+    assert.equal(await prisma.movement.count({ where: { type: 'SALE' } }), 0);
+
+    await registerSaleItems({
+      items: [{ productId: product.id, quantity: 1, unitPrice: 270, totalValue: 270 }],
+      sellerPhone: pending.assignedTo.phone,
+      sellerName: pending.assignedTo.name,
+      totalValue: 270,
+      paymentMethod: 'PIX',
+      pendingSaleId: pending.id,
+      originalTotalValue: 300,
+      discountPercent: 10,
     });
     assert.equal((await prisma.product.findUniqueOrThrow({ where: { id: product.id } })).stock, 2);
-    assert.equal(await prisma.movement.count({ where: { type: 'SALE' } }), 1);
-    assert.equal((await prisma.pendingSale.findUniqueOrThrow({ where: { id: pending.id } })).status, 'SOLD');
+    const completedMovement = await prisma.movement.findFirstOrThrow({
+      where: { type: 'SALE', productId: product.id },
+    });
+    assert.equal(Number(completedMovement.totalValue), 270);
+    assert.equal(Number(completedMovement.unitPrice), 270);
+    const completedPending = await prisma.pendingSale.findUniqueOrThrow({
+      where: { id: pending.id },
+    });
+    assert.equal(completedPending.status, 'SOLD');
+    assert.equal(Number(completedPending.totalValue), 270);
+    assert.equal(Number(completedPending.originalTotalValue), 300);
+    assert.equal(Number(completedPending.discountPercent), 10);
 
     const returnedPending = await registerPendingSale({
       items: [{

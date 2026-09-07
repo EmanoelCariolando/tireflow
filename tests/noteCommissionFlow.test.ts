@@ -59,10 +59,36 @@ test('asks whether a received note has commission before requesting its name', a
   assert.match(replies.at(-1) ?? '', /NOME DA NOTA/);
 
   await handleSaleConversation(createMessage(replies), 'Prefeitura de Congo');
+  assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_invoice_number');
+  assert.equal(
+    replies.at(-1),
+    '📜 *NUMERO DA NOTA*\nDigite o Numero Do Talão:'
+  );
+
+  await handleSaleConversation(createMessage(replies), '# inválido');
+  assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_invoice_number');
+  assert.match(replies.at(-1) ?? '', /Número do talão inválido/);
+
+  await handleSaleConversation(createMessage(replies), 'TL-2026/015');
   const confirmation = getSaleSession(userId, chatId);
   assert.equal(confirmation?.step, 'awaiting_confirmation');
   assert.equal(confirmation?.isCityHallSale, true);
+  assert.equal(confirmation?.invoiceNumber, 'TL-2026/015');
   assert.match(replies.at(-1) ?? '', /Prefeitura \(sem comissão\)/);
+  assert.match(replies.at(-1) ?? '', /Número do talão: \*TL-2026\/015\*/);
+
+  await handleSaleConversation(createMessage(replies), '2');
+  assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_invoice_number');
+  assert.equal(getSaleSession(userId, chatId)?.invoiceNumber, undefined);
+  assert.equal(
+    replies.at(-1),
+    '📜 *NUMERO DA NOTA*\nDigite o Numero Do Talão:'
+  );
+
+  await handleSaleConversation(createMessage(replies), 'TL-2026/016');
+  assert.equal(getSaleSession(userId, chatId)?.step, 'awaiting_confirmation');
+  assert.equal(getSaleSession(userId, chatId)?.invoiceNumber, 'TL-2026/016');
+  assert.match(replies.at(-1) ?? '', /Número do talão: \*TL-2026\/016\*/);
 
   clearSaleSession(userId, chatId);
 });
