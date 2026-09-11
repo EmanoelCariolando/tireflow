@@ -7,7 +7,7 @@ import {
 
 const referenceDate = new Date('2026-07-27T12:00:00-03:00');
 
-test('formats an empty daily report compactly while keeping every total', () => {
+test('formats an empty daily report as a reduced report', () => {
   const report = formatTodayReport({
     referenceDate,
     hasMovements: false,
@@ -33,31 +33,13 @@ test('formats an empty daily report compactly while keeping every total', () => 
       '📊 *RELATÓRIO DO DIA*',
       '27/07/2026',
       '',
-      'Sem movimentações registradas.',
-      '',
-      '💰 *FATURAMENTO: R$0,00*',
-      '',
-      '💳 *PAGAMENTOS*',
-      '💵 Dinheiro: *R$0,00*',
-      '📲 PIX: *R$0,00*',
-      '💳 Cartão: *R$0,00*',
-      '🧾 Nota: *R$0,00*',
-      '',
-      '📊 *MOVIMENTAÇÕES*',
-      '🛒 Vendas: *0*',
-      '📥 Entradas: *0*',
-      '🧮 Ajustes: *0*',
-      '🏷️ Preços: *0*',
-      '',
-      '🏆 *MAIS VENDIDO*',
-      'Nenhum produto vendido hoje.',
-      '',
-      '⚠️ *ESTOQUE ZERADO NO DIA*',
-      'Nenhum pneu ficou com estoque 0.',
+      '✅ *SEM MOVIMENTAÇÕES NO DIA*',
       '',
       '_TireFlow • Relatório automático_',
     ].join('\n')
   );
+
+  assert.doesNotMatch(report, /FATURAMENTO|PAGAMENTOS|Vendas|MAIS VENDIDO|ESTOQUE ZERADO/);
 });
 
 test('highlights revenue, movement numbers and the best-selling tire', () => {

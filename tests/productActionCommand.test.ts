@@ -93,7 +93,7 @@ test('formats the three new instructional messages exactly', () => {
       '',
       '1️⃣ Venda | 2️⃣ Entrada',
       '3️⃣ Preço | 4️⃣ Foto',
-      '5️⃣ Ajuste | 6️⃣ Adicionar foto',
+      '5️⃣ Ajustar estoque | 6️⃣ Adicionar foto',
       '7️⃣ Localização',
     ].join('\n')
   );
@@ -105,7 +105,8 @@ test('formats the three new instructional messages exactly', () => {
       '',
       '1️⃣ Entrada',
       '2️⃣ Preço',
-      '3️⃣ Localização',
+      '3️⃣ Ajustar estoque',
+      '4️⃣ Localização',
     ].join('\n')
   );
 
@@ -293,11 +294,12 @@ test('keeps the action menu active when another action cannot initialize', async
   }
 });
 
-test('zero-stock selection offers and routes only entry, price and location', async () => {
+test('zero-stock selection offers and routes entry, price, adjustment and location', async () => {
   const expected = new Map([
     ['1', 'entry:entrada 2'],
     ['2', 'price:preco 2'],
-    ['3', 'location:local 2'],
+    ['3', 'adjustment:ajuste 2'],
+    ['4', 'location:local 2'],
   ]);
 
   try {
@@ -362,7 +364,7 @@ test('keeps the zero-stock action menu active when an action cannot initialize',
     saveProductActionSession(userId, chatId, 'awaiting_action', 2, 'zero_stock');
 
     assert.equal(
-      await handleProductActionConversation(createMessage([]), '3', dependencies),
+      await handleProductActionConversation(createMessage([]), '4', dependencies),
       true
     );
     assert.deepEqual(calls, ['location:local 2']);

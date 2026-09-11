@@ -95,6 +95,27 @@ test('compact commercial sizes match their equivalent decimal notation', () => {
   assert.equal(buildReferenceCandidates('205/16').includes('2.05/16'), false);
 });
 
+test('normalizes motorcycle sizes and resolves their common aliases', () => {
+  const smallWidth = normalizeTireSize('80 100 14');
+  assert.equal(smallWidth, '80/100/14');
+  assert.ok(buildReferenceCandidates(smallWidth).includes('80/100-14'));
+
+  const multiplicationSign = normalizeTireSize('80/100 x 14');
+  assert.equal(multiplicationSign, '80/100-14');
+
+  const metricWidth = normalizeTireSize('100 100 18');
+  assert.equal(metricWidth, '100/100/18');
+  assert.ok(buildReferenceCandidates(metricWidth).includes('100/100-18'));
+
+  const compactBias = normalizeTireSize('275 17');
+  assert.equal(compactBias, '275/17');
+  assert.ok(buildReferenceCandidates(compactBias).includes('2.75-17'));
+  assert.ok(buildReferenceCandidates('2.75-18').includes('275/18'));
+
+  assert.equal(isStandaloneTireSizeCommand('90/90-18'), true);
+  assert.equal(isStandaloneTireSizeCommand('60/100 x 17'), true);
+});
+
 test('ranks only close active-reference candidates and limits the result', () => {
   const references = [
     '205/70 R15',

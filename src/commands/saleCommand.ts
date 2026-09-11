@@ -84,6 +84,7 @@ import {
   formatMissingReceiptMessage,
   formatMixedAmountQuestion,
   formatPaymentMenu,
+  formatPendingPriceQuestion,
   formatPriceTypeQuestion,
   formatReceiptRequest,
   formatRegisteredSale,
@@ -253,6 +254,11 @@ export async function handleSaleConversation(message: Message, body: string): Pr
     return true;
   }
 
+  if (session.step === 'awaiting_pending_price') {
+    await handlePendingPriceStep(message, session, body);
+    return true;
+  }
+
   if (session.step === 'awaiting_pending_assignee') {
     await handlePendingAssigneeStep(message, session);
     return true;
@@ -331,6 +337,16 @@ async function handlePaymentStep(
   session: SaleSession,
   normalizedBody: string
 ): Promise<void> {
+  if (session.pendingSaleId && isPendingPriceChangeSelection(normalizedBody)) {
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_pending_price',
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatPendingPriceQuestion(session));
+    return;
+  }
+
   if (session.pendingSaleId && isAddItemSelection(normalizedBody)) {
     await message.reply(`Essa pendência já possui itens e valores definidos.\n\n${formatPaymentMenu(session)}`);
     return;
@@ -440,6 +456,65 @@ async function handlePaymentStep(
   }
 
   await continueDirectPayment(message, { ...session, paymentMethod }, paymentMethod);
+}
+
+async function handlePendingPriceStep(
+  message: Message,
+  session: SaleSession,
+  body: string
+): Promise<void> {
+  if (body.trim() === '0' || isBackResponse(body)) {
+    const nextSession: SaleSession = {
+      ...session,
+      step: 'awaiting_payment',
+      updatedAt: Date.now(),
+    };
+    saveSaleSession(nextSession);
+    await message.reply(formatPaymentMenu(nextSession));
+    return;
+  }
+
+  const amountInCents = parseCurrencyToCents(body);
+  if (amountInCents === null || amountInCents <= 0) {
+    await message.reply(`❌ *VALOR INVÁLIDO*\n\n${formatPendingPriceQuestion(session)}`);
+    return;
+  }
+
+  const items = getSaleItems(session);
+  if (items.length === 0 || session.totalValue === undefined) {
+    clearSaleSession(session.userId, session.chatId);
+    await message.reply('Ocorreu um erro na sessão da pendência. Digite *pendente* novamente.');
+    return;
+  }
+
+  const currentTotalValue = session.totalValue;
+  const previousTotalValue = session.pendingPreviousTotalValue ?? currentTotalValue;
+  const totalValue = amountInCents / 100;
+  const nextSession: SaleSession = {
+    ...session,
+    step: 'awaiting_payment',
+    unitPrice: items.length === 1 ? totalValue / session.quantity : session.unitPrice,
+    totalValue,
+    originalTotalValue: undefined,
+    discountPercent: undefined,
+    discountAmount: undefined,
+    pendingDiscountType: undefined,
+    pendingPriceChanged: true,
+    pendingPreviousTotalValue: previousTotalValue,
+    updatedAt: Date.now(),
+  };
+  saveSaleSession(nextSession);
+  await message.reply([
+    '✅ *PREÇO ALTERADO*',
+    '',
+    `🏷️ ${formatCurrency(currentTotalValue)} → *${formatCurrency(totalValue)}*`,
+    '',
+    formatPaymentMenu(nextSession),
+  ].join('\n'));
+}
+
+function isPendingPriceChangeSelection(value: string): boolean {
+  return /^(?:7|alterar\s+pre[cç]o|mudar\s+pre[cç]o)$/i.test(value.trim());
 }
 
 async function continueDirectPayment(
@@ -1368,6 +1443,7 @@ async function handleConfirmationStep(
       originalTotalValue: session.originalTotalValue,
       discountPercent: session.discountPercent,
       discountAmount: session.discountAmount,
+      allowPendingPriceChange: session.pendingPriceChanged === true,
     });
   } catch (error) {
     clearSaleSession(session.userId, session.chatId);

@@ -96,7 +96,7 @@ export function formatProductActionMenu(
     '',
     '1️⃣ Venda | 2️⃣ Entrada',
     '3️⃣ Preço | 4️⃣ Foto',
-    '5️⃣ Ajuste | 6️⃣ Adicionar foto',
+    '5️⃣ Ajustar estoque | 6️⃣ Adicionar foto',
     ...(inventoryLocationsEnabled ? ['7️⃣ Localização'] : []),
   ].join('\n');
 }
@@ -109,7 +109,8 @@ export function formatZeroStockActionMenu(
     '',
     '1️⃣ Entrada',
     '2️⃣ Preço',
-    ...(inventoryLocationsEnabled ? ['3️⃣ Localização'] : []),
+    '3️⃣ Ajustar estoque',
+    ...(inventoryLocationsEnabled ? ['4️⃣ Localização'] : []),
   ].join('\n');
 }
 
@@ -208,10 +209,11 @@ export async function handleProductActionConversation(
     > = {
       1: { handler: dependencies.entry, command: 'entrada' },
       2: { handler: dependencies.price, command: 'preco' },
+      3: { handler: dependencies.adjustment, command: 'ajuste' },
     };
 
     if (dependencies.inventoryLocationsEnabled) {
-      zeroStockActionHandlers[3] = {
+      zeroStockActionHandlers[4] = {
         handler: dependencies.location,
         command: 'local',
       };

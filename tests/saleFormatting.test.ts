@@ -116,7 +116,8 @@ test('accepts numbered commission answers and keeps s or n compatible', () => {
 
   assert.match(cityHallConfirmation, /Destino da nota: \*Prefeitura \(sem comissão\)\*/);
   assert.match(cityHallConfirmation, /Número do talão: \*TL-2026\/015\*/);
-  assert.match(customerConfirmation, /Destino da nota: \*Cliente \(com comissão\)\*/);
+  assert.doesNotMatch(customerConfirmation, /Cliente \(com comissão\)/);
+  assert.match(customerConfirmation, /Nome da nota: \*Cliente Teste\*/);
 
   const bossNotification = formatBossSaleNotification(
     {

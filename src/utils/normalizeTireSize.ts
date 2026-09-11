@@ -15,6 +15,8 @@
  * - 12.5/80-18
  * - 6.00-9
  * - 31X10.50R15
+ * - 80/100 x 14
+ * - 90/90-18
  * - RODA
  * - AGRICOLA
  */
@@ -31,6 +33,13 @@ export function normalizeTireSize(input: string): string | null {
 
   if (cleaned === 'RODA' || cleaned === 'AGRICOLA') {
     return cleaned;
+  }
+
+  const motorcycleWithXMatch = cleaned.match(
+    /^(\d{2,3})\s*[\/\- ]\s*(\d{2,3})\s*X\s*(\d{2})$/
+  );
+  if (motorcycleWithXMatch) {
+    return `${motorcycleWithXMatch[1]}/${motorcycleWithXMatch[2]}-${motorcycleWithXMatch[3]}`;
   }
 
   const flotationMatch = cleaned.match(/^(\d{2})\s*X\s*(\d{1,2}(?:\.\d{1,2})?)\s*R\s*(\d{2}(?:\.\d)?[A-Z]?)$/);
@@ -58,12 +67,12 @@ export function normalizeTireSize(input: string): string | null {
     return `${metricWithoutAspectMatch[1]} R${metricWithoutAspectMatch[2]}`;
   }
 
-  const threePartWithRMatch = cleaned.match(/^(\d{1,2}(?:\.\d{1,2})?)\s*[\/\- ]\s*(\d{2})\s*(?:[\/\- ]?\s*)?R\s*(\d{2}(?:\.\d)?)$/);
+  const threePartWithRMatch = cleaned.match(/^(\d{1,3}(?:\.\d{1,2})?)\s*[\/\- ]\s*(\d{2,3})\s*(?:[\/\- ]?\s*)?R\s*(\d{2}(?:\.\d)?)$/);
   if (threePartWithRMatch) {
     return `${threePartWithRMatch[1]}/${threePartWithRMatch[2]} R${threePartWithRMatch[3]}`;
   }
 
-  const threePartMatch = cleaned.match(/^(\d{1,2}(?:\.\d{1,2})?)\s*[\/ ]\s*(\d{2})\s*([\/\- ])\s*(\d{2}(?:\.\d)?)$/);
+  const threePartMatch = cleaned.match(/^(\d{1,3}(?:\.\d{1,2})?)\s*[\/ ]\s*(\d{2,3})\s*([\/\- ])\s*(\d{2}(?:\.\d)?)$/);
   if (threePartMatch) {
     const separator = threePartMatch[3] === '-' ? '-' : '/';
     return `${threePartMatch[1]}/${threePartMatch[2]}${separator}${threePartMatch[4]}`;

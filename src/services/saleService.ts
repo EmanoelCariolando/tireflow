@@ -71,6 +71,7 @@ export interface RegisterSaleItemsInput {
   originalTotalValue?: number;
   discountPercent?: number;
   discountAmount?: number;
+  allowPendingPriceChange?: boolean;
 }
 
 export interface RegisteredSaleItem extends RegisteredSale {
@@ -136,9 +137,13 @@ export async function registerSaleItems(
       if (
         !pendingSale ||
         pendingSale.status !== PendingSaleStatus.OPEN ||
-        !matchesReservedPendingItems(input.items, pendingSale.items) ||
+        !matchesReservedPendingItems(
+          input.items,
+          pendingSale.items,
+          input.allowPendingPriceChange === true
+        ) ||
         resolvedTotalInCents <= 0 ||
-        resolvedTotalInCents > pendingTotalInCents
+        (!input.allowPendingPriceChange && resolvedTotalInCents > pendingTotalInCents)
       ) {
         throw new SaleProductNotFoundError();
       }
@@ -148,9 +153,11 @@ export async function registerSaleItems(
           status: PendingSaleStatus.SOLD,
           resolvedAt: new Date(),
           totalValue: input.totalValue,
-          originalTotalValue: input.originalTotalValue,
-          discountPercent: input.discountPercent,
-          discountAmount: input.discountAmount,
+          originalTotalValue: input.allowPendingPriceChange
+            ? pendingSale.totalValue
+            : input.originalTotalValue,
+          discountPercent: input.allowPendingPriceChange ? null : input.discountPercent,
+          discountAmount: input.allowPendingPriceChange ? null : input.discountAmount,
         },
       });
       if (claimed.count !== 1) throw new SaleProductNotFoundError();
@@ -323,7 +330,8 @@ function matchesReservedPendingItems(
     quantity: number;
     unitPrice: unknown;
     totalValue: unknown;
-  }>
+  }>,
+  allowPriceChange: boolean
 ): boolean {
   return (
     items.length === reservedItems.length &&
@@ -336,7 +344,7 @@ function matchesReservedPendingItems(
         item.productId === reserved.productId &&
         item.quantity === reserved.quantity &&
         itemTotalInCents === calculatedTotalInCents &&
-        itemTotalInCents <= Math.round(Number(reserved.totalValue) * 100)
+        (allowPriceChange || itemTotalInCents <= Math.round(Number(reserved.totalValue) * 100))
       );
     })
   );

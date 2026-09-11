@@ -99,7 +99,7 @@ export function buildReferenceCandidates(reference: string): string[] {
     }
   }
 
-  const threePartMatch = reference.match(/^(\d{1,2}(?:\.\d{1,2})?)\/(\d{2})([\/\-])(\d{2}(?:\.\d)?)$/);
+  const threePartMatch = reference.match(/^(\d{1,3}(?:\.\d{1,2})?)\/(\d{2,3})([\/\-])(\d{2}(?:\.\d)?)$/);
   if (threePartMatch) {
     const [, width, height, , rim] = threePartMatch;
     addCandidate(candidates, `${width}/${height}/${rim}`);
@@ -121,6 +121,28 @@ export function buildReferenceCandidates(reference: string): string[] {
     const dottedFirstMatch = first.match(/^(\d{1,2}\.\d)(?:0)?$/);
     if (dottedFirstMatch && !dottedFirstMatch[1].endsWith('.0')) {
       addCandidate(candidates, `${dottedFirstMatch[1]}.${second}`);
+    }
+
+    // Motorcycle cross-ply sizes are commonly entered both as 275/18 and
+    // 2.75-18 (likewise 300 and 3.00). Keep these aliases restricted to
+    // motorcycle rim diameters so ordinary metric widths are not broadened.
+    const motorcycleRims = new Set(['14', '17', '18', '19', '21']);
+    if (motorcycleRims.has(second)) {
+      const compactMotorcycleWidths: Record<string, string> = {
+        '275': '2.75',
+        '300': '3.00',
+      };
+      const decimalMotorcycleWidths: Record<string, string> = {
+        '2.75': '275',
+        '3.00': '300',
+      };
+      const equivalentFirst =
+        compactMotorcycleWidths[first] ?? decimalMotorcycleWidths[first];
+
+      if (equivalentFirst) {
+        addCandidate(candidates, `${equivalentFirst}/${second}`);
+        addCandidate(candidates, `${equivalentFirst}-${second}`);
+      }
     }
   }
 

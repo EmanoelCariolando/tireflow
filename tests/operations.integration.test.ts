@@ -22,7 +22,11 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
   const { registerSale, registerSaleItems, InsufficientStockError } = await import('../src/services/saleService.js');
   const { registerEntry, registerEntryItems, EntryProductNotFoundError } =
     await import('../src/services/entryService.js');
-  const { registerAdjustment } = await import('../src/services/adjustmentService.js');
+  const {
+    AdjustmentStockChangedError,
+    registerAdjustment,
+    registerStockTransfer,
+  } = await import('../src/services/adjustmentService.js');
   const { registerPriceChange } = await import('../src/services/priceService.js');
   const {
     ProductLocationChangedError,
@@ -369,6 +373,71 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
       invoiceNumber: 'TL-2026/015',
       isCityHallSale: true,
     });
+
+    const transferSource = await prisma.product.create({
+      data: {
+        reference: '195/55/15', description: 'PNEU BAIXADO ERRADO', stock: 4,
+        minStock: 0, cashPrice: 300, creditPrice: 320,
+      },
+    });
+    const transferTarget = await prisma.product.create({
+      data: {
+        reference: '195/60/15', description: 'PNEU VENDIDO CERTO', stock: 1,
+        minStock: 0, cashPrice: 310, creditPrice: 330,
+      },
+    });
+    const transfer = await registerStockTransfer({
+      sourceProductId: transferSource.id,
+      targetProductId: transferTarget.id,
+      responsiblePhone: 'transfer-user',
+      responsibleName: 'Transfer User',
+      quantity: 2,
+      reason: 'Venda baixada no pneu semelhante',
+      expectedSourceStock: 4,
+      expectedTargetStock: 1,
+    });
+    assert.deepEqual(
+      {
+        sourcePrevious: transfer.sourcePreviousStock,
+        sourceCurrent: transfer.sourceCurrentStock,
+        targetPrevious: transfer.targetPreviousStock,
+        targetCurrent: transfer.targetCurrentStock,
+      },
+      { sourcePrevious: 4, sourceCurrent: 2, targetPrevious: 1, targetCurrent: 3 }
+    );
+    const transferMovements = await prisma.movement.findMany({
+      where: { code: { in: [transfer.sourceMovementCode, transfer.targetMovementCode] } },
+      orderBy: { code: 'asc' },
+    });
+    assert.equal(transferMovements.length, 2);
+    assert.ok(transferMovements.every((movement) =>
+      movement.type === 'ADJUSTMENT' &&
+      movement.quantity === 2 &&
+      movement.reason === 'Venda baixada no pneu semelhante' &&
+      movement.observation?.includes(`${transfer.sourceMovementCode}/${transfer.targetMovementCode}`)
+    ));
+
+    await assert.rejects(
+      registerStockTransfer({
+        sourceProductId: transferSource.id,
+        targetProductId: transferTarget.id,
+        responsiblePhone: 'transfer-user',
+        responsibleName: 'Transfer User',
+        quantity: 1,
+        reason: 'Tentativa com saldo antigo',
+        expectedSourceStock: 4,
+        expectedTargetStock: 1,
+      }),
+      AdjustmentStockChangedError
+    );
+    assert.deepEqual(
+      await prisma.product.findMany({
+        where: { id: { in: [transferSource.id, transferTarget.id] } },
+        orderBy: { reference: 'asc' },
+        select: { stock: true },
+      }),
+      [{ stock: 2 }, { stock: 3 }]
+    );
   } finally {
     await prisma.$disconnect();
     await rm(temporaryRoot, { recursive: true, force: true });

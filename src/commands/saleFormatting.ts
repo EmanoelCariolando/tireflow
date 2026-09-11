@@ -11,6 +11,7 @@ import type {
   SaleSession,
 } from '../utils/saleSessionStore.js';
 import {
+  buildPersistedSaleItems,
   getExplicitSaleItems,
   getSaleItems,
   hasSaleDiscount,
@@ -42,7 +43,7 @@ export function formatPaymentMenu(session?: SaleSession): string {
       ? [
           '🛒 *RESUMO DA COMPRA*',
           '',
-          ...formatConfirmationSaleItemLines(items),
+          ...formatConfirmationSaleItemLines(items, session),
           '',
           ...(discountApplied
             ? [
@@ -70,13 +71,13 @@ export function formatPaymentMenu(session?: SaleSession): string {
     '4️⃣ *Nota*',
     '5️⃣ *Pagamento misto*',
     `6️⃣ *Desconto*${discountApplied ? ' ✅' : ''}`,
-    ...(!resolvingPendingSale
-      ? [
+    ...(resolvingPendingSale
+      ? ['7️⃣ *Alterar preço*']
+      : [
           '7️⃣ *Adicionar outro pneu*',
           '8️⃣ *Pendência*',
           ...(TRANSFER_PAYMENT_ENABLED ? ['9️⃣ *Transferência*'] : []),
-        ]
-      : []),
+        ]),
   ].join('\n');
 }
 
@@ -86,6 +87,19 @@ export function formatDiscountMenu(): string {
     '1️⃣ *Desconto %*',
     '2️⃣ *Desconto R$*',
     '0️⃣ Voltar',
+  ].join('\n');
+}
+
+export function formatPendingPriceQuestion(session: SaleSession): string {
+  return [
+    '🏷️ *ALTERAR PREÇO DA PENDÊNCIA*',
+    '',
+    `Valor atual: *${formatCurrency(session.totalValue ?? 0)}*`,
+    '',
+    '*Digite o novo valor total da venda:*',
+    'Ex.: *1.250,00*',
+    '',
+    '0️⃣ ↩️ Voltar',
   ].join('\n');
 }
 
@@ -151,16 +165,20 @@ function formatTransferLines(session: SaleSession): string[] {
   return ['Transferência: *Sim*', `Cidade: *${session.transferCity}*`];
 }
 
-function formatInvoiceLines(session: SaleSession): string[] {
+function formatInvoiceLines(
+  session: SaleSession,
+  showCommissionDestination = true
+): string[] {
   const lines: string[] = [];
 
   if (session.invoiceName) {
-    lines.push(
-      session.isCityHallSale
-        ? 'Destino da nota: *Prefeitura (sem comissão)*'
-        : 'Destino da nota: *Cliente (com comissão)*',
-      `Nome da nota: *${session.invoiceName}*`,
-    );
+    if (session.isCityHallSale) {
+      lines.push('Destino da nota: *Prefeitura (sem comissão)*');
+    } else if (showCommissionDestination) {
+      lines.push('Destino da nota: *Cliente (com comissão)*');
+    }
+
+    lines.push(`Nome da nota: *${session.invoiceName}*`);
   }
 
   if (session.invoiceNumber) {
@@ -189,12 +207,13 @@ export function formatSaleConfirmation(session: SaleSession): string {
   const items = getSaleItems(session);
   if (items.length > 1) {
     return formatOperationConfirmation('🧾 *VENDA — CONFIRMAR*', [
-      formatConfirmationSaleItemLines(items),
+      formatConfirmationSaleItemLines(items, session),
       [
         ...formatCompactPaymentLines(session),
         ...formatDiscountLines(session),
+        ...formatPendingPriceChangeLines(session),
         ...formatTransferLines(session),
-        ...formatInvoiceLines(session),
+        ...formatInvoiceLines(session, false),
       ],
       [`💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`],
     ]);
@@ -208,8 +227,9 @@ export function formatSaleConfirmation(session: SaleSession): string {
     [
       ...formatConfirmationPaymentLines(session),
       ...formatDiscountLines(session),
+      ...formatPendingPriceChangeLines(session),
       ...formatTransferLines(session),
-      ...formatInvoiceLines(session),
+      ...formatInvoiceLines(session, false),
     ],
     [`💰 Total: *${formatCurrency(session.totalValue ?? 0)}*`],
   ]);
@@ -300,7 +320,7 @@ function formatRegisteredMultiItemSale(
   return [
     title,
     '',
-    ...formatRegisteredSaleItemLines(items, registeredItems),
+    ...formatRegisteredSaleItemLines(items, registeredItems, session),
     '',
     ...formatCompactPaymentLines(session),
     ...formatDiscountLines(session),
@@ -318,23 +338,32 @@ function formatRegisteredMultiItemSale(
 
 function formatRegisteredSaleItemLines(
   items: SaleItem[],
-  registeredItems: RegisteredSaleItem[]
+  registeredItems: RegisteredSaleItem[],
+  session: SaleSession
 ): string[] {
+  const displayedTotals = getDisplayedItemTotals(items, session);
   return items.flatMap((item, index) => [
     `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
-    `📤 *${item.quantity} un.* | 💰 *${formatCurrency(item.totalValue)}* | 📦 Estoque: *${
+    `📤 *${item.quantity} un.* | 💰 *${formatCurrency(displayedTotals[index] ?? item.totalValue)}* | 📦 Estoque: *${
       findFinalRegisteredStock(registeredItems, item.productId) ?? 'confirmado'
     }*`,
     ...(index < items.length - 1 ? [''] : []),
   ]);
 }
 
-function formatConfirmationSaleItemLines(items: SaleItem[]): string[] {
+function formatConfirmationSaleItemLines(items: SaleItem[], session?: SaleSession): string[] {
+  const displayedTotals = session ? getDisplayedItemTotals(items, session) : items.map((item) => item.totalValue);
   return items.flatMap((item, index) => [
     `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
-    `📤 *${item.quantity} un.* | 💰 *${formatCurrency(item.totalValue)}*`,
+    `📤 *${item.quantity} un.* | 💰 *${formatCurrency(displayedTotals[index] ?? item.totalValue)}*`,
     ...(index < items.length - 1 ? [''] : []),
   ]);
+}
+
+function getDisplayedItemTotals(items: SaleItem[], session: SaleSession): number[] {
+  return session.pendingPriceChanged
+    ? buildPersistedSaleItems(session).map((item) => item.totalValue)
+    : items.map((item) => item.totalValue);
 }
 
 function formatCompactPaymentLines(session: SaleSession): string[] {
@@ -461,5 +490,22 @@ function formatDiscountLines(session: SaleSession): string[] {
 }
 
 function formatPendingOriginLines(session: SaleSession): string[] {
-  return session.wasPending ? ['⏳ _Estava pendente_'] : [];
+  if (!session.wasPending) return [];
+  return [
+    '⏳ _Estava pendente_',
+    ...formatPendingPriceChangeLines(session),
+  ];
+}
+
+function formatPendingPriceChangeLines(session: SaleSession): string[] {
+  if (
+    !session.pendingPriceChanged ||
+    session.pendingPreviousTotalValue === undefined ||
+    session.totalValue === undefined
+  ) {
+    return [];
+  }
+  return [
+    `🏷️ Preço ajustado: *${formatCurrency(session.pendingPreviousTotalValue)} → ${formatCurrency(session.totalValue)}*`,
+  ];
 }

@@ -89,6 +89,47 @@ test('keeps pending stock atomic until sale or return', async () => {
     assert.equal(Number(completedPending.originalTotalValue), 300);
     assert.equal(Number(completedPending.discountPercent), 10);
 
+    const repricedProduct = await prisma.product.create({
+      data: {
+        reference: '185/65 R15', description: 'PNEU REPRECIFICADO', stock: 1,
+        minStock: 0, cashPrice: 300, creditPrice: 320,
+      },
+    });
+    const repricedPending = await registerPendingSale({
+      items: [{
+        productId: repricedProduct.id,
+        reference: repricedProduct.reference,
+        description: repricedProduct.description,
+        quantity: 1,
+        cashPrice: 300,
+        creditPrice: 320,
+        priceType: 'À vista',
+        unitPrice: 300,
+        totalValue: 300,
+      }],
+      createdByPhone: 'creator@c.us', createdByName: 'Distribuidor',
+      assignedPhone: 'employee@c.us', assignedName: 'Fulano', totalValue: 300,
+    });
+    await registerSaleItems({
+      items: [{ productId: repricedProduct.id, quantity: 1, unitPrice: 350, totalValue: 350 }],
+      sellerPhone: repricedPending.assignedTo.phone,
+      sellerName: repricedPending.assignedTo.name,
+      totalValue: 350,
+      paymentMethod: 'PIX',
+      pendingSaleId: repricedPending.id,
+      allowPendingPriceChange: true,
+    });
+    const repricedMovement = await prisma.movement.findFirstOrThrow({
+      where: { type: 'SALE', productId: repricedProduct.id },
+    });
+    const completedRepricedPending = await prisma.pendingSale.findUniqueOrThrow({
+      where: { id: repricedPending.id },
+    });
+    assert.equal(Number(repricedMovement.totalValue), 350);
+    assert.equal(Number(completedRepricedPending.totalValue), 350);
+    assert.equal(Number(completedRepricedPending.originalTotalValue), 300);
+    assert.equal(completedRepricedPending.discountPercent, null);
+
     const returnedPending = await registerPendingSale({
       items: [{
         productId: product.id, reference: product.reference, description: product.description,

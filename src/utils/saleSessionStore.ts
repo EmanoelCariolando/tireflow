@@ -39,6 +39,7 @@ export type SaleSessionStep =
   | 'awaiting_discount_type'
   | 'awaiting_discount_value'
   | 'awaiting_discount_confirmation'
+  | 'awaiting_pending_price'
   | 'awaiting_mixed_methods'
   | 'awaiting_mixed_amount'
   | 'awaiting_photo'
@@ -82,6 +83,8 @@ export interface SaleSession {
   pendingAssigneeId?: string;
   pendingAssigneeName?: string;
   wasPending?: boolean;
+  pendingPriceChanged?: boolean;
+  pendingPreviousTotalValue?: number;
   items?: SaleItem[];
   additionalMeasure?: string;
   additionalProducts?: QueriedProduct[];

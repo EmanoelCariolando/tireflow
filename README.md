@@ -46,7 +46,7 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 | `0 <medida>` | Consultar somente pneus zerados |
 | `venda <item> <quantidade>` | Registrar uma venda |
 | `entrada <item>` | Adicionar estoque |
-| `ajuste <item>` | Corrigir o estoque |
+| `ajuste <item>` | Contar, adicionar, retirar ou transferir estoque |
 | `preco <item>` | Atualizar preços |
 | `foto <item>` | Visualizar uma foto |
 | `addfoto <item>` | Cadastrar uma foto |

@@ -96,7 +96,7 @@ function formatLowStockReport(lowStockProducts: Product[]): string {
       ].filter((line): line is string => Boolean(line)).join('\n')
     ),
     '',
-    'Ações: *entrada 1* | *ajuste 1* | *preco 1*',
+    'Ações: *entrada 1* | *ajuste 1* (somar, retirar ou transferir) | *preco 1*',
   ].join('\n\n');
 }
 
@@ -159,7 +159,12 @@ export function formatTodayReport(input: TodayReportFormatInput): string {
   ];
 
   if (!input.hasMovements) {
-    lines.push('Sem movimentações registradas.', '');
+    return [
+      ...lines,
+      '✅ *SEM MOVIMENTAÇÕES NO DIA*',
+      '',
+      '_TireFlow • Relatório automático_',
+    ].join('\n');
   }
 
   lines.push(
