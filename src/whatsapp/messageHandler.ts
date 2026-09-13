@@ -71,6 +71,16 @@ import {
   handlePendingSaleConversation,
   isPendingSaleCommand,
 } from '../commands/pendingSaleCommand.js';
+import {
+  handleBatteryCommand,
+  isBatterySearchCommand,
+} from '../commands/batteryCommand.js';
+import {
+  handleMonthlyInventoryReportConversation,
+  handleMonthlyInventoryReportCommand,
+  isMonthlyInventoryReportCommand,
+} from '../commands/monthlyInventoryReportCommand.js';
+import { getMonthlyInventoryReportSession } from '../utils/monthlyInventoryReportSessionStore.js';
 
 /**
  * Message Handler (Fase 3)
@@ -186,6 +196,10 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
+  if (await handleMonthlyInventoryReportConversation(message, body)) {
+    return;
+  }
+
   if (await handleProductRegistrationConversation(message, body)) {
     return;
   }
@@ -242,6 +256,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isPneuHelpCommand(body)) {
     await handlePneuHelpCommand(message);
+    return;
+  }
+
+  if (isBatterySearchCommand(body)) {
+    await handleBatteryCommand(message, body);
     return;
   }
 
@@ -310,6 +329,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
+  if (isMonthlyInventoryReportCommand(body)) {
+    await handleMonthlyInventoryReportCommand(message);
+    return;
+  }
+
   if (isPendingSaleCommand(body)) {
     await handlePendingSaleCommand(message);
     return;
@@ -327,7 +351,8 @@ function hasAdminOnlyOperationSession(userId: string, chatId: string): boolean {
       getAdjustmentSession(userId, chatId) ||
       getPriceSession(userId, chatId) ||
       getLocationSession(userId, chatId) ||
-      getProductRegistrationSession(userId, chatId)
+      getProductRegistrationSession(userId, chatId) ||
+      getMonthlyInventoryReportSession(userId, chatId)
   );
 }
 
@@ -343,7 +368,8 @@ function isAdminOnlyCommand(body: string): boolean {
       isLocationCommand(body) ||
       isLowStockCommand(body) ||
       isBestSellersCommand(body) ||
-      isTodayReportCommand(body)
+      isTodayReportCommand(body) ||
+      isMonthlyInventoryReportCommand(body)
   );
 }
 

@@ -1,3 +1,4 @@
+import type { ProductCategory } from '@prisma/client';
 import type { Message } from 'whatsapp-web.js';
 import env from '../config/env.js';
 import { getLastQuery } from '../utils/lastQueryStore.js';
@@ -25,6 +26,7 @@ import { handlePriceCommand } from './priceCommand.js';
 import { handleAddPhotoCommand, handlePhotoCommand } from './productPhotoCommand.js';
 import { handleSaleCommand } from './saleCommand.js';
 import { isMessageFromGroupAdmin } from '../services/groupAdminService.js';
+import { isBatteryCategory } from '../utils/productCategory.js';
 
 type IndexedCommandHandler = (message: Message, body: string) => Promise<boolean>;
 type SaleCommandStarter = (message: Message, body: string) => Promise<boolean>;
@@ -114,8 +116,8 @@ export function formatZeroStockActionMenu(
   ].join('\n');
 }
 
-export function formatSaleQuantityQuestion(): string {
-  return formatQuantityQuestion();
+export function formatSaleQuantityQuestion(category?: ProductCategory): string {
+  return formatQuantityQuestion(category);
 }
 
 export async function handleProductActionConversation(
@@ -167,7 +169,9 @@ export async function handleProductActionConversation(
 
   if (session.step === 'awaiting_product') {
     if (!Number.isSafeInteger(selection) || selection <= 0 || !lastQuery.products[selection - 1]) {
-      await message.reply(`❌ Pneu inválido.\n\n${formatProductChoiceQuestion()}`);
+      const category = lastQuery.products[0]?.category;
+      const productLabel = isBatteryCategory(category) ? 'Bateria' : 'Pneu';
+      await message.reply(`❌ ${productLabel} inválido.\n\n${formatProductChoiceQuestion(category)}`);
       return true;
     }
 
@@ -242,7 +246,7 @@ export async function handleProductActionConversation(
 
   if (session.step === 'awaiting_sale_quantity') {
     if (!Number.isSafeInteger(selection) || selection <= 0) {
-      await message.reply(`❌ Quantidade inválida.\n\n${formatSaleQuantityQuestion()}`);
+      await message.reply(`❌ Quantidade inválida.\n\n${formatSaleQuantityQuestion(lastQuery.products[optionNumber - 1]?.category)}`);
       return true;
     }
 
@@ -265,7 +269,7 @@ export async function handleProductActionConversation(
         optionNumber,
         session.mode
       );
-      await message.reply(formatSaleQuantityQuestion());
+      await message.reply(formatSaleQuantityQuestion(lastQuery.products[optionNumber - 1]?.category));
       return true;
     }
 
@@ -318,7 +322,7 @@ export async function handleProductActionConversation(
       optionNumber,
       session.mode
     );
-    await message.reply(formatSaleQuantityQuestion());
+    await message.reply(formatSaleQuantityQuestion(lastQuery.products[optionNumber - 1]?.category));
     return true;
   }
 

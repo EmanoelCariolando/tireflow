@@ -1,3 +1,6 @@
+import type { ProductCategory } from '@prisma/client';
+import { isBatteryCategory } from './productCategory.js';
+
 export function formatSupplierQuestion(): string {
   return [
     '🚚 *FORNECEDOR*',
@@ -5,10 +8,10 @@ export function formatSupplierQuestion(): string {
   ].join('\n');
 }
 
-export function formatQuantityQuestion(): string {
+export function formatQuantityQuestion(category?: ProductCategory): string {
   return [
     '📦 *QUANTIDADE*',
-    'Quantos pneus?',
+    isBatteryCategory(category) ? 'Quantas baterias?' : 'Quantos pneus?',
   ].join('\n');
 }
 

@@ -1,11 +1,11 @@
-import type { Product } from '@prisma/client';
+import { BatteryBrand, ProductCategory, type Product } from '@prisma/client';
 import PDFDocument from 'pdfkit';
 import type { MonthlyReportFormatInput } from './monthlyReportService.js';
 
 export type MonthlyInventoryProduct = Pick<
   Product,
   'id' | 'reference' | 'description' | 'stock' | 'stockLocation'
->;
+> & Partial<Pick<Product, 'category' | 'batteryBrand'>>;
 
 export interface MonthlyInventoryPdfInput {
   report: MonthlyReportFormatInput;
@@ -67,9 +67,9 @@ export async function buildMonthlyInventoryPdf(
     bufferPages: true,
     compress: true,
     info: {
-      Title: `Relatório mensal de estoque - ${formatMonthLabel(input.report.period.start)}`,
+      Title: `Relatório de estoque - ${formatPeriod(input.report.period)}`,
       Author: 'TireFlow',
-      Subject: 'Conferência mensal de estoque',
+      Subject: 'Conferência de estoque por período',
       Creator: 'TireFlow',
     },
   });
@@ -104,7 +104,7 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
     .fillColor(COLORS.ink)
     .font('Helvetica-Bold')
     .fontSize(22)
-    .text('RELATÓRIO MENSAL DE ESTOQUE');
+    .text('RELATÓRIO DE ESTOQUE');
   document
     .fillColor(COLORS.muted)
     .font('Helvetica')
@@ -123,9 +123,9 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
   const cardY = document.y;
   const cards = [
     { label: 'MODELOS EM ESTOQUE', value: String(input.products.length), color: COLORS.blue },
-    { label: 'TOTAL DE PNEUS', value: String(totalUnits), color: COLORS.green },
+    { label: 'TOTAL DE ITENS', value: String(totalUnits), color: COLORS.green },
     {
-      label: 'ZERARAM NO MÊS',
+      label: 'ZERARAM NO PERÍODO',
       value: String(input.report.zeroStockProducts.length),
       color: COLORS.amber,
     },
@@ -150,9 +150,9 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
   document.y = cardY + 72;
   document.x = PAGE_MARGIN;
 
-  drawSectionTitle(document, '1. PNEUS MAIS VENDIDOS');
+  drawSectionTitle(document, '1. PRODUTOS MAIS VENDIDOS');
   if (input.report.bestSellers.length === 0) {
-    drawNotice(document, input, 'Nenhum pneu foi vendido no período.', COLORS.paleBlue, COLORS.blue);
+    drawNotice(document, input, 'Nenhum produto foi vendido no período.', COLORS.paleBlue, COLORS.blue);
   } else {
     const rankByProduct = new Map(
       input.report.bestSellers.map((product, index) => [product, index + 1])
@@ -163,12 +163,12 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
       input.report.bestSellers,
       [
         { title: 'POS.', width: 42, align: 'center', value: (row) => String(rankByProduct.get(row)) },
-        { title: 'MEDIDA', width: 100, value: (row) => row.reference },
+        { title: 'REFERÊNCIA', width: 100, value: (row) => row.reference },
         { title: 'DESCRIÇÃO', width: 390, value: (row) => row.description },
         { title: 'VENDIDOS', width: 80, align: 'center', value: (row) => String(row.quantity) },
         { title: 'FATURAMENTO', width: 110, align: 'right', value: (row) => formatCurrency(row.totalValue) },
       ],
-      'Pneus mais vendidos (continuação)'
+      'Produtos mais vendidos (continuação)'
     );
   }
 
@@ -186,7 +186,7 @@ function drawInventory(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfI
   drawNotice(
     document,
     input,
-    'COMO USAR: conte o estoque físico e preencha as colunas "Contado" e "Diferença". Os pneus estão separados por aro e ordenados por medida.',
+    `COMO USAR: conte o estoque físico e preencha as colunas "Contado" e "Diferença". Pneus ficam separados por aro e baterias por marca. O estoque exibido corresponde à posição atual em ${formatDateTime(input.generatedAt)}.`,
     COLORS.paleGreen,
     COLORS.green
   );
@@ -230,7 +230,7 @@ function drawInventory(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfI
 function drawZeroStock(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfInput): void {
   document.moveDown(0.8);
   ensureSpace(document, input, 92);
-  drawSectionTitle(document, '2. PNEUS QUE ZERARAM NO MÊS');
+  drawSectionTitle(document, '2. PRODUTOS QUE ZERARAM NO PERÍODO');
   document
     .fillColor(COLORS.muted)
     .font('Helvetica')
@@ -247,7 +247,7 @@ function drawZeroStock(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfI
     drawNotice(
       document,
       input,
-      'Nenhum pneu chegou a estoque zero durante o mês.',
+      'Nenhum produto chegou a estoque zero durante o período.',
       COLORS.paleGreen,
       COLORS.green
     );
@@ -260,7 +260,7 @@ function drawZeroStock(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfI
     input,
     products,
     [
-      { title: 'MEDIDA', width: 92, value: (row) => row.reference },
+      { title: 'REFERÊNCIA', width: 92, value: (row) => row.reference },
       {
         title: 'DESCRIÇÃO',
         width: input.report.showStockLocations ? 245 : 320,
@@ -283,7 +283,7 @@ function drawZeroStock(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfI
           : `Reposto em ${row.replenishedAt ? formatDate(row.replenishedAt) : 'data não identificada'}`,
       },
     ],
-    'Pneus que zeraram no mês (continuação)'
+    'Produtos que zeraram no período (continuação)'
   );
 
   document.moveDown(0.8);
@@ -334,7 +334,7 @@ function inventoryColumns(showLocations: boolean): TableColumn<InventoryRow>[] {
     ...(showLocations
       ? [{ title: 'LOCAL', width: 72, value: (row: InventoryRow) => row.stockLocation ?? 'Não cadastrado' }]
       : []),
-    { title: 'MEDIDA', width: 92, value: (row) => row.reference },
+    { title: 'REFERÊNCIA', width: 92, value: (row) => row.reference },
     {
       title: 'DESCRIÇÃO',
       width: showLocations ? 330 : 402,
@@ -477,7 +477,7 @@ function drawPageHeader(document: PDFKit.PDFDocument, input: MonthlyInventoryPdf
     .font('Helvetica')
     .fontSize(8.5)
     .text(
-      `Inventário mensal • ${formatMonthLabel(input.report.period.start)}`,
+      `Inventário • ${formatPeriod(input.report.period)}`,
       PAGE_MARGIN,
       38,
       { width: width / 2 }
@@ -553,9 +553,13 @@ function groupInventoryRows(
   const grouped = new Map<string, InventoryRow[]>();
   for (const row of rows) {
     const location = row.stockLocation?.trim() || 'Não cadastrado';
-    const rim = getInventoryProductRim(row);
-    const rimLabel = rim === null ? 'OUTRAS MEDIDAS' : `ARO ${formatRim(rim)}`;
-    const label = showLocations ? `LOCALIZAÇÃO: ${location} • ${rimLabel}` : rimLabel;
+    const productGroup = row.category === ProductCategory.BATTERY
+      ? `BATERIAS — ${row.batteryBrand === BatteryBrand.ZETTA ? 'ZETTA' : 'MOURA'}`
+      : (() => {
+          const rim = getInventoryProductRim(row);
+          return rim === null ? 'OUTRAS MEDIDAS' : `ARO ${formatRim(rim)}`;
+        })();
+    const label = showLocations ? `LOCALIZAÇÃO: ${location} • ${productGroup}` : productGroup;
     const group = grouped.get(label);
     if (group) {
       group.push(row);
@@ -578,6 +582,16 @@ function sortInventoryProducts(
         right.stockLocation?.trim() || 'ZZZ Não cadastrado'
       );
       if (locationComparison !== 0) return locationComparison;
+    }
+    const leftIsBattery = left.category === ProductCategory.BATTERY;
+    const rightIsBattery = right.category === ProductCategory.BATTERY;
+    if (leftIsBattery !== rightIsBattery) return leftIsBattery ? 1 : -1;
+    if (leftIsBattery && rightIsBattery) {
+      const brandComparison = collator.compare(
+        left.batteryBrand ?? '',
+        right.batteryBrand ?? ''
+      );
+      if (brandComparison !== 0) return brandComparison;
     }
     const leftRim = getInventoryProductRim(left);
     const rightRim = getInventoryProductRim(right);
@@ -611,8 +625,9 @@ export function getTireRim(reference: string): number | null {
 }
 
 function getInventoryProductRim(
-  product: Pick<MonthlyInventoryProduct, 'reference' | 'description'>
+  product: Pick<MonthlyInventoryProduct, 'reference' | 'description' | 'category'>
 ): number | null {
+  if (product.category === ProductCategory.BATTERY) return null;
   return getTireRim(product.reference) ?? getTireRim(product.description);
 }
 
@@ -635,9 +650,8 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
-function formatMonthLabel(date: Date): string {
-  const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(date).toUpperCase();
-  return `${month}/${date.getFullYear()}`;
+function formatPeriod(period: MonthlyReportFormatInput['period']): string {
+  return `${formatDate(period.start)} a ${formatDate(previousDay(period.end))}`;
 }
 
 function formatDate(date: Date): string {

@@ -1,4 +1,5 @@
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+import type { ProductCategory } from '@prisma/client';
 
 export type AdjustmentSessionStep =
   | 'awaiting_adjustment_type'
@@ -16,6 +17,7 @@ export interface AdjustmentTransferCandidate {
   id: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
   stock: number;
 }
 
@@ -26,6 +28,7 @@ export interface AdjustmentSession {
   productId: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
   previousStock: number;
   kind?: AdjustmentKind;
   quantity?: number;

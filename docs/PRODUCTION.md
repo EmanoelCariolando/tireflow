@@ -38,6 +38,14 @@ do dia 20 do mês anterior até o fim do dia 19 atual. Notas de prefeitura ficam
 Deixe `MONTHLY_REPORT_TIME` vazio para manter os dois envios desativados. Os envios são privados,
 não usam o grupo oficial e distribuem pagamentos mistos entre suas formas reais.
 
+Um administrador também pode gerar o PDF de inventário sob demanda pela opção
+`Relatório de estoque (PDF)` do menu ou pelo comando `relatorio estoque` (`relatorio mensal`
+continua aceito). O fluxo permite escolher
+o último mês fechado ou informar um período de até 31 dias no formato `DD/MM/AAAA`, exige uma
+confirmação e responde na própria conversa. As movimentações respeitam o período escolhido; o
+estoque exibido é a posição atual indicada no próprio PDF. A geração manual não altera o controle
+do envio automático do dia 1.
+
 Em Monteiro, use `BRANCH_NAME="ATC PNEUS MONTEIRO"`, sessão `tireflow-monteiro` e autenticação em `C:\TireFlow\Monteiro\data\wwebjs_auth`. Grupo e números privados também devem pertencer à filial correta.
 
 Somente em Monteiro, habilite a localização física dos pneus:
@@ -121,6 +129,9 @@ npm run sync:catalog -- data/seed/initial_products.csv --resolution data/seed/co
 O comando nunca renomeia, remove ou desativa produtos existentes. Produtos do banco ausentes do
 CSV são preservados, assim como IDs, fotos, localizações, vendas e demais históricos. A execução
 com `--apply` é bloqueada enquanto existir qualquer candidato sem decisão explícita.
+
+Para importar baterias Moura e Zetta a partir de uma planilha conferida, siga também
+[BATTERIES.md](BATTERIES.md).
 
 Para executar Congo e Monteiro no mesmo servidor, siga
 [CONGO_ON_MONTEIRO_SERVER.md](CONGO_ON_MONTEIRO_SERVER.md).

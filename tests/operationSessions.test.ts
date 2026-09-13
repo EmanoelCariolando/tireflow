@@ -18,6 +18,10 @@ import {
 } from '../src/utils/operationSessionCoordinator.js';
 import { clearLastQuery, getLastQuery, saveLastQuery } from '../src/utils/lastQueryStore.js';
 import { EMPLOYEE_SESSION_TTL_MS } from '../src/utils/employeeSessionDuration.js';
+import {
+  getMonthlyInventoryReportSession,
+  saveMonthlyInventoryReportSession,
+} from '../src/utils/monthlyInventoryReportSessionStore.js';
 
 test('expires an unanswered employee session after twelve minutes', () => {
   const userId = 'session-timeout-user';
@@ -69,10 +73,14 @@ test('clears every incompatible operation for the same user and group', () => {
   saveProductRegistrationSession({
     userId, chatId, step: 'awaiting_measure', updatedAt: Date.now(),
   });
+  saveMonthlyInventoryReportSession({
+    userId, chatId, step: 'awaiting_start_date', updatedAt: Date.now(),
+  });
   assert.equal(hasActiveOperationSession(userId, chatId), true);
   clearAllOperationSessions(userId, chatId);
   assert.equal(hasActiveOperationSession(userId, chatId), false);
   assert.equal(getProductRegistrationSession(userId, chatId), null);
+  assert.equal(getMonthlyInventoryReportSession(userId, chatId), null);
 });
 
 test('keeps the last query isolated by both user and chat', () => {
@@ -89,4 +97,10 @@ test('keeps the last query isolated by both user and chat', () => {
 test('recognizes both accented and unaccented price operation commands', () => {
   assert.equal(isOperationStartCommand('preco 1'), true);
   assert.equal(isOperationStartCommand('preço 1'), true);
+});
+
+test('recognizes the monthly report as an isolated operation', () => {
+  assert.equal(isOperationStartCommand('relatorio mensal'), true);
+  assert.equal(isOperationStartCommand('RELATÓRIO MENSAL'), true);
+  assert.equal(isOperationStartCommand('relatório estoque'), true);
 });

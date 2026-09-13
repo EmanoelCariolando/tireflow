@@ -1,11 +1,12 @@
 import { MovementType } from '@prisma/client';
-import type { Movement, Product, User } from '@prisma/client';
+import type { Movement, Product, ProductCategory, User } from '@prisma/client';
 import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
 import { formatStockLocationLine } from '../utils/stockLocation.js';
+import { getProductIcon } from '../utils/productCategory.js';
 
 type MovementWithRelations = Movement & {
   product: Product;
@@ -16,6 +17,7 @@ export interface DailyZeroStockSummary {
   reference: string;
   description: string;
   stockLocation: string | null;
+  category?: ProductCategory;
 }
 
 interface DateRange {
@@ -55,6 +57,7 @@ export interface TodayReportFormatInput {
     reference: string;
     description: string;
     quantity: number;
+    category?: ProductCategory;
   };
   zeroStockProducts: DailyZeroStockSummary[];
 }
@@ -87,7 +90,7 @@ function formatLowStockReport(lowStockProducts: Product[]): string {
     '',
     ...lowStockProducts.map((product, index) =>
       [
-        `${index + 1}️⃣ 🛞 *${product.reference} — ${product.description}*`,
+        `${index + 1}️⃣ ${getProductIcon(product.category)} *${product.reference} — ${product.description}*`,
         `📦 Estoque: *${product.stock}*`,
         `⚠️ Mínimo: *${product.minStock}*`,
         formatStockLocationLine(product.stockLocation),
@@ -113,7 +116,7 @@ export async function buildBestSellersReport(limit = 10): Promise<string> {
     '',
     ...bestSellers.map((item, index) =>
       [
-        `${index + 1}️⃣ 🛞 *${item.product.reference} — ${item.product.description}*`,
+        `${index + 1}️⃣ ${getProductIcon(item.product.category)} *${item.product.reference} — ${item.product.description}*`,
         `📦 Vendidos: *${item.quantity}*`,
         `💰 Faturamento: *${formatCurrency(item.totalValue)}*`,
       ].join('\n')
@@ -146,6 +149,7 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
           reference: bestSeller.product.reference,
           description: bestSeller.product.description,
           quantity: bestSeller.quantity,
+          category: bestSeller.product.category,
         }
       : undefined,
   });
@@ -315,6 +319,7 @@ export function summarizeDailyZeroStock(
       reference: zeroEvent.product.reference,
       description: zeroEvent.product.description,
       stockLocation: zeroEvent.product.stockLocation,
+      category: zeroEvent.product.category,
     });
   }
 
@@ -327,7 +332,7 @@ function formatBestSeller(bestSeller: TodayReportFormatInput['bestSeller']): str
   }
 
   return [
-    `🛞 *${bestSeller.reference} — ${bestSeller.description}*`,
+    `${getProductIcon(bestSeller.category)} *${bestSeller.reference} — ${bestSeller.description}*`,
     `📦 Quantidade: *${bestSeller.quantity} unidades*`,
   ].join('\n');
 }
@@ -360,6 +365,8 @@ function mapProductToQueriedProduct(product: Product): QueriedProduct {
     id: product.id,
     reference: product.reference,
     description: product.description,
+    category: product.category,
+    batteryBrand: product.batteryBrand,
     stock: product.stock,
     stockLocation: product.stockLocation,
     cashPrice: toNumber(product.cashPrice),

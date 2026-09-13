@@ -17,6 +17,7 @@ import {
   LocationSession,
   saveLocationSession,
 } from '../utils/locationSessionStore.js';
+import { getProductIcon } from '../utils/productCategory.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
   clearAllOperationSessions,
@@ -100,6 +101,7 @@ export async function handleLocationCommand(message: Message, body: string): Pro
     productId: product.id,
     reference,
     description: product.description,
+    category: product.category,
     previousLocation,
     updatedAt: Date.now(),
   });
@@ -297,7 +299,7 @@ function formatLocationConfirmation(session: LocationSession): string {
   return formatOperationConfirmation(
     '📍 *LOCALIZAÇÃO — CONFIRMAR*',
     [
-      [`🛞 *${session.reference} — ${session.description}*`],
+      [`${getProductIcon(session.category)} *${session.reference} — ${session.description}*`],
       [`📍 Local: *${formatLocation(session.previousLocation)} → ${session.newLocation}*`],
     ]
   );
@@ -307,7 +309,7 @@ function formatRegisteredLocation(session: LocationSession, currentLocation: str
   return [
     '✅ *LOCAL ATUALIZADO*',
     '',
-    `🛞 *${session.reference} — ${session.description}*`,
+    `${getProductIcon(session.category)} *${session.reference} — ${session.description}*`,
     '',
     `📍 Local: *${currentLocation}*`,
   ].join('\n');

@@ -1,5 +1,5 @@
 import { prisma } from '../database/prisma.js';
-import type { Prisma } from '@prisma/client';
+import { ProductCategory, type Prisma } from '@prisma/client';
 
 type PrismaClientOrTransaction = Prisma.TransactionClient | typeof prisma;
 
@@ -25,6 +25,7 @@ export const productRepository = {
   findActiveByReferences(references: string[], client: PrismaClientOrTransaction = prisma) {
     return client.product.findMany({
       where: {
+        category: ProductCategory.TIRE,
         reference: {
           in: references,
         },
@@ -43,6 +44,8 @@ export const productRepository = {
         id: true,
         reference: true,
         description: true,
+        category: true,
+        batteryBrand: true,
         stock: true,
         stockLocation: true,
         cashPrice: true,
@@ -50,6 +53,7 @@ export const productRepository = {
         imagePath: true,
       },
       where: {
+        category: ProductCategory.TIRE,
         reference: {
           in: references,
         },
@@ -72,11 +76,38 @@ export const productRepository = {
         reference: true,
       },
       where: {
+        category: ProductCategory.TIRE,
         isActive: true,
       },
       orderBy: {
         reference: 'asc',
       },
+    });
+  },
+
+  findActiveBatteries(client: PrismaClientOrTransaction = prisma) {
+    return client.product.findMany({
+      select: {
+        id: true,
+        reference: true,
+        description: true,
+        category: true,
+        batteryBrand: true,
+        stock: true,
+        stockLocation: true,
+        cashPrice: true,
+        creditPrice: true,
+        imagePath: true,
+      },
+      where: {
+        category: ProductCategory.BATTERY,
+        isActive: true,
+      },
+      orderBy: [
+        { batteryBrand: 'asc' },
+        { reference: 'asc' },
+        { description: 'asc' },
+      ],
     });
   },
 
@@ -248,6 +279,8 @@ export const productRepository = {
         id: true,
         reference: true,
         description: true,
+        category: true,
+        batteryBrand: true,
         stock: true,
         stockLocation: true,
       },

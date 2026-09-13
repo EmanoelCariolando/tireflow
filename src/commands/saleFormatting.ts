@@ -4,6 +4,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
 import { formatBinaryOptions } from '../utils/binaryResponse.js';
 import { formatOperationConfirmation } from '../utils/operationResponse.js';
+import { getProductIcon } from '../utils/productCategory.js';
 import type {
   MixedPaymentMethod,
   ReceiptPaymentMethod,
@@ -221,7 +222,7 @@ export function formatSaleConfirmation(session: SaleSession): string {
 
   return formatOperationConfirmation('🧾 *VENDA — CONFIRMAR*', [
     [
-      `🛞 *${session.reference} — ${session.description}*`,
+      `${getProductIcon(session.category)} *${session.reference} — ${session.description}*`,
       `📤 Quantidade: ${formatSaleItemLine(session, false)}`,
     ],
     [
@@ -343,7 +344,7 @@ function formatRegisteredSaleItemLines(
 ): string[] {
   const displayedTotals = getDisplayedItemTotals(items, session);
   return items.flatMap((item, index) => [
-    `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
+    `${index + 1}. ${getProductIcon(item.category)} *${item.reference} — ${item.description}*`,
     `📤 *${item.quantity} un.* | 💰 *${formatCurrency(displayedTotals[index] ?? item.totalValue)}* | 📦 Estoque: *${
       findFinalRegisteredStock(registeredItems, item.productId) ?? 'confirmado'
     }*`,
@@ -354,7 +355,7 @@ function formatRegisteredSaleItemLines(
 function formatConfirmationSaleItemLines(items: SaleItem[], session?: SaleSession): string[] {
   const displayedTotals = session ? getDisplayedItemTotals(items, session) : items.map((item) => item.totalValue);
   return items.flatMap((item, index) => [
-    `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
+    `${index + 1}. ${getProductIcon(item.category)} *${item.reference} — ${item.description}*`,
     `📤 *${item.quantity} un.* | 💰 *${formatCurrency(displayedTotals[index] ?? item.totalValue)}*`,
     ...(index < items.length - 1 ? [''] : []),
   ]);

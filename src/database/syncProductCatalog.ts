@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { Prisma } from '@prisma/client';
+import { BatteryBrand, Prisma, ProductCategory } from '@prisma/client';
 import env from '../config/env.js';
 import { disconnectPrisma, prisma } from './prisma.js';
 
@@ -8,6 +8,8 @@ interface CsvCatalogRow {
   line: number;
   reference: string;
   description: string;
+  category: ProductCategory;
+  batteryBrand: BatteryBrand | null;
   cashPrice: string;
   creditPrice: string;
   stock: number;
@@ -96,6 +98,49 @@ function parseStock(value: string, line: number): number {
   return stock;
 }
 
+function parseProductMetadata(
+  categoryValue: string,
+  batteryBrandValue: string,
+  line: number
+): { category: ProductCategory; batteryBrand: BatteryBrand | null } {
+  const rawCategory = categoryValue.trim().toUpperCase();
+  const category = rawCategory === '' || rawCategory === ProductCategory.TIRE
+    ? ProductCategory.TIRE
+    : rawCategory === ProductCategory.BATTERY
+      ? ProductCategory.BATTERY
+      : null;
+
+  if (!category) {
+    throw new Error(`Linha ${line}: category deve ser TIRE ou BATTERY.`);
+  }
+
+  const rawBrand = batteryBrandValue.trim().toUpperCase();
+  if (category === ProductCategory.TIRE) {
+    if (rawBrand) {
+      throw new Error(`Linha ${line}: battery_brand deve ficar vazio para pneus.`);
+    }
+    return { category, batteryBrand: null };
+  }
+
+  if (rawBrand !== BatteryBrand.MOURA && rawBrand !== BatteryBrand.ZETTA) {
+    throw new Error(`Linha ${line}: bateria exige battery_brand MOURA ou ZETTA.`);
+  }
+
+  return { category, batteryBrand: rawBrand as BatteryBrand };
+}
+
+function assertCompatibleProductMetadata(
+  product: { category: ProductCategory; batteryBrand: BatteryBrand | null },
+  row: CsvCatalogRow
+): void {
+  if (product.category !== row.category || product.batteryBrand !== row.batteryBrand) {
+    throw new Error(
+      `Linha ${row.line}: categoria ou marca não corresponde ao produto existente. ` +
+      'Nenhuma alteração foi feita.'
+    );
+  }
+}
+
 async function readCatalogRows(csvPath: string): Promise<CsvCatalogRow[]> {
   const contents = await fs.readFile(csvPath, 'utf8');
   const lines = contents
@@ -132,11 +177,17 @@ async function readCatalogRows(csvPath: string): Promise<CsvCatalogRow[]> {
       throw new Error(`Linha ${line}: produto repetido no CSV.`);
     }
     seenKeys.add(key);
+    const metadata = parseProductMetadata(
+      row.category || '',
+      row.battery_brand || '',
+      line
+    );
 
     rows.push({
       line,
       reference,
       description,
+      ...metadata,
       cashPrice: parseMoney(row.cash_price, line, 'cash_price'),
       creditPrice: parseMoney(row.credit_price, line, 'credit_price'),
       stock: parseStock(row.stock, line),
@@ -220,6 +271,8 @@ async function resolveMissingProducts(
       id: true,
       reference: true,
       description: true,
+      category: true,
+      batteryBrand: true,
       cashPrice: true,
       creditPrice: true,
       stock: true,
@@ -292,6 +345,7 @@ async function resolveMissingProducts(
         `${resolution.existingReference} - ${resolution.existingDescription}`
       );
     }
+    assertCompatibleProductMetadata(product, candidate);
     usedExistingKeys.add(existingKey);
     matchedExistingKeys.add(existingKey);
 
@@ -342,6 +396,8 @@ async function buildCatalogChanges(rows: CsvCatalogRow[]): Promise<{
       id: true,
       reference: true,
       description: true,
+      category: true,
+      batteryBrand: true,
       cashPrice: true,
       creditPrice: true,
       stock: true,
@@ -370,6 +426,8 @@ async function buildCatalogChanges(rows: CsvCatalogRow[]): Promise<{
       creates.push(row);
       continue;
     }
+
+    assertCompatibleProductMetadata(product, row);
 
     const previousCashPrice = product.cashPrice.toFixed(2);
     const previousCreditPrice = product.creditPrice.toFixed(2);
@@ -424,6 +482,7 @@ function printCreates(creates: CsvCatalogRow[]): void {
   for (const product of creates.slice(0, 50)) {
     console.log(
       `- Linha ${product.line}: ${product.reference} - ${product.description}; ` +
+      `${product.category}${product.batteryBrand ? `/${product.batteryBrand}` : ''}; ` +
       `estoque ${product.stock}; à vista ${product.cashPrice}; a prazo ${product.creditPrice}`
     );
   }
@@ -535,6 +594,8 @@ async function main(): Promise<void> {
         data: {
           reference: product.reference,
           description: product.description,
+          category: product.category,
+          batteryBrand: product.batteryBrand,
           stock: product.stock,
           cashPrice: product.cashPrice,
           creditPrice: product.creditPrice,

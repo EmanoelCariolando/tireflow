@@ -26,6 +26,7 @@ import {
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import { formatCashPriceQuestion } from '../utils/operationPrompts.js';
 import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.js';
+import { getProductIcon } from '../utils/productCategory.js';
 
 const PRICE_COMMAND_REGEX = /^pre[cç]o\s+(\d+)$/i;
 
@@ -78,6 +79,7 @@ export async function handlePriceCommand(message: Message, body: string): Promis
     productId: product.id,
     reference: product.reference || lastQuery.normalizedMeasure,
     description: product.description,
+    category: product.category,
     stock: product.stock,
     oldCashPrice: product.cashPrice,
     oldCreditPrice: product.creditPrice,
@@ -260,7 +262,7 @@ function formatPriceConfirmation(session: PriceSession): string {
   return formatOperationConfirmation(
     '💰 *PREÇO — CONFIRMAR*',
     [
-      [`🛞 *${session.reference} — ${session.description}*`],
+      [`${getProductIcon(session.category)} *${session.reference} — ${session.description}*`],
       [
         `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}* | 💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
       ],
@@ -277,7 +279,7 @@ function formatRegisteredPriceChange(
   return [
     '✅ *PREÇO ATUALIZADO*',
     '',
-    `🛞 *${session.reference} — ${session.description}*`,
+    `${getProductIcon(session.category)} *${session.reference} — ${session.description}*`,
     '',
     `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
     `💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,
@@ -296,7 +298,7 @@ function formatBossPriceNotification(
   return [
     '💰 *PREÇO ATUALIZADO*',
     '',
-    `🛞 *${session.reference} — ${session.description}*`,
+    `${getProductIcon(session.category)} *${session.reference} — ${session.description}*`,
     '',
     `💰 À vista: ${formatCurrency(session.oldCashPrice)} → *${formatCurrency(session.newCashPrice ?? 0)}*`,
     `💳 A prazo: ${formatCurrency(session.oldCreditPrice)} → *${formatCurrency(session.newCreditPrice ?? 0)}*`,

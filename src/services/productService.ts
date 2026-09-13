@@ -8,6 +8,8 @@ type ProductQueryRow = Pick<
   | 'id'
   | 'reference'
   | 'description'
+  | 'category'
+  | 'batteryBrand'
   | 'stock'
   | 'stockLocation'
   | 'cashPrice'
@@ -20,6 +22,8 @@ function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
     id: product.id,
     reference: product.reference,
     description: product.description,
+    category: product.category,
+    batteryBrand: product.batteryBrand,
     stock: product.stock,
     stockLocation: product.stockLocation,
     cashPrice: Number(product.cashPrice),

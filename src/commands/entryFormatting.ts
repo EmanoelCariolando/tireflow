@@ -10,6 +10,7 @@ import { formatMovementNumberMessage } from '../utils/movementMessageVisibility.
 import { formatOperationConfirmation } from '../utils/operationResponse.js';
 import { formatStockLocationQuestion } from '../utils/operationPrompts.js';
 import { formatProductChoiceQuestion } from './pneuCommand.js';
+import { getProductIcon } from '../utils/productCategory.js';
 
 export function formatAdditionalEntryProductChoiceQuestion(): string {
   return formatProductChoiceQuestion();
@@ -73,7 +74,7 @@ export function formatEntryConfirmation(session: EntrySession): string {
 
   return formatOperationConfirmation('📦 *ENTRADA — CONFIRMAR*', [
     [
-      `🛞 *${item.reference} — ${item.description}*`,
+      `${getProductIcon(item.category)} *${item.reference} — ${item.description}*`,
       `📥 Quantidade: *+${item.quantity}*`,
     ],
     formatEntrySupplierAndInvoiceLines(item, session),
@@ -104,7 +105,7 @@ export function formatRegisteredEntry(
   return [
     '✅ *ENTRADA REGISTRADA*',
     '',
-    `🛞 *${item.reference} — ${item.description}*`,
+    `${getProductIcon(item.category)} *${item.reference} — ${item.description}*`,
     '',
     `📥 Entrada: *+${item.quantity}*`,
     `📦 Estoque atual: *${registered.currentStock}*`,
@@ -145,7 +146,7 @@ export function formatBossEntryNotification(
   return [
     '📦 *NOVA ENTRADA*',
     '',
-    `🛞 *${item.reference} — ${item.description}*`,
+    `${getProductIcon(item.category)} *${item.reference} — ${item.description}*`,
     '',
     `📥 Entrada: *+${item.quantity}*`,
     `📦 Estoque atual: *${registered.currentStock}*`,

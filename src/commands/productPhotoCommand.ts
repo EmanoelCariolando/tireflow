@@ -22,6 +22,9 @@ import {
 import { downloadMessageMediaResilient } from '../services/whatsappMediaDownloadService.js';
 import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
 import { isCancellationResponse } from '../utils/operationResponse.js';
+import type { ProductCategory } from '@prisma/client';
+import { getProductIcon, isBatteryCategory } from '../utils/productCategory.js';
+import { isBatterySearchCommand } from '../services/batteryService.js';
 
 const { MessageMedia: WhatsAppMessageMedia } = whatsappWeb;
 const PHOTO_COMMAND_REGEX = /^foto\s+(\d+)$/i;
@@ -30,6 +33,7 @@ const ADD_PHOTO_COMMAND_REGEX = /^addfoto\s+(\d+)$/i;
 interface PhotoProduct {
   id: string;
   description: string;
+  category?: ProductCategory;
   stock: number;
   cashPrice: unknown;
   creditPrice: unknown;
@@ -180,10 +184,14 @@ export async function handleAddPhotoCommand(
     productId: queriedProduct.id,
     itemNumber: optionNumber,
     description: queriedProduct.description,
+    category: queriedProduct.category,
     startedAt: Date.now(),
   });
 
-  await message.reply(`📷 *FOTO DO PNEU*\n*${queriedProduct.description}*\nEnvie a imagem.`);
+  await message.reply(
+    `📷 *FOTO ${isBatteryCategory(queriedProduct.category) ? 'DA BATERIA' : 'DO PNEU'}*\n` +
+      `*${queriedProduct.description}*\nEnvie a imagem.`
+  );
 }
 
 export async function handleAddPhotoConversation(
@@ -211,13 +219,19 @@ export async function handleAddPhotoConversation(
     return true;
   }
 
-  if (normalizedBody === 'pneu' || normalizedBody.startsWith('pneu ')) {
+  if (
+    normalizedBody === 'pneu' ||
+    normalizedBody.startsWith('pneu ') ||
+    isBatterySearchCommand(normalizedBody)
+  ) {
     clearAddPhotoSession(userId, chatId);
     return false;
   }
 
   if (!message.hasMedia || (message.type !== 'image' && message.type !== 'document')) {
-    await message.reply('❌ Envie uma imagem válida do pneu.');
+    await message.reply(
+      `❌ Envie uma imagem válida ${isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
+    );
     return true;
   }
 
@@ -252,7 +266,7 @@ export async function handleAddPhotoConversation(
     const confirmation = result.replaced
       ? '✅ Foto substituída com sucesso.'
       : '✅ Foto adicionada com sucesso.';
-    await message.reply(`${confirmation}\n🛞 *${session.description}*`);
+    await message.reply(`${confirmation}\n${getProductIcon(session.category)} *${session.description}*`);
   } catch (error) {
     if (error instanceof ProductImageTooLargeError) {
       await message.reply('A imagem é muito grande. Envie uma foto de até 20 MB.');
@@ -260,7 +274,9 @@ export async function handleAddPhotoConversation(
     }
 
     if (error instanceof UnsupportedProductImageError) {
-      await message.reply('❌ Envie uma imagem válida do pneu.');
+      await message.reply(
+        `❌ Envie uma imagem válida ${isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
+      );
       return true;
     }
 
@@ -282,7 +298,7 @@ export async function handleAddPhotoConversation(
 
 export function formatProductPhotoCaption(product: PhotoProduct): string {
   return [
-    `🛞 *${product.description}*`,
+    `${getProductIcon(product.category)} *${product.description}*`,
     '',
     `📦 Estoque: *${product.stock}*`,
     `💰 À vista: *${formatCurrency(Number(product.cashPrice))}*`,

@@ -14,6 +14,8 @@ import env from '../config/env.js';
 import { clearMenuSession } from '../utils/menuSessionStore.js';
 import { saveProductActionSession } from '../utils/productActionSessionStore.js';
 import { isMessageFromGroupAdmin } from '../services/groupAdminService.js';
+import type { ProductCategory } from '@prisma/client';
+import { isBatteryCategory } from '../utils/productCategory.js';
 
 /**
  * Pneu Command - Fase 6 (Consulta real no banco)
@@ -66,7 +68,14 @@ export function formatProductList(
   return text;
 }
 
-export function formatProductChoiceQuestion(): string {
+export function formatProductChoiceQuestion(category?: ProductCategory): string {
+  if (isBatteryCategory(category)) {
+    return [
+      '*ESCOLHA UMA BATERIA 🔋*',
+      '*Digite o número da bateria:*',
+    ].join('\n');
+  }
+
   return [
     '*ESCOLHA UM PNEU 🛞*',
     '*Digite o número do pneu:*',

@@ -173,6 +173,8 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     productId: product.id,
     reference: product.reference || lastQuery.normalizedMeasure,
     description: product.description,
+    category: product.category,
+    batteryBrand: product.batteryBrand,
     quantity,
     cashPrice: product.cashPrice,
     creditPrice: product.creditPrice,
@@ -687,7 +689,7 @@ async function handleAdditionalItemStep(
   saveSaleSession(quantitySession);
 
   if (selection.quantity === undefined) {
-    await message.reply(formatQuantityQuestion());
+    await message.reply(formatQuantityQuestion(product.category));
     return;
   }
 
@@ -702,7 +704,7 @@ async function handleAdditionalQuantityStep(
   const quantity = Number(body.trim());
   if (!Number.isSafeInteger(quantity) || quantity <= 0) {
     await message.reply(
-      `❌ Quantidade inválida.\n\n${formatQuantityQuestion()}`
+      `❌ Quantidade inválida.\n\n${formatQuantityQuestion(session.additionalProduct?.category)}`
     );
     return;
   }
@@ -761,7 +763,7 @@ async function prepareAdditionalSaleItem(
         `Já separado nesta compra: ${reservedQuantity}`,
         `Disponível para adicionar: ${availableQuantity}`,
         '',
-        formatQuantityQuestion(),
+        formatQuantityQuestion(product.category),
       ].join('\n')
     );
     return;
@@ -773,6 +775,8 @@ async function prepareAdditionalSaleItem(
     productId: product.id,
     reference: product.reference || session.additionalMeasure || '',
     description: product.description,
+    category: product.category,
+    batteryBrand: product.batteryBrand,
     quantity,
     cashPrice: product.cashPrice,
     creditPrice: product.creditPrice,

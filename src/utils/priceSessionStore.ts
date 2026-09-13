@@ -1,4 +1,5 @@
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+import type { ProductCategory } from '@prisma/client';
 
 export type PriceSessionStep =
   | 'awaiting_cash_price'
@@ -12,6 +13,7 @@ export interface PriceSession {
   productId: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
   stock: number;
   oldCashPrice: number;
   oldCreditPrice: number;

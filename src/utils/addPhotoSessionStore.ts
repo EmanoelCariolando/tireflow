@@ -1,4 +1,5 @@
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+import type { ProductCategory } from '@prisma/client';
 
 export type AddPhotoSessionStep = 'awaiting_image';
 
@@ -9,6 +10,7 @@ export interface AddPhotoSession {
   productId: string;
   itemNumber: number;
   description: string;
+  category?: ProductCategory;
   startedAt: number;
 }
 

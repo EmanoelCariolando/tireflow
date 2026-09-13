@@ -25,6 +25,11 @@ import {
   formatProductChoiceQuestion,
 } from './pneuCommand.js';
 import { saveProductActionSession } from '../utils/productActionSessionStore.js';
+import {
+  handleZeroStockBatteryCommand,
+  isBatterySearchCommand,
+} from './batteryCommand.js';
+import { handleMonthlyInventoryReportCommand } from './monthlyInventoryReportCommand.js';
 
 const MENU_TEXT = [
   '🤖 *TIREFLOW — MENU*',
@@ -32,9 +37,18 @@ const MENU_TEXT = [
   '1️⃣ Relatório de hoje',
   '2️⃣ Mais vendidos',
   '3️⃣ Cadastrar pneu',
+  '4️⃣ Relatório de estoque (PDF)',
   '',
-  'Responda: *1*, *2* ou *3*',
+  'Responda: *1*, *2*, *3* ou *4*',
 ].join('\n');
+
+interface MenuCommandDependencies {
+  handleMonthlyInventoryReport(message: Message): Promise<void>;
+}
+
+const defaultMenuCommandDependencies: MenuCommandDependencies = {
+  handleMonthlyInventoryReport: handleMonthlyInventoryReportCommand,
+};
 
 export function isMenuCommand(body: string): boolean {
   return body.trim().toLowerCase() === 'menu';
@@ -48,6 +62,10 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
   const rawMeasure = body.trim().replace(/^0\s+/, '');
+  if (isBatterySearchCommand(rawMeasure)) {
+    await handleZeroStockBatteryCommand(message, rawMeasure);
+    return;
+  }
   const normalized = normalizeTireSize(rawMeasure);
 
   clearAllOperationSessions(userId, chatId);
@@ -78,7 +96,11 @@ export async function handleMenuCommand(message: Message): Promise<void> {
   await message.reply(MENU_TEXT);
 }
 
-export async function handleMenuSelection(message: Message, body: string): Promise<boolean> {
+export async function handleMenuSelection(
+  message: Message,
+  body: string,
+  dependencies: MenuCommandDependencies = defaultMenuCommandDependencies
+): Promise<boolean> {
   const selection = body.trim();
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
@@ -88,7 +110,7 @@ export async function handleMenuSelection(message: Message, body: string): Promi
     return false;
   }
 
-  if (!['1', '2', '3'].includes(selection)) {
+  if (!['1', '2', '3', '4'].includes(selection)) {
     return false;
   }
 
@@ -101,6 +123,12 @@ export async function handleMenuSelection(message: Message, body: string): Promi
   if (selection === '2') {
     clearMenuSession(userId, chatId);
     await handleBestSellersCommand(message);
+    return true;
+  }
+
+  if (selection === '4') {
+    clearMenuSession(userId, chatId);
+    await dependencies.handleMonthlyInventoryReport(message);
     return true;
   }
 

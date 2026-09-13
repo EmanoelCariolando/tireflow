@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 enum MovementType {
@@ -20,6 +20,16 @@ enum PendingSaleStatus {
   RETURNED
 }
 
+enum ProductCategory {
+  TIRE
+  BATTERY
+}
+
+enum BatteryBrand {
+  MOURA
+  ZETTA
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
@@ -29,59 +39,62 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  movements      Movement[]
-  userSessions   UserSession[]
-  searchSessions SearchSession[]
-  createdPendingSales  PendingSale[] @relation("PendingSaleCreator")
-  assignedPendingSales PendingSale[] @relation("PendingSaleAssignee")
+  movements            Movement[]
+  userSessions         UserSession[]
+  searchSessions       SearchSession[]
+  createdPendingSales  PendingSale[]   @relation("PendingSaleCreator")
+  assignedPendingSales PendingSale[]   @relation("PendingSaleAssignee")
 
   @@map("users")
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  reference   String
-  description String
-  imagePath   String?
+  id            String          @id @default(cuid())
+  reference     String
+  description   String
+  category      ProductCategory @default(TIRE)
+  batteryBrand  BatteryBrand?
+  imagePath     String?
   stockLocation String?
-  stock       Int      @default(0)
-  minStock    Int      @default(0)
-  cashPrice   Decimal
-  creditPrice Decimal
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  stock         Int             @default(0)
+  minStock      Int             @default(0)
+  cashPrice     Decimal
+  creditPrice   Decimal
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
-  movements Movement[]
+  movements        Movement[]
   pendingSaleItems PendingSaleItem[]
 
+  @@unique([reference, description])
   @@index([reference])
   @@index([isActive])
-  @@unique([reference, description])
+  @@index([category, isActive])
   @@map("products")
 }
 
 model Movement {
-  id            String       @id @default(cuid())
-  code          String       @unique
-  saleGroupCode String?
-  type          MovementType
-  productId     String
-  userId        String
-  quantity      Int?
-  previousStock Int?
-  newStock      Int?
-  unitPrice     Decimal?
-  totalValue    Decimal?
-  paymentMethod String?
+  id             String       @id @default(cuid())
+  code           String       @unique
+  saleGroupCode  String?
+  type           MovementType
+  productId      String
+  userId         String
+  quantity       Int?
+  previousStock  Int?
+  newStock       Int?
+  unitPrice      Decimal?
+  totalValue     Decimal?
+  paymentMethod  String?
   paymentDetails String?
-  invoiceName   String?
-  invoiceNumber String?
+  invoiceName    String?
+  invoiceNumber  String?
   isCityHallSale Boolean      @default(false)
-  observation   String?
-  supplier      String?
-  reason        String?
-  createdAt     DateTime     @default(now())
+  observation    String?
+  supplier       String?
+  reason         String?
+  createdAt      DateTime     @default(now())
 
   product Product @relation(fields: [productId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
@@ -143,9 +156,9 @@ model PendingSale {
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
-  createdBy User @relation("PendingSaleCreator", fields: [createdByUserId], references: [id])
-  assignedTo User @relation("PendingSaleAssignee", fields: [assignedUserId], references: [id])
-  items PendingSaleItem[]
+  createdBy  User              @relation("PendingSaleCreator", fields: [createdByUserId], references: [id])
+  assignedTo User              @relation("PendingSaleAssignee", fields: [assignedUserId], references: [id])
+  items      PendingSaleItem[]
 
   @@index([status, createdAt])
   @@index([assignedUserId, status])
@@ -153,24 +166,24 @@ model PendingSale {
 }
 
 model PendingSaleItem {
-  id             String   @id @default(cuid())
-  pendingSaleId  String
-  position       Int
-  productId      String
-  reference      String
-  description    String
-  quantity       Int
-  cashPrice      Decimal
-  creditPrice    Decimal
-  priceType      String
-  unitPrice      Decimal
-  totalValue     Decimal
-  previousStock  Int
-  reservedStock  Int
-  createdAt      DateTime @default(now())
+  id            String   @id @default(cuid())
+  pendingSaleId String
+  position      Int
+  productId     String
+  reference     String
+  description   String
+  quantity      Int
+  cashPrice     Decimal
+  creditPrice   Decimal
+  priceType     String
+  unitPrice     Decimal
+  totalValue    Decimal
+  previousStock Int
+  reservedStock Int
+  createdAt     DateTime @default(now())
 
   pendingSale PendingSale @relation(fields: [pendingSaleId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
 
   @@unique([pendingSaleId, position])
   @@index([productId])

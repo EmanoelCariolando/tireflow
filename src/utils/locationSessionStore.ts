@@ -1,4 +1,5 @@
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+import type { ProductCategory } from '@prisma/client';
 
 export type LocationSessionStep =
   | 'awaiting_location'
@@ -12,6 +13,7 @@ export interface LocationSession {
   productId: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
   previousLocation: string | null;
   newLocation?: string;
   updatedAt: number;

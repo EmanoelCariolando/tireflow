@@ -194,7 +194,7 @@ export async function returnPendingSaleToStock(
         previousStock: productBefore.stock,
         newStock: productAfter.stock,
         observation: `Retorno da pendência ${pendingSale.code}`,
-        reason: 'Pneu não vendido e devolvido ao estoque',
+        reason: 'Produto não vendido e devolvido ao estoque',
       }, tx);
       stocks.push({ productId: item.productId, currentStock: productAfter.stock });
     }

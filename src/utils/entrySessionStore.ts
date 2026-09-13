@@ -1,10 +1,13 @@
 import type { QueriedProduct } from './lastQueryStore.js';
+import type { BatteryBrand, ProductCategory } from '@prisma/client';
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
 
 export interface EntryItem {
   productId: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
+  batteryBrand?: BatteryBrand | null;
   oldCashPrice: number;
   oldCreditPrice: number;
   quantity: number;
@@ -34,6 +37,8 @@ export interface EntrySession {
   productId: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
+  batteryBrand?: BatteryBrand | null;
   oldCashPrice: number;
   oldCreditPrice: number;
   invoiceName?: string;

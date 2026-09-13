@@ -211,6 +211,7 @@ test('silently hides menu and direct administrative commands from regular member
 
     await handleIncomingMessage(createGroupMessage(userId, 'menu', false, replies));
     await handleIncomingMessage(createGroupMessage(userId, 'entrada 1', false, replies));
+    await handleIncomingMessage(createGroupMessage(userId, 'relatorio mensal', false, replies));
     await handleIncomingMessage(createGroupMessage(userId, 'grupo id', false, replies));
 
     assert.deepEqual(replies, []);
@@ -243,6 +244,7 @@ test('keeps the complete menu available to a real group administrator', async ()
     assert.match(replies[0] ?? '', /TIREFLOW — MENU/);
     assert.match(replies[0] ?? '', /Relatório de hoje/);
     assert.match(replies[0] ?? '', /Cadastrar pneu/);
+    assert.match(replies[0] ?? '', /Relatório de estoque \(PDF\)/);
     assert.ok(getMenuSession(userId, chatId));
   } finally {
     env.whatsappOfficialGroupId = previousGroupId;

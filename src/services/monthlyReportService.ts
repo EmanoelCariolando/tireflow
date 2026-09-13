@@ -1,5 +1,5 @@
 import { MovementType } from '@prisma/client';
-import type { Movement, Product, User } from '@prisma/client';
+import type { Movement, Product, ProductCategory, User } from '@prisma/client';
 import env from '../config/env.js';
 import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
@@ -38,6 +38,7 @@ interface ProductSummary {
   description: string;
   quantity: number;
   totalValue: number;
+  category?: ProductCategory;
 }
 
 interface ZeroStockSummary {
@@ -48,6 +49,7 @@ interface ZeroStockSummary {
   zeroedAt: Date;
   endedAtZero: boolean;
   replenishedAt?: Date;
+  category?: ProductCategory;
 }
 
 export interface MonthlyPeriod {
@@ -84,6 +86,11 @@ export interface MonthlyReportDelivery {
   pdfFileName: string;
 }
 
+export interface InventoryReportPdfDelivery {
+  pdfBuffer: Buffer;
+  pdfFileName: string;
+}
+
 const PAYMENT_METHODS = ['Dinheiro', 'PIX', 'Cartão', 'Nota'] as const;
 
 export async function buildMonthlyReport(
@@ -114,6 +121,55 @@ export async function buildMonthlyReportDelivery(
 ): Promise<MonthlyReportDelivery> {
   const period = getPreviousMonthPeriod(referenceDate);
   const previousPeriod = getPreviousMonthPeriod(period.start);
+  const builtReport = await buildInventoryReportForPeriod(
+    period,
+    previousPeriod,
+    referenceDate,
+    commissionPercent,
+    getMonthlyInventoryPdfFileName(period.key)
+  );
+
+  return {
+    financialMessage: formatMonthlyReport(builtReport.report)[0]!,
+    pdfBuffer: builtReport.pdfBuffer,
+    pdfFileName: builtReport.pdfFileName,
+  };
+}
+
+export async function buildInventoryReportPdf(
+  period: MonthlyPeriod,
+  generatedAt = new Date(),
+  commissionPercent = env.monthlyCommissionPercent
+): Promise<InventoryReportPdfDelivery> {
+  const previousPeriod = getPreviousComparablePeriod(period);
+  const lastDay = previousDay(period.end);
+  const fileName = [
+    'relatorio-estoque',
+    formatDateKey(period.start),
+    'a',
+    `${formatDateKey(lastDay)}.pdf`,
+  ].join('-');
+  const builtReport = await buildInventoryReportForPeriod(
+    period,
+    previousPeriod,
+    generatedAt,
+    commissionPercent,
+    fileName
+  );
+
+  return {
+    pdfBuffer: builtReport.pdfBuffer,
+    pdfFileName: builtReport.pdfFileName,
+  };
+}
+
+async function buildInventoryReportForPeriod(
+  period: MonthlyPeriod,
+  previousPeriod: MonthlyPeriod,
+  generatedAt: Date,
+  commissionPercent: number,
+  pdfFileName: string
+): Promise<{ report: MonthlyReportFormatInput; pdfBuffer: Buffer; pdfFileName: string }> {
   const [movements, previousMovements, products] = await Promise.all([
     movementRepository.findByDateRange(period.start, period.end),
     movementRepository.findByDateRange(previousPeriod.start, previousPeriod.end),
@@ -128,14 +184,14 @@ export async function buildMonthlyReportDelivery(
   );
 
   return {
-    financialMessage: formatMonthlyReport(report)[0]!,
     pdfBuffer: await buildMonthlyInventoryPdf({
       report,
       products,
       branchName: env.branchName,
-      generatedAt: referenceDate,
+      generatedAt,
     }),
-    pdfFileName: getMonthlyInventoryPdfFileName(period.key),
+    pdfFileName,
+    report,
   };
 }
 
@@ -155,6 +211,18 @@ export function getPreviousMonthPeriod(referenceDate: Date): MonthlyPeriod {
   const start = new Date(end.getFullYear(), end.getMonth() - 1, 1);
   const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
   return { start, end, key };
+}
+
+function getPreviousComparablePeriod(period: MonthlyPeriod): MonthlyPeriod {
+  const dayCount = countCalendarDays(period.start, period.end);
+  const end = new Date(period.start);
+  const start = new Date(end);
+  start.setDate(start.getDate() - dayCount);
+  return {
+    start,
+    end,
+    key: `${formatDateKey(start)}_${formatDateKey(previousDay(end))}`,
+  };
 }
 
 export function getCommissionPeriod(referenceDate: Date): MonthlyPeriod {
@@ -228,7 +296,7 @@ export function formatCommissionReport(input: CommissionReportFormatInput): stri
   for (const [index, seller] of input.sellers.entries()) {
     lines.push(
       `${index + 1}. *${seller.name}*`,
-      `Vendas: *${seller.saleCount}* | Pneus: *${seller.quantity}*`,
+      `Vendas: *${seller.saleCount}* | Itens: *${seller.quantity}*`,
       `Total vendido: *${formatCurrency(seller.totalValue)}*`,
       `Comissão (${formatPercent(input.commissionPercent)}): *${formatCurrency(seller.commission)}*`,
       ''
@@ -251,7 +319,7 @@ function formatFinancialSummary(input: MonthlyReportFormatInput): string {
     '💰 *RESULTADO DO MÊS*',
     `Faturamento: *${formatCurrency(input.totalRevenue)}*`,
     `Vendas realizadas: *${input.saleCount}*`,
-    `Pneus vendidos: *${input.unitsSold}*`,
+    `Itens vendidos: *${input.unitsSold}*`,
     `Ticket médio: *${formatCurrency(ticketAverage)}*`,
     '',
     '💳 *FORMAS DE PAGAMENTO*',
@@ -415,6 +483,7 @@ function summarizeZeroStock(
       zeroedAt: lastZeroEvent.createdAt,
       endedAtZero: lastStockMovement.newStock === 0,
       replenishedAt: replenishment?.createdAt,
+      category: lastZeroEvent.product.category,
     });
   }
 
@@ -443,7 +512,7 @@ function formatRevenueComparison(current: number, previous: number): string {
 function formatUnitsComparison(current: number, previous: number): string {
   const difference = current - previous;
   const sign = difference > 0 ? '+' : '';
-  return `Pneus vendidos: *${sign}${difference} unidades*`;
+  return `Itens vendidos: *${sign}${difference} unidades*`;
 }
 
 function formatSignedPercentage(value: number): string {
@@ -476,6 +545,12 @@ function formatDateKey(date: Date): string {
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0'),
   ].join('-');
+}
+
+function countCalendarDays(start: Date, end: Date): number {
+  const startUtc = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate());
+  const endUtc = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  return Math.round((endUtc - startUtc) / 86_400_000);
 }
 
 function previousDay(date: Date): Date {

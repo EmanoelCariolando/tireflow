@@ -1,12 +1,13 @@
 # TireFlow
 
-> Controle de estoque e vendas de pneus diretamente pelo WhatsApp.
+> Controle de estoque e vendas de pneus e baterias diretamente pelo WhatsApp.
 
 O **TireFlow** transforma o WhatsApp em uma interface simples para consultar produtos, registrar vendas e manter o estoque atualizado em tempo real.
 
 ## Funcionalidades
 
 - Consulta de pneus por medida
+- Consulta de baterias Moura e Zetta por amperagem, marca ou modelo
 - Vendas com múltiplos produtos
 - Pagamento à vista, a prazo ou misto
 - Entrada e ajuste de estoque
@@ -30,6 +31,12 @@ Consulte somente os pneus zerados da medida:
 0 175 70 14
 ```
 
+Consulte baterias pela amperagem:
+
+```text
+bateria 60
+```
+
 O bot retorna os produtos disponíveis. Para vender duas unidades da primeira opção:
 
 ```text
@@ -44,6 +51,8 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 | --- | --- |
 | `<medida>` | Consultar pneus com estoque |
 | `0 <medida>` | Consultar somente pneus zerados |
+| `bateria 60` | Consultar baterias Moura e Zetta com estoque |
+| `0 bateria 60` | Consultar somente baterias zeradas |
 | `venda <item> <quantidade>` | Registrar uma venda |
 | `entrada <item>` | Adicionar estoque |
 | `ajuste <item>` | Contar, adicionar, retirar ou transferir estoque |
@@ -53,9 +62,13 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 | `local <item>` | Atualizar a localização física |
 | `cadastrar pneu` | Cadastrar um novo produto |
 | `menu` | Abrir o menu de relatórios |
+| `relatorio estoque` | Gerar o inventário em PDF do último mês ou de até 31 dias |
 | `status` | Verificar o estado do sistema |
 
 > Os comandos que utilizam um item devem ser executados depois de uma consulta.
+
+O preparo e a importação segura do catálogo de baterias estão descritos em
+[docs/BATTERIES.md](docs/BATTERIES.md).
 
 ## Tecnologias
 

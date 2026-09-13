@@ -1,5 +1,6 @@
 import type { Message } from 'whatsapp-web.js';
 import type { QueriedProduct } from './lastQueryStore.js';
+import type { BatteryBrand, ProductCategory } from '@prisma/client';
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
 
 export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
@@ -22,6 +23,8 @@ export interface SaleItem {
   productId: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
+  batteryBrand?: BatteryBrand | null;
   quantity: number;
   cashPrice: number;
   creditPrice: number;
@@ -58,6 +61,8 @@ export interface SaleSession {
   productId: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
+  batteryBrand?: BatteryBrand | null;
   quantity: number;
   cashPrice: number;
   creditPrice: number;

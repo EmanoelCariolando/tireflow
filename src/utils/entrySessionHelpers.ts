@@ -61,6 +61,8 @@ export function buildCurrentEntryItem(session: EntrySession): EntryItem | null {
     productId: session.productId,
     reference: session.reference,
     description: session.description,
+    category: session.category,
+    batteryBrand: session.batteryBrand,
     oldCashPrice: session.oldCashPrice,
     oldCreditPrice: session.oldCreditPrice,
     quantity: session.quantity,

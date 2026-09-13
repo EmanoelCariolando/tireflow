@@ -10,6 +10,8 @@ test('updates Congo stock and prices, preserves identities and creates only appr
   const databasePath = path.join(temporaryRoot, 'congo.db');
   const csvPath = path.join(temporaryRoot, 'congo.csv');
   const resolutionPath = path.join(temporaryRoot, 'resolution.csv');
+  const batteryCsvPath = path.join(temporaryRoot, 'batteries.csv');
+  const batteryResolutionPath = path.join(temporaryRoot, 'battery-resolution.csv');
   const databaseUrl = `file:${databasePath.replace(/\\/g, '/')}`;
   const prismaCli = path.join(process.cwd(), 'node_modules', 'prisma', 'build', 'index.js');
   const tsxCli = path.join(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs');
@@ -35,6 +37,22 @@ test('updates Congo stock and prices, preserves identities and creates only appr
       'csv_reference,csv_description,action,existing_reference,existing_description',
       '185/60 R15,NOME NOVO NA PLANILHA,MATCH,185/60 R15,NOME ANTIGO PRESERVADO',
       '205/55 R16,PRODUTO NOVO,CREATE,,',
+    ].join('\n')
+  );
+  await writeFile(
+    batteryCsvPath,
+    [
+      'reference,description,cash_price,credit_price,stock,category,battery_brand',
+      'M60GD,60AH 12V DIREITA,500.00,529.00,3,BATTERY,MOURA',
+      'Z100LE,100AH 12V ESQUERDA,800.00,846.40,2,BATTERY,ZETTA',
+    ].join('\n')
+  );
+  await writeFile(
+    batteryResolutionPath,
+    [
+      'csv_reference,csv_description,action,existing_reference,existing_description',
+      'M60GD,60AH 12V DIREITA,CREATE,,',
+      'Z100LE,100AH 12V ESQUERDA,CREATE,,',
     ].join('\n')
   );
 
@@ -158,6 +176,8 @@ test('updates Congo stock and prices, preserves identities and creates only appr
     assert.equal(Number(created.creditPrice), 530);
     assert.equal(created.stockLocation, null);
     assert.equal(created.imagePath, null);
+    assert.equal(created.category, 'TIRE');
+    assert.equal(created.batteryBrand, null);
 
     const untouched = await prisma.product.findUniqueOrThrow({ where: { id: preserved.id } });
     assert.equal(untouched.description, 'FORA DO CSV');
@@ -172,6 +192,36 @@ test('updates Congo stock and prices, preserves identities and creates only appr
     assert.match(secondDryRun, /Produtos existentes a atualizar: 0/);
     assert.match(secondDryRun, /Produtos existentes já corretos: 3/);
     assert.match(secondDryRun, /Candidatos ainda sem decisão: 0/);
+
+    execFileSync(
+      process.execPath,
+      [
+        tsxCli,
+        'src/database/syncProductCatalog.ts',
+        batteryCsvPath,
+        '--resolution',
+        batteryResolutionPath,
+        '--apply',
+      ],
+      { cwd: process.cwd(), env: congoEnvironment, stdio: 'pipe' }
+    );
+    const batteries = await prisma.product.findMany({
+      where: { category: 'BATTERY' },
+      orderBy: { reference: 'asc' },
+    });
+    assert.deepEqual(
+      batteries.map((product) => [product.reference, product.batteryBrand, product.stock]),
+      [
+        ['M60GD', 'MOURA', 3],
+        ['Z100LE', 'ZETTA', 2],
+      ]
+    );
+
+    const { findAvailableProductsByReference } = await import('../src/services/productService.js');
+    assert.deepEqual(await findAvailableProductsByReference('M60GD'), []);
+    const { findActiveBatteries } = await import('../src/services/batteryService.js');
+    const moura = await findActiveBatteries({ brand: 'MOURA', terms: ['60'], label: 'MOURA 60' });
+    assert.deepEqual(moura.map((product) => product.id), [batteries[0]!.id]);
 
     assert.throws(() =>
       execFileSync(process.execPath, [tsxCli, 'src/database/syncProductCatalog.ts', csvPath], {

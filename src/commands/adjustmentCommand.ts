@@ -38,6 +38,7 @@ import {
   findSuggestedActiveReferences,
 } from '../services/productService.js';
 import { formatReferenceSuggestions } from './pneuCommand.js';
+import { getProductIcon, isBatteryCategory } from '../utils/productCategory.js';
 
 const ADJUSTMENT_COMMAND_REGEX = /^ajuste\s+(\d+)$/i;
 
@@ -46,12 +47,12 @@ export function isAdjustmentCommand(body: string): boolean {
 }
 
 export function formatAdjustmentTypeQuestion(
-  session: Pick<AdjustmentSession, 'reference' | 'description' | 'previousStock'>
+  session: Pick<AdjustmentSession, 'reference' | 'description' | 'previousStock' | 'category'>
 ): string {
   return [
     '🧮 *AJUSTE DE ESTOQUE*',
     '',
-    `🛞 *${session.reference} — ${session.description}*`,
+    `${getProductIcon(session.category)} *${session.reference} — ${session.description}*`,
     `📦 Estoque atual: *${session.previousStock}*`,
     '',
     'O que deseja fazer?',
@@ -59,7 +60,7 @@ export function formatAdjustmentTypeQuestion(
     '1️⃣ Informar o estoque contado (saldo final)',
     '2️⃣ Adicionar unidades',
     '3️⃣ Retirar unidades',
-    '4️⃣ Transferir para outro pneu',
+    ...(isBatteryCategory(session.category) ? [] : ['4️⃣ Transferir para outro pneu']),
     '0️⃣ Cancelar',
   ].join('\n');
 }
@@ -114,6 +115,7 @@ export async function handleAdjustmentCommand(message: Message, body: string): P
     productId: product.id,
     reference: product.reference || lastQuery.normalizedMeasure,
     description: product.description,
+    category: product.category,
     previousStock: currentStock,
     updatedAt: Date.now(),
   };
@@ -194,9 +196,14 @@ async function handleAdjustmentTypeStep(
     return;
   }
 
+  if (kind === 'transfer' && isBatteryCategory(session.category)) {
+    await message.reply(`❌ Opção inválida.\n\n${formatAdjustmentTypeQuestion(session)}`);
+    return;
+  }
+
   if ((kind === 'remove' || kind === 'transfer') && session.previousStock <= 0) {
     await message.reply(
-      `⚠️ Este pneu está com estoque *0* e não possui unidades para ${
+      `⚠️ ${isBatteryCategory(session.category) ? 'Esta bateria' : 'Este pneu'} está com estoque *0* e não possui unidades para ${
         kind === 'remove' ? 'retirar' : 'transferir'
       }.\n\n${formatAdjustmentTypeQuestion(session)}`
     );
@@ -620,6 +627,7 @@ async function handleBackNavigation(
       productId: session.productId,
       reference: session.reference,
       description: session.description,
+      category: session.category,
       previousStock: session.previousStock,
       updatedAt: Date.now(),
     };
@@ -713,7 +721,7 @@ function formatAdjustmentConfirmation(session: AdjustmentSession): string {
           `🔢 Quantidade: *${session.quantity}*`,
         ]
       : [
-          `🛞 *${session.reference} — ${session.description}*`,
+          `${getProductIcon(session.category)} *${session.reference} — ${session.description}*`,
           `📦 Estoque: *${session.previousStock} → ${session.newStock}*`,
           ...(session.kind === 'add' || session.kind === 'remove'
             ? [`🔢 Quantidade: *${session.quantity}*`]
@@ -751,7 +759,7 @@ function formatRegisteredAdjustment(
     '✅ *AJUSTE REGISTRADO*',
     '',
     `⚙️ Operação: *${getAdjustmentKindLabel(session.kind ?? 'set')}*`,
-    `🛞 *${session.reference} — ${session.description}*`,
+    `${getProductIcon(session.category)} *${session.reference} — ${session.description}*`,
     `📦 Estoque: *${previousStock} → ${currentStock}*`,
     ...(session.quantity ? [`🔢 Quantidade: *${session.quantity}*`] : []),
     `📝 Motivo: *${session.reason}*`,

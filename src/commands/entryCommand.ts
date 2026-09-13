@@ -134,12 +134,14 @@ export async function handleEntryCommand(message: Message, body: string): Promis
     productId: product.id,
     reference: product.reference || lastQuery.normalizedMeasure,
     description: product.description,
+    category: product.category,
+    batteryBrand: product.batteryBrand,
     oldCashPrice: product.cashPrice,
     oldCreditPrice: product.creditPrice,
     updatedAt: Date.now(),
   });
 
-  await message.reply(formatQuantityQuestion());
+  await message.reply(formatQuantityQuestion(product.category));
 }
 
 export async function handleEntryConversation(message: Message, body: string): Promise<boolean> {
@@ -270,7 +272,7 @@ async function handleQuantityStep(
 
   if (!Number.isInteger(quantity) || quantity <= 0) {
     await message.reply(
-      `❌ Quantidade inválida. Digite um inteiro positivo.\n\n${formatQuantityQuestion()}`
+      `❌ Quantidade inválida. Digite um inteiro positivo.\n\n${formatQuantityQuestion(session.category)}`
     );
     return;
   }
@@ -624,6 +626,8 @@ async function handleAdditionalItemStep(
     productId: product.id,
     reference: product.reference || session.additionalMeasure || '',
     description: product.description,
+    category: product.category,
+    batteryBrand: product.batteryBrand,
     oldCashPrice: product.cashPrice,
     oldCreditPrice: product.creditPrice,
     quantity: undefined,
@@ -635,7 +639,7 @@ async function handleAdditionalItemStep(
     additionalProducts: undefined,
     updatedAt: Date.now(),
   });
-  await message.reply(formatQuantityQuestion());
+  await message.reply(formatQuantityQuestion(product.category));
 }
 
 async function requestAnotherEntryMeasure(

@@ -2,6 +2,7 @@ import type { PendingSaleWithDetails, ReturnedPendingSale } from '../services/pe
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getSaleItems } from '../utils/saleSessionHelpers.js';
 import type { SaleSession } from '../utils/saleSessionStore.js';
+import { getProductIcon, isBatteryCategory } from '../utils/productCategory.js';
 
 export function formatPendingAssigneeQuestion(): string {
   return [
@@ -16,11 +17,14 @@ export function formatPendingAssigneeQuestion(): string {
 
 export function formatPendingSaleConfirmation(session: SaleSession): string {
   const items = getSaleItems(session);
+  const stockLabel = items.some((item) => isBatteryCategory(item.category))
+    ? 'produtos'
+    : 'pneus';
   return [
     '⏳ *PENDÊNCIA — CONFIRMAR*',
     '',
     ...items.flatMap((item, index) => [
-      `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
+      `${index + 1}. ${getProductIcon(item.category)} *${item.reference} — ${item.description}*`,
       `📤 Quantidade: *${item.quantity} un.* | 💰 *${formatCurrency(item.totalValue)}*`,
       ...(index < items.length - 1 ? [''] : []),
     ]),
@@ -28,7 +32,7 @@ export function formatPendingSaleConfirmation(session: SaleSession): string {
     `👤 Responsável: *${session.pendingAssigneeName ?? session.pendingAssigneeId ?? 'não informado'}*`,
     `💰 Total previsto: *${formatCurrency(session.totalValue ?? 0)}*`,
     '',
-    '⚠️ Ao confirmar, os pneus sairão do estoque e ficarão aguardando a confirmação de Monteiro.',
+    `⚠️ Ao confirmar, os ${stockLabel} sairão do estoque e ficarão aguardando a confirmação de Monteiro.`,
     '',
     '1️⃣ ✅ Confirmar',
     '2️⃣ ↩️ Voltar',
@@ -44,7 +48,7 @@ export function formatPendingSaleRegistered(pendingSale: PendingSaleWithDetails)
     '',
     `👤 Responsável: *${pendingSale.assignedTo.name}*`,
     `💰 Total previsto: *${formatCurrency(Number(pendingSale.totalValue))}*`,
-    '📦 Os pneus já saíram do estoque.',
+    '📦 Os produtos já saíram do estoque.',
     '',
     'Para conferir depois, digite: *pendente*',
   ].join('\n');
@@ -77,7 +81,7 @@ export function formatPendingStatusQuestion(pendingSale: PendingSaleWithDetails)
     `👤 Responsável: *${pendingSale.assignedTo.name}*`,
     ...formatPendingItems(pendingSale, false),
     '',
-    '*O que aconteceu com esses pneus?*',
+    '*O que aconteceu com esses produtos?*',
     '',
     '1️⃣ ✅ Foram vendidos',
     '2️⃣ 📍 Ainda estão em Monteiro',
@@ -102,12 +106,12 @@ export function formatPendingReturned(result: ReturnedPendingSale): string {
     ...result.pendingSale.items.flatMap((item) => {
       const stock = result.stocks.find((entry) => entry.productId === item.productId)?.currentStock;
       return [
-        `🛞 *${item.reference} — ${item.description}*`,
+        `${getProductIcon(item.product.category)} *${item.reference} — ${item.description}*`,
         `📥 Retorno: *${item.quantity} un.* | 📦 Estoque: *${stock ?? 'atualizado'}*`,
       ];
     }),
     '',
-    'Motivo: pneus não vendidos e devolvidos ao estoque.',
+    'Motivo: produtos não vendidos e devolvidos ao estoque.',
   ].join('\n');
 }
 
@@ -133,7 +137,7 @@ export function getPendingMentionIds(pendingSales: PendingSaleWithDetails[]): st
 
 function formatPendingItems(pendingSale: PendingSaleWithDetails, showStock: boolean): string[] {
   return pendingSale.items.flatMap((item, index) => [
-    `${index + 1}. 🛞 *${item.reference} — ${item.description}*`,
+    `${index + 1}. ${getProductIcon(item.product.category)} *${item.reference} — ${item.description}*`,
     `📤 Quantidade: *${item.quantity} un.*${showStock ? ` | 📦 Estoque: *${item.reservedStock}*` : ''}`,
     ...(index < pendingSale.items.length - 1 ? [''] : []),
   ]);

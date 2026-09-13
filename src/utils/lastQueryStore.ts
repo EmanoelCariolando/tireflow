@@ -1,4 +1,5 @@
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
+import type { BatteryBrand, ProductCategory } from '@prisma/client';
 
 /**
  * In-memory store for the last tire consultation per user.
@@ -12,6 +13,8 @@ export interface QueriedProduct {
   id: string;
   reference: string;
   description: string;
+  category?: ProductCategory;
+  batteryBrand?: BatteryBrand | null;
   stock: number;
   stockLocation?: string | null;
   cashPrice: number;
