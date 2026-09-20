@@ -13,9 +13,11 @@ import {
 
 const { Client, LocalAuth } = whatsappWeb;
 
-// Large accounts can spend several minutes restoring and synchronizing after a
-// computer restart. Do not force NSSM into a restart loop during that window.
-const START_TIMEOUT_MS = 600_000;
+// The first QR can be displayed only after WhatsApp Web has restored its local
+// data. Give the operator enough time to scan it and let the paired device
+// synchronize; otherwise the old ten-minute limit could expire seconds after
+// the QR became visible and terminate a valid pairing attempt.
+const START_TIMEOUT_MS = 1_200_000;
 const SHUTDOWN_TIMEOUT_MS = 5000;
 const BROWSER_EXIT_TIMEOUT_MS = 3000;
 const BROWSER_FORCE_EXIT_TIMEOUT_MS = 3000;

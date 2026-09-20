@@ -23,6 +23,19 @@ import {
 let isShuttingDown = false;
 
 /**
+ * whatsapp-web.js may evaluate the page while WhatsApp Web is replacing its
+ * document. That promise rejects after the navigation has already succeeded;
+ * treating it as fatal needlessly logs the account out and restarts the bot.
+ */
+function isTransientWhatsAppNavigationRejection(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('Execution context was destroyed') &&
+    message.toLowerCase().includes('navigation')
+  );
+}
+
+/**
  * TireFlow - Main Entry Point (Fase 3)
  * 
  * This is the ONLY file that should be executed directly.
@@ -131,6 +144,11 @@ process.on('SIGTERM', () => {
 });
 
 process.on('unhandledRejection', (error: unknown) => {
+  if (isTransientWhatsAppNavigationRejection(error)) {
+    console.warn('[PROCESS] Ignoring transient WhatsApp Web navigation rejection.');
+    return;
+  }
+
   console.error('[PROCESS] Unhandled promise rejection.', error);
   void shutdown('UNHANDLED_REJECTION', 1);
 });
