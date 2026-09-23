@@ -13,7 +13,6 @@ import {
 import env from '../config/env.js';
 import { clearMenuSession } from '../utils/menuSessionStore.js';
 import { saveProductActionSession } from '../utils/productActionSessionStore.js';
-import { isMessageFromGroupAdmin } from '../services/groupAdminService.js';
 import type { ProductCategory } from '@prisma/client';
 import { isBatteryCategory } from '../utils/productCategory.js';
 
@@ -33,8 +32,7 @@ import { isBatteryCategory } from '../utils/productCategory.js';
 export function formatProductList(
   products: QueriedProduct[],
   normalized: string,
-  showStockLocation?: boolean,
-  showLocationRegistrationHint = showStockLocation ?? env.inventoryLocationsEnabled
+  showStockLocation?: boolean
 ): string {
   let text = `🛞 *${normalized}*\n\n`;
   const locationsEnabled = showStockLocation ?? env.inventoryLocationsEnabled;
@@ -58,7 +56,6 @@ export function formatProductList(
   });
 
   if (
-    showLocationRegistrationHint &&
     locationsEnabled &&
     products.some((product) => !normalizeStockLocation(product.stockLocation))
   ) {
@@ -217,10 +214,9 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
     saveLastQuery(userId, chatId, normalized, matches);
 
     const referenceNotice = formatResolvedReferenceNotice(normalized, matches);
-    const canUseAdminActions = await isMessageFromGroupAdmin(message);
     const response =
       (referenceNotice ? `${referenceNotice}\n\n` : '') +
-      formatProductList(matches, normalized, undefined, canUseAdminActions);
+      formatProductList(matches, normalized);
     const replyStartedAt = Date.now();
     await message.reply(response);
     clearMenuSession(userId, chatId);

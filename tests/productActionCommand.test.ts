@@ -151,51 +151,6 @@ test('selects a tire, opens the action menu and asks the sale quantity', async (
   }
 });
 
-test('shows and routes only sale and photo actions for a regular group member', async () => {
-  const replies: string[] = [];
-  const calls: string[] = [];
-  const dependencies = createDependencies(calls);
-  dependencies.isAdmin = async () => false;
-
-  try {
-    saveQuery();
-    saveProductActionSession(userId, chatId, 'awaiting_product');
-
-    await handleProductActionConversation(createMessage(replies), '1', dependencies);
-    assert.equal(
-      replies.at(-1),
-      [
-        '⚙️ ESCOLHA O QUE DESEJA FAZER',
-        '',
-        '1️⃣ Venda | 2️⃣ Foto',
-        '3️⃣ Adicionar foto',
-      ].join('\n')
-    );
-    assert.doesNotMatch(replies.at(-1) ?? '', /Entrada|Preço|Ajuste|Localização/);
-
-    await handleProductActionConversation(createMessage(replies), '2', dependencies);
-    assert.deepEqual(calls, ['photo:foto 1']);
-
-    saveProductActionSession(userId, chatId, 'awaiting_action', 1);
-    await handleProductActionConversation(createMessage(replies), '3', dependencies);
-    assert.deepEqual(calls, ['photo:foto 1', 'addPhoto:addfoto 1']);
-
-    saveProductActionSession(userId, chatId, 'awaiting_action', 1);
-    await handleProductActionConversation(createMessage(replies), '4', dependencies);
-    assert.match(replies.at(-1) ?? '', /Opção inválida/);
-    assert.doesNotMatch(replies.at(-1) ?? '', /Entrada|Preço|Ajuste|Localização/);
-
-    saveProductActionSession(userId, chatId, 'awaiting_action', 1);
-    await handleProductActionConversation(createMessage(replies), '1', dependencies);
-    assert.equal(replies.at(-1), formatSaleQuantityQuestion());
-    await handleProductActionConversation(createMessage(replies), '2', dependencies);
-    assert.deepEqual(calls, ['photo:foto 1', 'addPhoto:addfoto 1', 'sale:venda 1 2']);
-  } finally {
-    clearProductActionSession(userId, chatId);
-    clearLastQuery(userId, chatId);
-  }
-});
-
 test('routes every additional product action to the selected tire', async () => {
   const expected = new Map([
     ['2', 'entry:entrada 2'],

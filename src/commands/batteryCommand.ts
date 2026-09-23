@@ -5,7 +5,6 @@ import {
   findActiveBatteries,
   parseBatterySearchQuery,
 } from '../services/batteryService.js';
-import { isMessageFromGroupAdmin } from '../services/groupAdminService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { saveLastQuery } from '../utils/lastQueryStore.js';
@@ -35,8 +34,7 @@ export function formatBatteryList(
   products: QueriedProduct[],
   queryLabel: string,
   zeroStock = false,
-  showStockLocation = env.inventoryLocationsEnabled,
-  showLocationRegistrationHint = showStockLocation
+  showStockLocation = env.inventoryLocationsEnabled
 ): string {
   const totalLabel = products.length === 1 ? '1 modelo' : `${products.length} modelos`;
   let text = zeroStock
@@ -59,7 +57,6 @@ export function formatBatteryList(
   });
 
   if (
-    showLocationRegistrationHint &&
     showStockLocation &&
     products.some((product) => !normalizeStockLocation(product.stockLocation))
   ) {
@@ -93,14 +90,12 @@ export async function handleBatteryCommand(message: Message, body: string): Prom
     }
 
     saveLastQuery(userId, chatId, query.label, availableProducts);
-    const canUseAdminActions = await isMessageFromGroupAdmin(message);
     await message.reply(
       formatBatteryList(
         availableProducts,
         query.label,
         false,
-        env.inventoryLocationsEnabled,
-        canUseAdminActions
+        env.inventoryLocationsEnabled
       )
     );
     clearMenuSession(userId, chatId);

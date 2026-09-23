@@ -278,7 +278,7 @@ test('excludes city hall invoices from commission without removing their revenue
   assert.equal(summary.sellers[0]?.commissionBase, 400);
   assert.equal(summary.sellers[0]?.commission, 8);
   const report = formatCommissionReport(summary);
-  assert.match(report, /Período: 20\/07\/2026 a 19\/08\/2026/);
+  assert.match(report, /Período: 01\/07\/2026 a 31\/07\/2026/);
   assert.match(report, /Total vendido: \*R\$1000,00\*/);
   assert.match(report, /Comissão \(2%\): \*R\$8,00\*/);
   assert.match(report, /Comissão total: \*R\$8,00\*/);
@@ -316,17 +316,17 @@ test('uses the previous calendar month and catches up after the first-day time',
   assert.equal(isMonthlyReportDue(new Date(2026, 7, 1, 8, 0), '25:00'), false);
 });
 
-test('closes commissions from day 20 through day 19 and sends on day 20', () => {
-  const period = getCommissionPeriod(new Date(2026, 7, 20, 8, 0));
-  assert.equal(period.key, '2026-07-20_2026-08-19');
-  assert.equal(period.start.getTime(), new Date(2026, 6, 20).getTime());
-  assert.equal(period.end.getTime(), new Date(2026, 7, 20).getTime());
+test('closes commissions for the complete previous calendar month and sends on day 20', () => {
+  const period = getCommissionPeriod(new Date(2026, 8, 20, 8, 0));
+  assert.equal(period.key, '2026-08');
+  assert.equal(period.start.getTime(), new Date(2026, 7, 1).getTime());
+  assert.equal(period.end.getTime(), new Date(2026, 8, 1).getTime());
 
-  assert.equal(isCommissionReportDue(new Date(2026, 7, 20, 7, 59), '08:00'), false);
-  assert.equal(isCommissionReportDue(new Date(2026, 7, 20, 8, 0), '08:00'), true);
-  assert.equal(isCommissionReportDue(new Date(2026, 7, 19, 12, 0), '08:00'), false);
-  assert.equal(isCommissionReportDue(new Date(2026, 7, 25, 12, 0), '08:00'), true);
-  assert.equal(isCommissionReportDue(new Date(2026, 7, 20, 8, 0), '25:00'), false);
+  assert.equal(isCommissionReportDue(new Date(2026, 8, 20, 7, 59), '08:00'), false);
+  assert.equal(isCommissionReportDue(new Date(2026, 8, 20, 8, 0), '08:00'), true);
+  assert.equal(isCommissionReportDue(new Date(2026, 8, 19, 12, 0), '08:00'), false);
+  assert.equal(isCommissionReportDue(new Date(2026, 8, 25, 12, 0), '08:00'), true);
+  assert.equal(isCommissionReportDue(new Date(2026, 8, 20, 8, 0), '25:00'), false);
 });
 
 test('monthly scheduler sends only through the required private boss channel', () => {

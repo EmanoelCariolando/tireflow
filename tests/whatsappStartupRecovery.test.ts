@@ -16,8 +16,8 @@ const whatsappPatch = readFileSync(
   'utf8'
 );
 
-test('WhatsApp startup allows slow post-reboot synchronization', () => {
-  assert.match(clientSource, /START_TIMEOUT_MS = 600_000/);
+test('WhatsApp startup allows slow post-reboot synchronization and QR pairing', () => {
+  assert.match(clientSource, /START_TIMEOUT_MS = 1_200_000/);
   assert.match(clientSource, /READY_RECOVERY_RETRY_MS = 5000/);
   assert.match(clientSource, /scheduleRecovery\(READY_RECOVERY_RETRY_MS\)/);
 });

@@ -28,6 +28,7 @@ const PROFILE_CONFLICT_MAX_RETRY_MS = 120_000;
 let diagnosticsAttached = false;
 let diagnosticsAttaching = false;
 let whatsappReady = false;
+let qrPromptShown = false;
 
 const WHATSAPP_PROFILE_PATH = path.join(
   env.whatsappAuthDataPath,
@@ -392,14 +393,20 @@ function markWhatsAppReady(source: 'ready event' | 'manual recovery'): void {
  */
 export const whatsappClient = new Client({
   authStrategy: createResilientLocalAuth(),
+  // WhatsApp Web can take longer than the library default (30 seconds) to
+  // restore after its own background document refresh.
+  authTimeoutMs: 120_000,
   webVersion: env.whatsappWebVersion || undefined,
   webVersionCache: {
     type: 'local',
     path: './.wwebjs_cache/',
     strict: Boolean(env.whatsappWebVersion),
   },
+  // Keep the public browser identifier aligned with the installed server
+  // Chrome. The standard Puppeteer user agent exposes HeadlessChrome, while a
+  // stale major version can be rejected when WhatsApp Web reloads a session.
   userAgent:
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36',
   takeoverOnConflict: true,
   takeoverTimeoutMs: 0,
   puppeteer: {
@@ -426,12 +433,15 @@ export const whatsappClient = new Client({
 export function initializeWhatsAppClient(): void {
   // Show QR code in terminal when authentication is needed
   whatsappClient.on('qr', (qr: string) => {
-    console.log('\n📱 Scan this QR code with your WhatsApp to authenticate:\n');
+    if (!qrPromptShown) {
+      qrPromptShown = true;
+      console.log('\n📱 Scan the most recent QR code with your WhatsApp to authenticate:\n');
+      console.log('The QR code renews automatically about every 20 seconds until it is scanned.\n');
+    }
     // Print directly to the terminal so the authentication token is never written to application logs.
     qrcode.generate(qr, { small: true }, (qrOutput: string) => {
       process.stdout.write(`${qrOutput}\n`);
     });
-    console.log('\nWaiting for authentication...\n');
   });
 
   // Client is ready to receive messages
@@ -474,6 +484,7 @@ export function isWhatsAppConnected(): boolean {
  */
 export async function startWhatsAppClient(): Promise<void> {
   console.log('🚀 Starting WhatsApp client...');
+  qrPromptShown = false;
   let profileConflictCount = 0;
 
   while (true) {

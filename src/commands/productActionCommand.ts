@@ -25,7 +25,6 @@ import { formatProductChoiceQuestion } from './pneuCommand.js';
 import { handlePriceCommand } from './priceCommand.js';
 import { handleAddPhotoCommand, handlePhotoCommand } from './productPhotoCommand.js';
 import { handleSaleCommand } from './saleCommand.js';
-import { isMessageFromGroupAdmin } from '../services/groupAdminService.js';
 import { isBatteryCategory } from '../utils/productCategory.js';
 
 type IndexedCommandHandler = (message: Message, body: string) => Promise<boolean>;
@@ -40,7 +39,6 @@ export interface ProductActionDependencies {
   addPhoto: IndexedCommandHandler;
   location: IndexedCommandHandler;
   inventoryLocationsEnabled: boolean;
-  isAdmin?: (message: Message) => Promise<boolean>;
 }
 
 const defaultDependencies: ProductActionDependencies = {
@@ -77,22 +75,11 @@ const defaultDependencies: ProductActionDependencies = {
     return Boolean(getLocationSession(getMessageUserId(message), getMessageChatId(message)));
   },
   inventoryLocationsEnabled: env.inventoryLocationsEnabled,
-  isAdmin: isMessageFromGroupAdmin,
 };
 
 export function formatProductActionMenu(
-  inventoryLocationsEnabled = env.inventoryLocationsEnabled,
-  isAdmin = true
+  inventoryLocationsEnabled = env.inventoryLocationsEnabled
 ): string {
-  if (!isAdmin) {
-    return [
-      '⚙️ ESCOLHA O QUE DESEJA FAZER',
-      '',
-      '1️⃣ Venda | 2️⃣ Foto',
-      '3️⃣ Adicionar foto',
-    ].join('\n');
-  }
-
   return [
     '⚙️ ESCOLHA O QUE DESEJA FAZER',
     '',
@@ -144,10 +131,6 @@ export async function handleProductActionConversation(
     return false;
   }
 
-  const isAdmin = dependencies.isAdmin
-    ? await dependencies.isAdmin(message)
-    : true;
-
   if (isCancellationResponse(normalizedBody.toLowerCase())) {
     clearProductActionSession(userId, chatId);
     await message.reply('❌ Operação cancelada.');
@@ -175,11 +158,6 @@ export async function handleProductActionConversation(
       return true;
     }
 
-    if (session.mode === 'zero_stock' && !isAdmin) {
-      clearProductActionSession(userId, chatId);
-      return true;
-    }
-
     saveProductActionSession(
       userId,
       chatId,
@@ -190,7 +168,7 @@ export async function handleProductActionConversation(
     await message.reply(
       session.mode === 'zero_stock'
         ? formatZeroStockActionMenu(dependencies.inventoryLocationsEnabled)
-        : formatProductActionMenu(dependencies.inventoryLocationsEnabled, isAdmin)
+        : formatProductActionMenu(dependencies.inventoryLocationsEnabled)
     );
     return true;
   }
@@ -203,10 +181,6 @@ export async function handleProductActionConversation(
   }
 
   if (session.mode === 'zero_stock') {
-    if (!isAdmin) {
-      clearProductActionSession(userId, chatId);
-      return true;
-    }
     const zeroStockActionHandlers: Record<
       number,
       { handler: IndexedCommandHandler; command: string }
@@ -257,49 +231,6 @@ export async function handleProductActionConversation(
     if (saleStarted) {
       clearProductActionSession(userId, chatId);
     }
-    return true;
-  }
-
-  if (!isAdmin) {
-    if (selection === 1) {
-      saveProductActionSession(
-        userId,
-        chatId,
-        'awaiting_sale_quantity',
-        optionNumber,
-        session.mode
-      );
-      await message.reply(formatSaleQuantityQuestion(lastQuery.products[optionNumber - 1]?.category));
-      return true;
-    }
-
-    const employeeActionHandlers: Record<
-      number,
-      { handler: IndexedCommandHandler; command: string }
-    > = {
-      2: { handler: dependencies.photo, command: 'foto' },
-      3: { handler: dependencies.addPhoto, command: 'addfoto' },
-    };
-    const employeeAction = employeeActionHandlers[selection];
-
-    if (!employeeAction) {
-      await message.reply(
-        `❌ Opção inválida.\n\n${formatProductActionMenu(
-          dependencies.inventoryLocationsEnabled,
-          false
-        )}`
-      );
-      return true;
-    }
-
-    await runIndexedAction(
-      message,
-      employeeAction,
-      optionNumber,
-      userId,
-      chatId,
-      session.mode
-    );
     return true;
   }
 

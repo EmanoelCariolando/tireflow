@@ -226,10 +226,7 @@ function getPreviousComparablePeriod(period: MonthlyPeriod): MonthlyPeriod {
 }
 
 export function getCommissionPeriod(referenceDate: Date): MonthlyPeriod {
-  const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 20);
-  const start = new Date(end.getFullYear(), end.getMonth() - 1, 20);
-  const key = `${formatDateKey(start)}_${formatDateKey(previousDay(end))}`;
-  return { start, end, key };
+  return getPreviousMonthPeriod(referenceDate);
 }
 
 export function summarizeMonthlyReport(

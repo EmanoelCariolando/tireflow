@@ -61,11 +61,6 @@ import { getSaleSession } from '../utils/saleSessionStore.js';
 import { getEntrySession } from '../utils/entrySessionStore.js';
 import { getProductRegistrationSession } from '../utils/productRegistrationSessionStore.js';
 import { handleProductActionConversation } from '../commands/productActionCommand.js';
-import { getAdjustmentSession } from '../utils/adjustmentSessionStore.js';
-import { getPriceSession } from '../utils/priceSessionStore.js';
-import { getLocationSession } from '../utils/locationSessionStore.js';
-import { clearMenuSession, getMenuSession } from '../utils/menuSessionStore.js';
-import { isMessageFromGroupAdmin } from '../services/groupAdminService.js';
 import {
   handlePendingSaleCommand,
   handlePendingSaleConversation,
@@ -80,7 +75,6 @@ import {
   handleMonthlyInventoryReportCommand,
   isMonthlyInventoryReportCommand,
 } from '../commands/monthlyInventoryReportCommand.js';
-import { getMonthlyInventoryReportSession } from '../utils/monthlyInventoryReportSessionStore.js';
 
 /**
  * Message Handler (Fase 3)
@@ -108,9 +102,7 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   const body = message.body?.trim() || '';
 
   if (body && isGroupIdCommand(body)) {
-    if (await isMessageFromGroupAdmin(message)) {
-      await handleGroupIdCommand(message);
-    }
+    await handleGroupIdCommand(message);
     return;
   }
 
@@ -127,12 +119,6 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
-  let groupAdminPromise: Promise<boolean> | undefined;
-  const isCurrentUserAdmin = (): Promise<boolean> => {
-    groupAdminPromise ??= isMessageFromGroupAdmin(message);
-    return groupAdminPromise;
-  };
-
   // Expired sessions are discarded silently so this same message can start a fresh flow.
   clearExpiredOperationSessions(userId, chatId);
 
@@ -149,14 +135,6 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   if (isCancellationResponse(body) && hasActiveOperationSession(userId, chatId)) {
     clearAllOperationSessions(userId, chatId);
     await message.reply('❌ Operação cancelada.');
-    return;
-  }
-
-  if (hasAdminOnlyOperationSession(userId, chatId) && !(await isCurrentUserAdmin())) {
-    clearAllOperationSessions(userId, chatId);
-  }
-
-  if (body && isAdminOnlyCommand(body) && !(await isCurrentUserAdmin())) {
     return;
   }
 
@@ -237,11 +215,6 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   }
 
   if (!body) {
-    return;
-  }
-
-  if (getMenuSession(userId, chatId) && !(await isCurrentUserAdmin())) {
-    clearMenuSession(userId, chatId);
     return;
   }
 
@@ -343,34 +316,6 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 function identifyCommand(body: string, hasMedia: boolean): string {
   if (!body) return hasMedia ? 'media' : 'empty';
   return body.trim().split(/\s+/, 1)[0]?.toLowerCase() || 'unknown';
-}
-
-function hasAdminOnlyOperationSession(userId: string, chatId: string): boolean {
-  return Boolean(
-    getEntrySession(userId, chatId) ||
-      getAdjustmentSession(userId, chatId) ||
-      getPriceSession(userId, chatId) ||
-      getLocationSession(userId, chatId) ||
-      getProductRegistrationSession(userId, chatId) ||
-      getMonthlyInventoryReportSession(userId, chatId)
-  );
-}
-
-function isAdminOnlyCommand(body: string): boolean {
-  return Boolean(
-    isMenuCommand(body) ||
-      isZeroStockCommand(body) ||
-      isEntryCommand(body) ||
-      isAdjustmentCommand(body) ||
-      isPriceCommand(body) ||
-      isProductRegistrationCommand(body) ||
-      isStatusCommand(body) ||
-      isLocationCommand(body) ||
-      isLowStockCommand(body) ||
-      isBestSellersCommand(body) ||
-      isTodayReportCommand(body) ||
-      isMonthlyInventoryReportCommand(body)
-  );
 }
 
 export function isAuthorizedChat(message: Message): boolean {

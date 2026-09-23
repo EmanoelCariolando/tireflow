@@ -32,8 +32,8 @@ MONTHLY_COMMISSION_PERCENT=2
 ```
 
 No dia 1, o bot envia o relatório operacional do mês anterior sem dados de funcionários ou
-comissões. No dia 20, envia separadamente o fechamento das comissões, calculado sobre as vendas
-do dia 20 do mês anterior até o fim do dia 19 atual. Notas de prefeitura ficam fora da comissão.
+comissões. No dia 20, envia separadamente o fechamento das comissões, calculado sobre todas as
+vendas do mês-calendário anterior. Notas de prefeitura ficam fora da comissão.
 
 Deixe `MONTHLY_REPORT_TIME` vazio para manter os dois envios desativados. Os envios são privados,
 não usam o grupo oficial e distribuem pagamentos mistos entre suas formas reais.

@@ -30,8 +30,12 @@ let isShuttingDown = false;
 function isTransientWhatsAppNavigationRejection(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return (
-    message.includes('Execution context was destroyed') &&
-    message.toLowerCase().includes('navigation')
+    (message.includes('Execution context was destroyed') &&
+      message.toLowerCase().includes('navigation')) ||
+    // whatsapp-web.js can time out while WhatsApp Web replaces its document
+    // during a background refresh. The session may still recover; shutting
+    // down here turns that transient timeout into a forced logout.
+    message === 'auth timeout'
   );
 }
 
@@ -145,7 +149,7 @@ process.on('SIGTERM', () => {
 
 process.on('unhandledRejection', (error: unknown) => {
   if (isTransientWhatsAppNavigationRejection(error)) {
-    console.warn('[PROCESS] Ignoring transient WhatsApp Web navigation rejection.');
+    console.warn('[PROCESS] Ignoring transient WhatsApp Web navigation/authentication rejection.');
     return;
   }
 

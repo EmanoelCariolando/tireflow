@@ -53,7 +53,7 @@ export function startMonthlyReportScheduler(): void {
 
   void sendReportsIfDue();
   console.log(
-    `[MONTHLY_REPORT] Scheduler enabled at ${env.monthlyReportTime}: monthly report on day 1; commissions on day 20 at ${env.monthlyCommissionPercent}%.`
+    `[MONTHLY_REPORT] Scheduler enabled at ${env.monthlyReportTime}: monthly report on day 1; previous-month commissions on day 20 at ${env.monthlyCommissionPercent}%.`
   );
 }
 
@@ -90,11 +90,10 @@ export function isCommissionReportDue(now: Date, configuredTime: string): boolea
     return false;
   }
 
-  const period = getCommissionPeriod(now);
   const firstAvailableTime = new Date(
-    period.end.getFullYear(),
-    period.end.getMonth(),
-    period.end.getDate(),
+    now.getFullYear(),
+    now.getMonth(),
+    20,
     reportTime.hour,
     reportTime.minute,
     0,
