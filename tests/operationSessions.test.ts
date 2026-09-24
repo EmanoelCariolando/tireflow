@@ -103,4 +103,5 @@ test('recognizes the monthly report as an isolated operation', () => {
   assert.equal(isOperationStartCommand('relatorio mensal'), true);
   assert.equal(isOperationStartCommand('RELATÓRIO MENSAL'), true);
   assert.equal(isOperationStartCommand('relatório estoque'), true);
+  assert.equal(isOperationStartCommand('relatório comissões'), true);
 });

@@ -237,3 +237,28 @@ test('runs the report flow from menu option 4 and closes the menu session', asyn
     clearMonthlyInventoryReportSession(userId, chatId);
   }
 });
+
+test('runs the commission report flow from menu option 5 and closes the menu session', async () => {
+  const replies: unknown[] = [];
+  const userId = 'commission-menu-user';
+  const chatId = 'commission-menu-group@g.us';
+  const message = createMessage(replies, userId, chatId);
+  let handlerCalls = 0;
+
+  try {
+    await handleMenuCommand(message);
+    const handled = await handleMenuSelection(message, '5', {
+      async handleMonthlyInventoryReport() {},
+      async handleMonthlyCommissionReport(receivedMessage) {
+        handlerCalls += 1;
+        assert.equal(receivedMessage, message);
+      },
+    });
+
+    assert.equal(handled, true);
+    assert.equal(handlerCalls, 1);
+    assert.equal(getMenuSession(userId, chatId), null);
+  } finally {
+    clearMenuSession(userId, chatId);
+  }
+});

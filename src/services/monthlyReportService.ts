@@ -200,6 +200,13 @@ export async function buildCommissionReport(
   commissionPercent = env.monthlyCommissionPercent
 ): Promise<string> {
   const period = getCommissionPeriod(referenceDate);
+  return buildCommissionReportForPeriod(period, commissionPercent);
+}
+
+export async function buildCommissionReportForPeriod(
+  period: MonthlyPeriod,
+  commissionPercent = env.monthlyCommissionPercent
+): Promise<string> {
   const movements = await movementRepository.findByDateRange(period.start, period.end);
   return formatCommissionReport(
     summarizeCommissionReport(period, movements, commissionPercent)

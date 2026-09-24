@@ -30,6 +30,7 @@ import {
   isBatterySearchCommand,
 } from './batteryCommand.js';
 import { handleMonthlyInventoryReportCommand } from './monthlyInventoryReportCommand.js';
+import { handleMonthlyCommissionReportCommand } from './monthlyCommissionReportCommand.js';
 
 const MENU_TEXT = [
   '🤖 *TIREFLOW — MENU*',
@@ -38,16 +39,19 @@ const MENU_TEXT = [
   '2️⃣ Mais vendidos',
   '3️⃣ Cadastrar pneu',
   '4️⃣ Relatório de estoque (PDF)',
+  '5️⃣ Relatório de comissões',
   '',
-  'Responda: *1*, *2*, *3* ou *4*',
+  'Responda: *1*, *2*, *3*, *4* ou *5*',
 ].join('\n');
 
 interface MenuCommandDependencies {
   handleMonthlyInventoryReport(message: Message): Promise<void>;
+  handleMonthlyCommissionReport(message: Message): Promise<void>;
 }
 
 const defaultMenuCommandDependencies: MenuCommandDependencies = {
   handleMonthlyInventoryReport: handleMonthlyInventoryReportCommand,
+  handleMonthlyCommissionReport: handleMonthlyCommissionReportCommand,
 };
 
 export function isMenuCommand(body: string): boolean {
@@ -110,7 +114,7 @@ export async function handleMenuSelection(
     return false;
   }
 
-  if (!['1', '2', '3', '4'].includes(selection)) {
+  if (!['1', '2', '3', '4', '5'].includes(selection)) {
     return false;
   }
 
@@ -129,6 +133,12 @@ export async function handleMenuSelection(
   if (selection === '4') {
     clearMenuSession(userId, chatId);
     await dependencies.handleMonthlyInventoryReport(message);
+    return true;
+  }
+
+  if (selection === '5') {
+    clearMenuSession(userId, chatId);
+    await dependencies.handleMonthlyCommissionReport(message);
     return true;
   }
 

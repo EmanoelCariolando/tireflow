@@ -32,6 +32,11 @@ import {
   getMonthlyInventoryReportSession,
   hasExpiredMonthlyInventoryReportSession,
 } from './monthlyInventoryReportSessionStore.js';
+import {
+  clearMonthlyCommissionReportSession,
+  getMonthlyCommissionReportSession,
+  hasExpiredMonthlyCommissionReportSession,
+} from './monthlyCommissionReportSessionStore.js';
 
 export function hasActiveOperationSession(userId: string, chatId: string): boolean {
   return Boolean(
@@ -43,7 +48,8 @@ export function hasActiveOperationSession(userId: string, chatId: string): boole
       getLocationSession(userId, chatId) ||
       getProductRegistrationSession(userId, chatId) ||
       getPendingSaleResolutionSession(userId, chatId) ||
-      getMonthlyInventoryReportSession(userId, chatId)
+      getMonthlyInventoryReportSession(userId, chatId) ||
+      getMonthlyCommissionReportSession(userId, chatId)
   );
 }
 
@@ -58,6 +64,7 @@ export function clearAllOperationSessions(userId: string, chatId: string): void 
   clearProductRegistrationSession(userId, chatId);
   clearPendingSaleResolutionSession(userId, chatId);
   clearMonthlyInventoryReportSession(userId, chatId);
+  clearMonthlyCommissionReportSession(userId, chatId);
 }
 
 export function clearExpiredOperationSessions(userId: string, chatId: string): boolean {
@@ -71,12 +78,13 @@ export function clearExpiredOperationSessions(userId: string, chatId: string): b
     hasExpiredProductRegistrationSession(userId, chatId),
     hasExpiredPendingSaleResolutionSession(userId, chatId),
     hasExpiredMonthlyInventoryReportSession(userId, chatId),
+    hasExpiredMonthlyCommissionReportSession(userId, chatId),
   ];
   return expired.some(Boolean);
 }
 
 export function isOperationStartCommand(body: string): boolean {
-  return /^(pendentes?|relat[oó]rio\s+(mensal|estoque)|venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|pre[cç]o\s+\d+|addfoto\s+\d+|local\s+\d+|(cadastrar|adicionar)\s+pneu)$/i.test(
+  return /^(pendentes?|relat[oó]rio\s+(mensal|estoque|comiss[oõ]es)|venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|pre[cç]o\s+\d+|addfoto\s+\d+|local\s+\d+|(cadastrar|adicionar)\s+pneu)$/i.test(
     body.trim()
   );
 }

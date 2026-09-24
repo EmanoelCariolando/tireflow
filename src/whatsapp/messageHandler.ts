@@ -75,6 +75,11 @@ import {
   handleMonthlyInventoryReportCommand,
   isMonthlyInventoryReportCommand,
 } from '../commands/monthlyInventoryReportCommand.js';
+import {
+  handleMonthlyCommissionReportCommand,
+  handleMonthlyCommissionReportConversation,
+  isMonthlyCommissionReportCommand,
+} from '../commands/monthlyCommissionReportCommand.js';
 
 /**
  * Message Handler (Fase 3)
@@ -175,6 +180,10 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   }
 
   if (await handleMonthlyInventoryReportConversation(message, body)) {
+    return;
+  }
+
+  if (await handleMonthlyCommissionReportConversation(message, body)) {
     return;
   }
 
@@ -304,6 +313,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isMonthlyInventoryReportCommand(body)) {
     await handleMonthlyInventoryReportCommand(message);
+    return;
+  }
+
+  if (isMonthlyCommissionReportCommand(body)) {
+    await handleMonthlyCommissionReportCommand(message);
     return;
   }
 

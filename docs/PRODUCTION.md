@@ -46,6 +46,10 @@ confirmação e responde na própria conversa. As movimentações respeitam o pe
 estoque exibido é a posição atual indicada no próprio PDF. A geração manual não altera o controle
 do envio automático do dia 1.
 
+O menu também oferece `Relatório de comissões`, disponível pelo comando `relatorio comissoes`.
+Ele gera o fechamento do último mês encerrado ou de qualquer período de até 31 dias, sem
+interferir no envio automático do dia 20.
+
 Em Monteiro, use `BRANCH_NAME="ATC PNEUS MONTEIRO"`, sessão `tireflow-monteiro` e autenticação em `C:\TireFlow\Monteiro\data\wwebjs_auth`. Grupo e números privados também devem pertencer à filial correta.
 
 Somente em Monteiro, habilite a localização física dos pneus:
