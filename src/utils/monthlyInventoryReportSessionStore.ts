@@ -11,6 +11,7 @@ export interface MonthlyInventoryReportSession {
   userId: string;
   chatId: string;
   step: MonthlyInventoryReportSessionStep;
+  mode?: 'stock';
   startDate?: Date;
   endDate?: Date;
   updatedAt: number;

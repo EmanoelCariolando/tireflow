@@ -33,18 +33,22 @@ MONTHLY_COMMISSION_PERCENT=2
 
 No dia 1, o bot envia o relatório operacional do mês anterior sem dados de funcionários ou
 comissões. No dia 20, envia separadamente o fechamento das comissões, calculado sobre todas as
-vendas do mês-calendário anterior. Notas de prefeitura ficam fora da comissão.
+vendas do mês-calendário anterior. Vendas normais rendem 2% e vendas com desconto rendem 1%;
+notas de prefeitura ficam fora da comissão.
 
 Deixe `MONTHLY_REPORT_TIME` vazio para manter os dois envios desativados. Os envios são privados,
 não usam o grupo oficial e distribuem pagamentos mistos entre suas formas reais.
 
-Um administrador também pode gerar o PDF de inventário sob demanda pela opção
-`Relatório de estoque (PDF)` do menu ou pelo comando `relatorio estoque` (`relatorio mensal`
-continua aceito). O fluxo permite escolher
-o último mês fechado ou informar um período de até 31 dias no formato `DD/MM/AAAA`, exige uma
-confirmação e responde na própria conversa. As movimentações respeitam o período escolhido; o
-estoque exibido é a posição atual indicada no próprio PDF. A geração manual não altera o controle
-do envio automático do dia 1.
+O menu oferece dois PDFs separados. A opção 6, `Pneus em estoque atual (PDF)`, ou o comando
+`relatorio estoque`, gera a conferência dos pneus ativos com saldo positivo no momento da geração,
+sem pedir datas. O PDF agrupa os pneus por aro, mostra a localização quando habilitada e inclui
+campos para quantidade contada e diferença. Baterias não entram nessa conferência.
+
+A opção 4, `Relatório mensal (PDF)`, ou o comando `relatorio mensal`, permite escolher o último
+mês fechado ou informar um período de até 31 dias no formato `DD/MM/AAAA`. Mostra faturamento,
+unidades vendidas, mais vendidos e produtos que zeraram no período, sem a lista do estoque atual.
+Ambos exigem confirmação e respondem na própria conversa. A geração manual não altera o controle
+do envio automático do dia 1, cujo PDF também contém apenas os dados do período.
 
 O menu também oferece `Relatório de comissões`, disponível pelo comando `relatorio comissoes`.
 Ele gera o fechamento do último mês encerrado ou de qualquer período de até 31 dias, sem

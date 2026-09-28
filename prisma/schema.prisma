@@ -91,6 +91,7 @@ model Movement {
   invoiceName    String?
   invoiceNumber  String?
   isCityHallSale Boolean      @default(false)
+  commissionPercent Decimal?
   observation    String?
   supplier       String?
   reason         String?

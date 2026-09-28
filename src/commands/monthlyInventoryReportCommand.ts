@@ -1,6 +1,7 @@
 import whatsappWeb, { type Message, type MessageMedia } from 'whatsapp-web.js';
 import {
   buildInventoryReportPdf,
+  buildCurrentStockReportPdf,
   getPreviousMonthPeriod,
   type InventoryReportPdfDelivery,
   type MonthlyPeriod,
@@ -20,12 +21,14 @@ export const MAX_INVENTORY_REPORT_PERIOD_DAYS = 31;
 
 export interface MonthlyInventoryReportCommandDependencies {
   buildReport(period: MonthlyPeriod, generatedAt: Date): Promise<InventoryReportPdfDelivery>;
+  buildStockReport?(generatedAt: Date): Promise<InventoryReportPdfDelivery>;
   createPdfMedia(report: InventoryReportPdfDelivery): MessageMedia;
   now(): Date;
 }
 
 const defaultDependencies: MonthlyInventoryReportCommandDependencies = {
   buildReport: buildInventoryReportPdf,
+  buildStockReport: buildCurrentStockReportPdf,
   createPdfMedia(report): MessageMedia {
     return new WhatsAppMessageMedia(
       'application/pdf',
@@ -42,16 +45,25 @@ export function isMonthlyInventoryReportCommand(body: string): boolean {
   return command === 'relatorio estoque' || command === 'relatorio mensal';
 }
 
-export async function handleMonthlyInventoryReportCommand(message: Message): Promise<void> {
+export async function handleMonthlyInventoryReportCommand(message: Message, mode?: 'stock'): Promise<void> {
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
   saveMonthlyInventoryReportSession({
     userId,
     chatId,
-    step: 'awaiting_report_type',
+    step: mode === 'stock' ? 'awaiting_confirmation' : 'awaiting_report_type',
+    mode,
     updatedAt: Date.now(),
   });
-  await message.reply(formatReportTypeQuestion());
+  await message.reply(mode === 'stock' ? formatStockConfirmation() : formatReportTypeQuestion());
+}
+
+export async function handleCurrentStockReportCommand(message: Message): Promise<void> {
+  await handleMonthlyInventoryReportCommand(message, 'stock');
+}
+
+function formatStockConfirmation(): string {
+  return '📦 *PNEUS EM ESTOQUE ATUAL (PDF)*\n\nPneus com saldo acima de zero no momento da geração, separados por aro, com quantidade e campos para conferência.\n\n1️⃣ Gerar PDF\n0️⃣ Cancelar';
 }
 
 export async function handleMonthlyInventoryReportConversation(
@@ -223,6 +235,27 @@ async function handleConfirmation(
     await message.reply('❌ Operação cancelada.');
     return;
   }
+  if (session.mode === 'stock') {
+    if (action !== 'confirm') {
+      await message.reply(formatStockConfirmation());
+      return;
+    }
+    saveMonthlyInventoryReportSession({ ...session, step: 'processing' });
+    try {
+      await message.reply('⏳ *GERANDO PDF DO ESTOQUE ATUAL*');
+      const report = await (dependencies.buildStockReport ?? buildCurrentStockReportPdf)(dependencies.now());
+      await message.reply(dependencies.createPdfMedia(report), undefined, {
+        caption: '📦 *PNEUS EM ESTOQUE ATUAL* — posição no momento da geração.',
+        sendMediaAsDocument: true,
+      });
+      clearMonthlyInventoryReportSession(session.userId, session.chatId);
+    } catch (error) {
+      console.error('[CURRENT_STOCK_REPORT] Error:', error);
+      saveMonthlyInventoryReportSession({ ...session, step: 'awaiting_confirmation' });
+      await message.reply('Não foi possível gerar ou enviar o PDF do estoque atual. Tente novamente com *1* ou digite *0* para cancelar.');
+    }
+    return;
+  }
   if (action === 'back') {
     saveMonthlyInventoryReportSession({
       ...session,
@@ -247,7 +280,8 @@ async function handleConfirmation(
     const report = await dependencies.buildReport(period, generatedAt);
     const media = dependencies.createPdfMedia(report);
     await message.reply(media, undefined, {
-      caption: `📄 *RELATÓRIO DE ESTOQUE*\nPeríodo: ${formatDate(session.startDate)} a ${formatDate(session.endDate)}`,
+      caption: `📄 *RELATÓRIO MENSAL*\nPeríodo: ${formatDate(session.startDate)} a ${formatDate(session.endDate)}`,
+      sendMediaAsDocument: true,
     });
     clearMonthlyInventoryReportSession(session.userId, session.chatId);
   } catch (error) {
@@ -294,7 +328,7 @@ export function createInventoryReportPeriod(startDate: Date, endDate: Date): Mon
 
 function formatReportTypeQuestion(): string {
   return [
-    '📄 *RELATÓRIO EM PDF*',
+    '📄 *RELATÓRIO MENSAL EM PDF*',
     '',
     '1️⃣ Último mês fechado',
     '2️⃣ Escolher período',

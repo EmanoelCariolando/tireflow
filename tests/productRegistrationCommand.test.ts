@@ -287,10 +287,11 @@ test('shows product registration as menu option 3 and starts its isolated flow',
   try {
     await handleMenuCommand(message);
     assert.match(replies.at(-1) ?? '', /3️⃣ Cadastrar pneu/);
-    assert.match(replies.at(-1) ?? '', /4️⃣ Relatório de estoque \(PDF\)/);
+    assert.match(replies.at(-1) ?? '', /4️⃣ Relatório mensal \(PDF\)/);
+    assert.match(replies.at(-1) ?? '', /6️⃣ Pneus em estoque atual \(PDF\)/);
     assert.match(replies.at(-1) ?? '', /5️⃣ Relatório de comissões/);
     assert.doesNotMatch(replies.at(-1) ?? '', /Baixo estoque/);
-    assert.match(replies.at(-1) ?? '', /\*1\*, \*2\*, \*3\*, \*4\* ou \*5\*/);
+    assert.match(replies.at(-1) ?? '', /\*1\*, \*2\*, \*3\*, \*4\*, \*5\* ou \*6\*/);
 
     assert.equal(await handleMenuSelection(message, '3'), true);
     assert.equal(getProductRegistrationSession(userId, chatId)?.step, 'awaiting_measure');

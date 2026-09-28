@@ -1,8 +1,8 @@
 diff --git a/node_modules/whatsapp-web.js/src/Client.js b/node_modules/whatsapp-web.js/src/Client.js
-index 800109e..627f2a6 100644
+index 94f26c9..844cbc7 100644
 --- a/node_modules/whatsapp-web.js/src/Client.js
 +++ b/node_modules/whatsapp-web.js/src/Client.js
-@@ -113,6 +113,12 @@ class Client extends EventEmitter {
+@@ -113,27 +113,24 @@ class Client extends EventEmitter {
       * Private function
       */
      async inject() {
@@ -15,7 +15,62 @@ index 800109e..627f2a6 100644
          if (
              this.options.authTimeoutMs === undefined ||
              this.options.authTimeoutMs == 0
-@@ -398,29 +404,104 @@ class Client extends EventEmitter {
+         ) {
+             this.options.authTimeoutMs = 30000;
+         }
+-        let start = Date.now();
+-        let timeout = this.options.authTimeoutMs;
+-        let res = false;
+-        while (start > Date.now() - timeout) {
+-            res = await this.pupPage.evaluate(
+-                'window.Debug?.VERSION != undefined',
+-            );
+-            if (res) {
+-                break;
+-            }
+-            await new Promise((r) => setTimeout(r, 200));
+-        }
+-        if (!res) {
+-            throw 'auth timeout';
+-        }
++        // Unlike page.evaluate(), waitForFunction survives an internal
++        // WhatsApp Web navigation by resuming in the next execution context.
++        await this.pupPage.waitForFunction(
++            'window.Debug?.VERSION != undefined',
++            { polling: 200, timeout: this.options.authTimeoutMs },
++        );
+         await this.setDeviceName(
+             this.options.deviceName,
+             this.options.browserName,
+@@ -326,20 +323,13 @@ class Client extends EventEmitter {
+                     // Load util functions (serializers, helper functions)
+                     await this.pupPage.evaluate(LoadUtils);
+ 
+-                    let start = Date.now();
+-                    let res = false;
+-                    while (start > Date.now() - 30000) {
+-                        res = await this.pupPage.evaluate(
+-                            'window.WWebJS != undefined',
+-                        );
+-                        if (res) {
+-                            break;
+-                        }
+-                        await new Promise((r) => setTimeout(r, 100));
+-                    }
+-                    if (!res) {
+-                        throw 'ready timeout';
+-                    }
++                    // Keep waiting across an internal WhatsApp Web
++                    // navigation instead of failing the client with a
++                    // destroyed execution context.
++                    await this.pupPage.waitForFunction(
++                        'window.WWebJS != undefined',
++                        { polling: 200, timeout: this.options.authTimeoutMs },
++                    );
+ 
+                     /**
+                      * Current connection information
+@@ -397,29 +387,104 @@ class Client extends EventEmitter {
              },
          );
          await this.pupPage.evaluate(() => {
@@ -141,7 +196,7 @@ index 800109e..627f2a6 100644
      }
  
      /**
-@@ -490,9 +571,9 @@ class Client extends EventEmitter {
+@@ -489,9 +554,9 @@ class Client extends EventEmitter {
              referer: 'https://whatsapp.com/',
          });
  
@@ -153,7 +208,7 @@ index 800109e..627f2a6 100644
              if (frame.url().includes('post_logout=1') || this.lastLoggedOut) {
                  this.emit(Events.DISCONNECTED, 'LOGOUT');
                  await this.authStrategy.logout();
-@@ -500,8 +581,16 @@ class Client extends EventEmitter {
+@@ -499,8 +564,16 @@ class Client extends EventEmitter {
                  await this.authStrategy.afterBrowserInitialized();
                  this.lastLoggedOut = false;
              }

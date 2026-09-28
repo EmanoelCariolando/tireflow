@@ -52,7 +52,8 @@ test('opens the full menu and product registration without querying participant 
     assert.match(replies[0] ?? '', /TIREFLOW — MENU/);
     assert.match(replies[0] ?? '', /Relatório de hoje/);
     assert.match(replies[0] ?? '', /Cadastrar pneu/);
-    assert.match(replies[0] ?? '', /Relatório de estoque \(PDF\)/);
+    assert.match(replies[0] ?? '', /Relatório mensal \(PDF\)/);
+    assert.match(replies[0] ?? '', /Pneus em estoque atual \(PDF\)/);
     assert.ok(getMenuSession(userId, chatId));
     await handleIncomingMessage(createGroupMessage(userId, '3', replies));
     assert.equal(getMenuSession(userId, chatId), null);

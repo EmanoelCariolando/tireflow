@@ -8,7 +8,8 @@ export type MonthlyInventoryProduct = Pick<
 > & Partial<Pick<Product, 'category' | 'batteryBrand'>>;
 
 export interface MonthlyInventoryPdfInput {
-  report: MonthlyReportFormatInput;
+  report: Pick<MonthlyReportFormatInput, 'period' | 'bestSellers' | 'zeroStockProducts' | 'showStockLocations'> & Partial<Pick<MonthlyReportFormatInput, 'totalRevenue' | 'unitsSold'>>;
+  mode?: 'stock' | 'monthly';
   products: MonthlyInventoryProduct[];
   branchName: string;
   generatedAt: Date;
@@ -67,9 +68,9 @@ export async function buildMonthlyInventoryPdf(
     bufferPages: true,
     compress: true,
     info: {
-      Title: `Relatório de estoque - ${formatPeriod(input.report.period)}`,
+      Title: input.mode === 'stock' ? 'Pneus em estoque atual' : `Relatório mensal - ${formatPeriod(input.report.period)}`,
       Author: 'TireFlow',
-      Subject: 'Conferência de estoque por período',
+      Subject: input.mode === 'stock' ? 'Conferência dos pneus em estoque atual' : 'Vendas e movimentações no período',
       Creator: 'TireFlow',
     },
   });
@@ -83,10 +84,13 @@ export async function buildMonthlyInventoryPdf(
 
     try {
       drawPageHeader(document, input);
-      drawOverview(document, input);
-      drawZeroStock(document, input);
-      drawInventory(document, input);
-      drawSignatures(document, input);
+      if (input.mode === 'stock') {
+        drawInventory(document, input);
+        drawSignatures(document, input);
+      } else {
+        drawOverview(document, input);
+        drawZeroStock(document, input);
+      }
       drawPageFooters(document, input);
       document.end();
     } catch (error) {
@@ -96,7 +100,7 @@ export async function buildMonthlyInventoryPdf(
 }
 
 export function getMonthlyInventoryPdfFileName(periodKey: string): string {
-  return `relatorio-mensal-estoque-${periodKey}.pdf`;
+  return `relatorio-mensal-${periodKey}.pdf`;
 }
 
 function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfInput): void {
@@ -104,7 +108,7 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
     .fillColor(COLORS.ink)
     .font('Helvetica-Bold')
     .fontSize(22)
-    .text('RELATÓRIO DE ESTOQUE');
+    .text('RELATÓRIO MENSAL');
   document
     .fillColor(COLORS.muted)
     .font('Helvetica')
@@ -114,7 +118,6 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
     );
   document.moveDown(1.1);
 
-  const totalUnits = input.products.reduce((sum, product) => sum + product.stock, 0);
   const continuedAtZero = input.report.zeroStockProducts.filter(
     (product) => product.endedAtZero
   ).length;
@@ -122,8 +125,8 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
   const cardWidth = (contentWidth(document) - cardGap * 3) / 4;
   const cardY = document.y;
   const cards = [
-    { label: 'MODELOS EM ESTOQUE', value: String(input.products.length), color: COLORS.blue },
-    { label: 'TOTAL DE ITENS', value: String(totalUnits), color: COLORS.green },
+    { label: 'FATURAMENTO', value: formatCurrency(input.report.totalRevenue ?? 0), color: COLORS.blue },
+    { label: 'UNIDADES VENDIDAS', value: String(input.report.unitsSold ?? 0), color: COLORS.green },
     {
       label: 'ZERARAM NO PERÍODO',
       value: String(input.report.zeroStockProducts.length),
@@ -175,18 +178,17 @@ function drawOverview(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfIn
 }
 
 function drawInventory(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfInput): void {
-  addReportPage(document, input);
-  drawSectionTitle(document, '3. CONFERÊNCIA FÍSICA DO ESTOQUE');
+  drawSectionTitle(document, 'PNEUS EM ESTOQUE ATUAL');
   document
     .fillColor(COLORS.muted)
     .font('Helvetica')
     .fontSize(9)
-    .text('Somente produtos ativos com saldo atual acima de zero.');
+    .text(`Pneus ativos com saldo acima de zero. Modelos: ${input.products.length} • Total de pneus: ${input.products.reduce((sum, product) => sum + product.stock, 0)}`);
   document.moveDown(0.7);
   drawNotice(
     document,
     input,
-    `COMO USAR: conte o estoque físico e preencha as colunas "Contado" e "Diferença". Pneus ficam separados por aro e baterias por marca. O estoque exibido corresponde à posição atual em ${formatDateTime(input.generatedAt)}.`,
+    `COMO USAR: conte os pneus e preencha as colunas "Contado" e "Diferença". Pneus separados por aro. Posição atual em ${formatDateTime(input.generatedAt)}.`,
     COLORS.paleGreen,
     COLORS.green
   );
@@ -477,7 +479,7 @@ function drawPageHeader(document: PDFKit.PDFDocument, input: MonthlyInventoryPdf
     .font('Helvetica')
     .fontSize(8.5)
     .text(
-      `Inventário • ${formatPeriod(input.report.period)}`,
+      input.mode === 'stock' ? 'Conferência do estoque atual' : `Relatório mensal • ${formatPeriod(input.report.period)}`,
       PAGE_MARGIN,
       38,
       { width: width / 2 }

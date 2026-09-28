@@ -36,6 +36,22 @@ test('patched WhatsApp client resumes injection after offline sync reaches 100 p
   assert.match(whatsappPatch, /completeInitializationWhenSynced\(\)/);
 });
 
+test('patched WhatsApp client waits safely through an internal Web navigation', () => {
+  assert.match(
+    whatsappPatch,
+    /waitForFunction\(\s*\+\s*'window\.Debug\?\.VERSION != undefined'/
+  );
+  assert.match(
+    whatsappPatch,
+    /waitForFunction\(\s*\+\s*'window\.WWebJS != undefined'/
+  );
+});
+
+test('a real authentication timeout is not silently ignored by the process handler', () => {
+  assert.doesNotMatch(indexSource, /message === 'auth timeout'/);
+  assert.match(indexSource, /Ignoring transient WhatsApp Web navigation rejection/);
+});
+
 test('startup diagnostics capture the socket and offline synchronization state', () => {
   for (const field of ['socketState', 'socketStream', 'hasSynced', 'offlineProgress']) {
     assert.match(clientSource, new RegExp(`${field}:`));

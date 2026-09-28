@@ -134,6 +134,8 @@ test('selects a tire, opens the action menu and asks the sale quantity', async (
     saveProductActionSession(userId, chatId, 'awaiting_product');
 
     assert.equal(await handleProductActionConversation(message, '2', createDependencies(calls)), true);
+    assert.equal(replies.length, 2);
+    assert.equal(replies[0], '🛞 *175/75 R13 — PNEU DOIS*');
     assert.equal(replies.at(-1), formatProductActionMenu(true));
     assert.equal(getProductActionSession(userId, chatId)?.step, 'awaiting_action');
     assert.equal(getProductActionSession(userId, chatId)?.optionNumber, 2);

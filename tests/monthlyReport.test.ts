@@ -76,6 +76,7 @@ function movement(
     paymentMethod: null,
     paymentDetails: null,
     invoiceName: null,
+    commissionPercent: null,
     isCityHallSale: false,
     observation: null,
     supplier: null,
@@ -208,6 +209,7 @@ test('sends only the financial summary in text and moves inventory details to a 
     stockLocation: index % 2 === 0 ? 'PMAIS' : 'W3',
   }));
   const pdf = await buildMonthlyInventoryPdf({
+    mode: 'stock',
     report: summary,
     products: inventoryProducts,
     branchName: 'ATC PNEUS MONTEIRO',
@@ -241,7 +243,7 @@ test('sends only the financial summary in text and moves inventory details to a 
   });
   const overflowSource = overflowPdf.toString('latin1');
   const overflowPageCount = (overflowSource.match(/\/Type \/Page\b/g) ?? []).length;
-  assert.ok(overflowPageCount > pageCount);
+  assert.ok(overflowPageCount >= 2 && overflowPageCount <= 5);
 });
 
 test('identifies passenger, truck and agricultural tire rims for inventory grouping', () => {
@@ -276,12 +278,57 @@ test('excludes city hall invoices from commission without removing their revenue
 
   assert.equal(summary.sellers[0]?.totalValue, 1000);
   assert.equal(summary.sellers[0]?.commissionBase, 400);
+  assert.equal(summary.sellers[0]?.standardCommissionBase, 400);
+  assert.equal(summary.sellers[0]?.discountedCommissionBase, 0);
+  assert.equal(summary.sellers[0]?.cityHallSalesValue, 600);
+  assert.equal(summary.sellers[0]?.standardCommission, 8);
+  assert.equal(summary.sellers[0]?.discountedCommission, 0);
   assert.equal(summary.sellers[0]?.commission, 8);
   const report = formatCommissionReport(summary);
   assert.match(report, /Período: 01\/07\/2026 a 31\/07\/2026/);
-  assert.match(report, /Total vendido: \*R\$1000,00\*/);
-  assert.match(report, /Comissão \(2%\): \*R\$8,00\*/);
+  assert.match(report, /Vendas: \*2\* \| Itens: \*3\* \| Total: \*R\$1000,00\*/);
+  assert.match(report, /Comissão 2%: \*R\$8,00\* \(base R\$400,00\)/);
+  assert.match(report, /Comissão 1%: \*R\$0,00\* \(base R\$0,00\)/);
+  assert.match(report, /Prefeitura 0%: \*R\$600,00\*/);
   assert.match(report, /Comissão total: \*R\$8,00\*/);
+});
+
+test('pays 2 percent on regular sales and 1 percent on discounted sales', () => {
+  const period = getCommissionPeriod(new Date(2026, 8, 20, 8, 0));
+  const sales = [
+    movement('regular-sale', new Date(2026, 7, 10, 10, 0), {
+      quantity: 1,
+      totalValue: new Prisma.Decimal(1_000),
+      commissionPercent: new Prisma.Decimal(2),
+    }),
+    movement('discounted-sale', new Date(2026, 7, 11, 10, 0), {
+      quantity: 1,
+      totalValue: new Prisma.Decimal(500),
+      commissionPercent: new Prisma.Decimal(1),
+    }),
+    movement('city-hall-sale', new Date(2026, 7, 12, 10, 0), {
+      quantity: 1,
+      totalValue: new Prisma.Decimal(200),
+      commissionPercent: new Prisma.Decimal(0),
+      isCityHallSale: true,
+    }),
+  ];
+
+  const summary = summarizeCommissionReport(period, sales, 2);
+  const seller = summary.sellers[0]!;
+
+  assert.equal(seller.totalValue, 1_700);
+  assert.equal(seller.standardCommissionBase, 1_000);
+  assert.equal(seller.standardCommission, 20);
+  assert.equal(seller.discountedCommissionBase, 500);
+  assert.equal(seller.discountedCommission, 5);
+  assert.equal(seller.cityHallSalesValue, 200);
+  assert.equal(seller.commission, 25);
+
+  const report = formatCommissionReport(summary);
+  assert.match(report, /Comissão 2%: \*R\$20,00\* \(base R\$1000,00\)/);
+  assert.match(report, /Comissão 1%: \*R\$5,00\* \(base R\$500,00\)/);
+  assert.match(report, /Prefeitura 0%: \*R\$200,00\*/);
 });
 
 test('keeps the financial message independent from stock-location configuration', () => {

@@ -312,7 +312,7 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
   }
 
   if (isMonthlyInventoryReportCommand(body)) {
-    await handleMonthlyInventoryReportCommand(message);
+    await handleMonthlyInventoryReportCommand(message, /estoque/i.test(body) ? 'stock' : undefined);
     return;
   }
 

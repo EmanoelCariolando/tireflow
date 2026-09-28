@@ -6,6 +6,10 @@ import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { allocatePaymentBreakdownAcrossTotals } from '../utils/saleAllocation.js';
 import { serializePaymentBreakdown } from '../utils/salePayment.js';
+import {
+  DISCOUNTED_COMMISSION_PERCENT,
+  STANDARD_COMMISSION_PERCENT,
+} from '../utils/commissionRates.js';
 import type {
   PaymentBreakdownPart,
   PaymentMethod,
@@ -249,6 +253,7 @@ export async function registerSaleItems(
           invoiceName: input.paymentMethod === 'Nota' ? input.invoiceName : undefined,
           invoiceNumber: input.paymentMethod === 'Nota' ? input.invoiceNumber : undefined,
           isCityHallSale: input.paymentMethod === 'Nota' && input.isCityHallSale === true,
+          commissionPercent: getSaleCommissionPercent(input),
         },
         tx
       );
@@ -270,6 +275,15 @@ export async function registerSaleItems(
 
     return { saleGroupCode, items: registeredItems };
   }));
+}
+
+function getSaleCommissionPercent(input: RegisterSaleItemsInput): number {
+  if (input.paymentMethod === 'Nota' && input.isCityHallSale === true) {
+    return 0;
+  }
+  return (input.discountAmount ?? 0) > 0
+    ? DISCOUNTED_COMMISSION_PERCENT
+    : STANDARD_COMMISSION_PERCENT;
 }
 
 function hasValidSaleItems(items: RegisterSaleItemInput[], totalValue: number): boolean {

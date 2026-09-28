@@ -62,7 +62,8 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 | `local <item>` | Atualizar a localização física |
 | `cadastrar pneu` | Cadastrar um novo produto |
 | `menu` | Abrir o menu de relatórios |
-| `relatorio estoque` | Gerar o inventário em PDF do último mês ou de até 31 dias |
+| `relatorio estoque` | Gerar PDF dos pneus com saldo atual positivo, sem período |
+| `relatorio mensal` | Gerar PDF das vendas e produtos que zeraram no último mês ou em até 31 dias |
 | `status` | Verificar o estado do sistema |
 
 > Os comandos que utilizam um item devem ser executados depois de uma consulta.

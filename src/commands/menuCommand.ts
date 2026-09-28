@@ -29,7 +29,7 @@ import {
   handleZeroStockBatteryCommand,
   isBatterySearchCommand,
 } from './batteryCommand.js';
-import { handleMonthlyInventoryReportCommand } from './monthlyInventoryReportCommand.js';
+import { handleMonthlyInventoryReportCommand, handleCurrentStockReportCommand } from './monthlyInventoryReportCommand.js';
 import { handleMonthlyCommissionReportCommand } from './monthlyCommissionReportCommand.js';
 
 const MENU_TEXT = [
@@ -38,20 +38,23 @@ const MENU_TEXT = [
   '1️⃣ Relatório de hoje',
   '2️⃣ Mais vendidos',
   '3️⃣ Cadastrar pneu',
-  '4️⃣ Relatório de estoque (PDF)',
+  '4️⃣ Relatório mensal (PDF)',
   '5️⃣ Relatório de comissões',
+  '6️⃣ Pneus em estoque atual (PDF)',
   '',
-  'Responda: *1*, *2*, *3*, *4* ou *5*',
+  'Responda: *1*, *2*, *3*, *4*, *5* ou *6*',
 ].join('\n');
 
 interface MenuCommandDependencies {
   handleMonthlyInventoryReport(message: Message): Promise<void>;
   handleMonthlyCommissionReport(message: Message): Promise<void>;
+  handleCurrentStockReport?(message: Message): Promise<void>;
 }
 
 const defaultMenuCommandDependencies: MenuCommandDependencies = {
   handleMonthlyInventoryReport: handleMonthlyInventoryReportCommand,
   handleMonthlyCommissionReport: handleMonthlyCommissionReportCommand,
+  handleCurrentStockReport: handleCurrentStockReportCommand,
 };
 
 export function isMenuCommand(body: string): boolean {
@@ -114,7 +117,7 @@ export async function handleMenuSelection(
     return false;
   }
 
-  if (!['1', '2', '3', '4', '5'].includes(selection)) {
+  if (!['1', '2', '3', '4', '5', '6'].includes(selection)) {
     return false;
   }
 
@@ -133,6 +136,12 @@ export async function handleMenuSelection(
   if (selection === '4') {
     clearMenuSession(userId, chatId);
     await dependencies.handleMonthlyInventoryReport(message);
+    return true;
+  }
+
+  if (selection === '6') {
+    clearMenuSession(userId, chatId);
+    await (dependencies.handleCurrentStockReport ?? handleCurrentStockReportCommand)(message);
     return true;
   }
 

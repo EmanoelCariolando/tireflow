@@ -1,10 +1,14 @@
-import { MovementType } from '@prisma/client';
+import { MovementType, ProductCategory as Category } from '@prisma/client';
 import type { Movement, Product, ProductCategory, User } from '@prisma/client';
 import env from '../config/env.js';
 import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
+import {
+  DISCOUNTED_COMMISSION_PERCENT,
+  STANDARD_COMMISSION_PERCENT,
+} from '../utils/commissionRates.js';
 import {
   buildMonthlyInventoryPdf,
   getMonthlyInventoryPdfFileName,
@@ -30,6 +34,11 @@ interface SellerSummary {
   quantity: number;
   totalValue: number;
   commissionBase: number;
+  standardCommissionBase: number;
+  discountedCommissionBase: number;
+  cityHallSalesValue: number;
+  standardCommission: number;
+  discountedCommission: number;
   commission: number;
 }
 
@@ -144,7 +153,7 @@ export async function buildInventoryReportPdf(
   const previousPeriod = getPreviousComparablePeriod(period);
   const lastDay = previousDay(period.end);
   const fileName = [
-    'relatorio-estoque',
+    'relatorio-mensal',
     formatDateKey(period.start),
     'a',
     `${formatDateKey(lastDay)}.pdf`,
@@ -170,10 +179,9 @@ async function buildInventoryReportForPeriod(
   commissionPercent: number,
   pdfFileName: string
 ): Promise<{ report: MonthlyReportFormatInput; pdfBuffer: Buffer; pdfFileName: string }> {
-  const [movements, previousMovements, products] = await Promise.all([
+  const [movements, previousMovements] = await Promise.all([
     movementRepository.findByDateRange(period.start, period.end),
     movementRepository.findByDateRange(previousPeriod.start, previousPeriod.end),
-    productRepository.findActiveWithPositiveStock(),
   ]);
   const report = summarizeMonthlyReport(
     period,
@@ -186,12 +194,32 @@ async function buildInventoryReportForPeriod(
   return {
     pdfBuffer: await buildMonthlyInventoryPdf({
       report,
-      products,
+      products: [],
       branchName: env.branchName,
       generatedAt,
     }),
     pdfFileName,
     report,
+  };
+}
+
+export async function buildCurrentStockReportPdf(generatedAt = new Date()): Promise<InventoryReportPdfDelivery> {
+  const products = (await productRepository.findActiveWithPositiveStock())
+    .filter((product) => product.category === Category.TIRE);
+  return {
+    pdfFileName: `pneus-estoque-atual-${formatDateKey(generatedAt)}.pdf`,
+    pdfBuffer: await buildMonthlyInventoryPdf({
+      mode: 'stock',
+      products,
+      branchName: env.branchName,
+      generatedAt,
+      report: {
+        period: { start: generatedAt, end: generatedAt, key: formatDateKey(generatedAt) },
+        bestSellers: [],
+        zeroStockProducts: [],
+        showStockLocations: env.inventoryLocationsEnabled,
+      },
+    }),
   };
 }
 
@@ -300,9 +328,9 @@ export function formatCommissionReport(input: CommissionReportFormatInput): stri
   for (const [index, seller] of input.sellers.entries()) {
     lines.push(
       `${index + 1}. *${seller.name}*`,
-      `Vendas: *${seller.saleCount}* | Itens: *${seller.quantity}*`,
-      `Total vendido: *${formatCurrency(seller.totalValue)}*`,
-      `Comissão (${formatPercent(input.commissionPercent)}): *${formatCurrency(seller.commission)}*`,
+      `Vendas: *${seller.saleCount}* | Itens: *${seller.quantity}* | Total: *${formatCurrency(seller.totalValue)}*`,
+      `✅ Comissão ${STANDARD_COMMISSION_PERCENT}%: *${formatCurrency(seller.standardCommission)}* (base ${formatCurrency(seller.standardCommissionBase)}) | 🏷️ Comissão ${DISCOUNTED_COMMISSION_PERCENT}%: *${formatCurrency(seller.discountedCommission)}* (base ${formatCurrency(seller.discountedCommissionBase)})`,
+      `🏛️ Prefeitura 0%: *${formatCurrency(seller.cityHallSalesValue)}*`,
       ''
     );
   }
@@ -388,6 +416,11 @@ function summarizeSellers(
       quantity: 0,
       totalValue: 0,
       commissionBase: 0,
+      standardCommissionBase: 0,
+      discountedCommissionBase: 0,
+      cityHallSalesValue: 0,
+      standardCommission: 0,
+      discountedCommission: 0,
       commission: 0,
     };
     const sellerSaleGroups = saleGroupsBySeller.get(sale.userId) ?? new Set<string>();
@@ -396,8 +429,18 @@ function summarizeSellers(
     current.saleCount = sellerSaleGroups.size;
     current.quantity += sale.quantity ?? 0;
     current.totalValue += toNumber(sale.totalValue);
-    if (!sale.isCityHallSale) {
-      current.commissionBase += toNumber(sale.totalValue);
+    const saleValue = toNumber(sale.totalValue);
+    const saleCommissionPercent = sale.commissionPercent === null
+      ? commissionPercent
+      : toNumber(sale.commissionPercent);
+    if (sale.isCityHallSale || saleCommissionPercent === 0) {
+      current.cityHallSalesValue += toNumber(sale.totalValue);
+    } else if (saleCommissionPercent === DISCOUNTED_COMMISSION_PERCENT) {
+      current.commissionBase += saleValue;
+      current.discountedCommissionBase += saleValue;
+    } else {
+      current.commissionBase += saleValue;
+      current.standardCommissionBase += saleValue;
     }
     sellers.set(sale.userId, current);
   }
@@ -405,7 +448,16 @@ function summarizeSellers(
   return [...sellers.values()]
     .map((seller) => ({
       ...seller,
-      commission: roundCurrency(seller.commissionBase * commissionPercent / 100),
+      standardCommission: roundCurrency(
+        seller.standardCommissionBase * STANDARD_COMMISSION_PERCENT / 100
+      ),
+      discountedCommission: roundCurrency(
+        seller.discountedCommissionBase * DISCOUNTED_COMMISSION_PERCENT / 100
+      ),
+      commission: roundCurrency(
+        seller.standardCommissionBase * STANDARD_COMMISSION_PERCENT / 100 +
+        seller.discountedCommissionBase * DISCOUNTED_COMMISSION_PERCENT / 100
+      ),
     }))
     .sort((left, right) => right.totalValue - left.totalValue);
 }
@@ -522,10 +574,6 @@ function formatUnitsComparison(current: number, previous: number): string {
 function formatSignedPercentage(value: number): string {
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(1).replace('.', ',')}%`;
-}
-
-function formatPercent(value: number): string {
-  return `${value.toFixed(2).replace(/\.00$/, '').replace('.', ',')}%`;
 }
 
 function formatMonthLabel(date: Date): string {

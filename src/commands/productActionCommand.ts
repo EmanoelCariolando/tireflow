@@ -165,6 +165,11 @@ export async function handleProductActionConversation(
       selection,
       session.mode
     );
+    const product = lastQuery.products[selection - 1];
+    const isBattery = isBatteryCategory(product.category);
+    await message.reply(
+      `${isBattery ? '🔋' : '🛞'} *${product.reference} — ${product.description}*`
+    );
     await message.reply(
       session.mode === 'zero_stock'
         ? formatZeroStockActionMenu(dependencies.inventoryLocationsEnabled)
