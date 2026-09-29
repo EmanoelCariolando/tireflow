@@ -1,0 +1,14 @@
+diff --git a/node_modules/whatsapp-web.js/src/util/Injected/Utils.js b/node_modules/whatsapp-web.js/src/util/Injected/Utils.js
+--- a/node_modules/whatsapp-web.js/src/util/Injected/Utils.js
++++ b/node_modules/whatsapp-web.js/src/util/Injected/Utils.js
+@@ -482,6 +482,10 @@ exports.LoadUtils = () => {
+             ...extraOptions,
+         };
+ 
++        // MediaData's private ID must not override the outgoing MsgKey.
++        // https://github.com/wwebjs/whatsapp-web.js/issues/201922
++        delete message.__x_id;
++
+         // Bot's won't reply if canonicalUrl is set (linking)
+         if (botOptions) {
+             delete message.canonicalUrl;

@@ -209,9 +209,11 @@ siga [MONTEIRO_UPDATE.md](MONTEIRO_UPDATE.md).
 
 O WhatsApp Web pode falhar ao enviar anexos quando o campo privado `__x_id` do modelo de
 mídia sobrescreve a identidade da mensagem. A correção está em
-`patches/whatsapp-web.js+1.34.7.patch` e é aplicada pelo `postinstall`.
+`patches-media/whatsapp-web.js+1.34.7.patch` e é aplicada pelo `postinstall`, separadamente
+do patch de inicialização em `patches/`. Isso permite atualizar instalações que já receberam
+a correção anterior sem apagar `node_modules`.
 
-Após copiar o patch atualizado para a instalação da filial, execute `npm run postinstall`
+Após atualizar `package.json` e as pastas `patches/` e `patches-media/` na instalação da filial, execute `npm run postinstall`
 na pasta do projeto e reinicie o bot pelo gerenciador usado na instalação. No NSSM de Monteiro:
 
 ```powershell
@@ -219,7 +221,7 @@ npm run postinstall
 & 'C:\Tools\nssm\win64\nssm.exe' restart TireFlow-Monteiro
 ```
 
-Confirme que o comando informou `whatsapp-web.js@1.34.7` com sucesso antes de reiniciar.
+Confirme que as duas etapas informaram `whatsapp-web.js@1.34.7` com sucesso antes de reiniciar.
 Somente executar o build não aplica esse patch. Depois, teste o envio pela opção 6 do menu.
 Referência: https://github.com/wwebjs/whatsapp-web.js/issues/201922.
 

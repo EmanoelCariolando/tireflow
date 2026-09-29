@@ -8,7 +8,7 @@
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "test": "tsx --test tests/*.test.ts",
-    "postinstall": "patch-package",
+    "postinstall": "patch-package --error-on-fail && patch-package --patch-dir patches-media --error-on-fail",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm test && npm run build && npx prisma validate",
