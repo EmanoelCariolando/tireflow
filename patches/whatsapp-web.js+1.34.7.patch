@@ -1,5 +1,5 @@
 diff --git a/node_modules/whatsapp-web.js/src/Client.js b/node_modules/whatsapp-web.js/src/Client.js
-index 94f26c9..844cbc7 100644
+index 800109e..844cbc7 100644
 --- a/node_modules/whatsapp-web.js/src/Client.js
 +++ b/node_modules/whatsapp-web.js/src/Client.js
 @@ -113,27 +113,24 @@ class Client extends EventEmitter {
@@ -42,20 +42,21 @@ index 94f26c9..844cbc7 100644
          await this.setDeviceName(
              this.options.deviceName,
              this.options.browserName,
-@@ -326,20 +323,13 @@ class Client extends EventEmitter {
+@@ -326,21 +323,13 @@ class Client extends EventEmitter {
                      // Load util functions (serializers, helper functions)
                      await this.pupPage.evaluate(LoadUtils);
  
 -                    let start = Date.now();
 -                    let res = false;
 -                    while (start > Date.now() - 30000) {
+-                        // Check window.WWebJS Injection
 -                        res = await this.pupPage.evaluate(
 -                            'window.WWebJS != undefined',
 -                        );
 -                        if (res) {
 -                            break;
 -                        }
--                        await new Promise((r) => setTimeout(r, 100));
+-                        await new Promise((r) => setTimeout(r, 200));
 -                    }
 -                    if (!res) {
 -                        throw 'ready timeout';
@@ -70,7 +71,7 @@ index 94f26c9..844cbc7 100644
  
                      /**
                       * Current connection information
-@@ -397,29 +387,104 @@ class Client extends EventEmitter {
+@@ -398,29 +387,104 @@ class Client extends EventEmitter {
              },
          );
          await this.pupPage.evaluate(() => {
@@ -196,7 +197,7 @@ index 94f26c9..844cbc7 100644
      }
  
      /**
-@@ -489,9 +554,9 @@ class Client extends EventEmitter {
+@@ -490,9 +554,9 @@ class Client extends EventEmitter {
              referer: 'https://whatsapp.com/',
          });
  
@@ -208,7 +209,7 @@ index 94f26c9..844cbc7 100644
              if (frame.url().includes('post_logout=1') || this.lastLoggedOut) {
                  this.emit(Events.DISCONNECTED, 'LOGOUT');
                  await this.authStrategy.logout();
-@@ -499,8 +564,16 @@ class Client extends EventEmitter {
+@@ -500,8 +564,16 @@ class Client extends EventEmitter {
                  await this.authStrategy.afterBrowserInitialized();
                  this.lastLoggedOut = false;
              }

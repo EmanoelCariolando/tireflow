@@ -3,6 +3,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 
 const root = process.cwd();
 const patchName = 'whatsapp-web.js+1.34.7.patch';
@@ -54,8 +55,22 @@ test('patches install on fresh, previously patched and fully patched dependencie
   // Restore both original package files, then verify a clean installation.
   apply('patches-media', true);
   apply('patches', true);
+  // These hashes come from the published npm 1.34.7 tarball, not our local dependency.
+  // A patch generated against an already modified baseline must fail this check.
+  const originals = {
+    'src/Client.js': '36c70c1eb058087624e57ddea6b0c4d4a140faa2daf9c097dc670697ac321389',
+    'src/util/Injected/Utils.js': '0d0f88565f481dbfeb9493b04b24033a2cb60f5fd2fd0e84e543b461d98878fe',
+  };
+  for (const [file, expected] of Object.entries(originals)) {
+    const original = readFileSync(path.join(fixture, 'node_modules/whatsapp-web.js', file), 'utf8').replaceAll('\r\n', '\n');
+    assert.equal(createHash('sha256').update(original).digest('hex'), expected, `Original npm file: ${file}`);
+  }
   apply('patches');
   apply('patches-media');
+  for (const file of Object.keys(originals)) {
+    const checked = spawnSync(process.execPath, ['--check', path.join(fixture, 'node_modules/whatsapp-web.js', file)], { encoding: 'utf8' });
+    assert.equal(checked.status, 0, checked.stderr);
+  }
   const utils = readFileSync(path.join(fixture, files[2]!), 'utf8');
   assert.equal(utils.split('delete message.__x_id;').length - 1, 1);
   const client = readFileSync(path.join(fixture, files[1]!), 'utf8');

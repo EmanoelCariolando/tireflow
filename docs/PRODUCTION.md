@@ -225,6 +225,30 @@ Confirme que as duas etapas informaram `whatsapp-web.js@1.34.7` com sucesso ante
 Somente executar o build não aplica esse patch. Depois, teste o envio pela opção 6 do menu.
 Referência: https://github.com/wwebjs/whatsapp-web.js/issues/201922.
 
+### Recuperar uma instalação com patches ou dependências incompletos
+
+Atualize os arquivos do projeto, incluindo `package.json`, `package-lock.json`, `scripts/`,
+`tests/`, `patches/` e `patches-media/`. Pare o serviço antes de reparar as dependências.
+Se apenas a biblioteca do WhatsApp foi editada, `npm run repair:whatsapp` baixa o pacote
+original 1.34.7, confere sua integridade, aplica os dois patches em uma pasta temporária e
+valida a sintaxe. Só então substitui `Client.js` e `Utils.js`, guardando cópia dos anteriores
+em `tmp/whatsapp-repair-*/backup`. Ele não altera banco, `.env` ou autenticação.
+
+Se o `check` apresentar arquivos ou tipos ausentes, restaure todas as dependências do lockfile:
+
+```cmd
+cd /d C:\sistems\tireflowmtr
+npm.cmd ci --ignore-scripts
+npm.cmd run postinstall
+npx.cmd prisma generate
+npm.cmd run check
+```
+
+Execute um comando por vez e prossiga somente se terminar sem erro. `npm ci` substitui
+`node_modules`; o banco e a sessão, armazenados fora dessa pasta, são preservados.
+O `prisma generate` recria o cliente sem modificar o banco. Reinicie o serviço somente
+depois do `check` concluir. Não copie `node_modules` de outra máquina.
+
 ## 7. Checklist por filial
 
 - pasta própria e sem compartilhamento com a outra filial;
