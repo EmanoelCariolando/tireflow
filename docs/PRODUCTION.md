@@ -205,6 +205,24 @@ O seed é exclusivo para a primeira carga de um banco novo. Não reinicie se bac
 diagnóstico ou migration falharem. Para atualizar Monteiro com localizações em um banco existente,
 siga [MONTEIRO_UPDATE.md](MONTEIRO_UPDATE.md).
 
+### Falha ao enviar PDF: `Data passed to getter must include an id property`
+
+O WhatsApp Web pode falhar ao enviar anexos quando o campo privado `__x_id` do modelo de
+mídia sobrescreve a identidade da mensagem. A correção está em
+`patches/whatsapp-web.js+1.34.7.patch` e é aplicada pelo `postinstall`.
+
+Após copiar o patch atualizado para a instalação da filial, execute `npm run postinstall`
+na pasta do projeto e reinicie o bot pelo gerenciador usado na instalação. No NSSM de Monteiro:
+
+```powershell
+npm run postinstall
+& 'C:\Tools\nssm\win64\nssm.exe' restart TireFlow-Monteiro
+```
+
+Confirme que o comando informou `whatsapp-web.js@1.34.7` com sucesso antes de reiniciar.
+Somente executar o build não aplica esse patch. Depois, teste o envio pela opção 6 do menu.
+Referência: https://github.com/wwebjs/whatsapp-web.js/issues/201922.
+
 ## 7. Checklist por filial
 
 - pasta própria e sem compartilhamento com a outra filial;
