@@ -2,6 +2,7 @@ import { MovementType, ProductCategory as Category } from '@prisma/client';
 import type { Movement, Product, ProductCategory, User } from '@prisma/client';
 import env from '../config/env.js';
 import { movementRepository } from '../repositories/movementRepository.js';
+import { pendingSaleReportRepository, type ReportPendingSale } from '../repositories/pendingSaleReportRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
@@ -68,6 +69,7 @@ export interface MonthlyPeriod {
 }
 
 export interface MonthlyReportFormatInput {
+  dailyHistory?: Array<{ date: Date; entries: string[] }>;
   period: MonthlyPeriod;
   commissionPercent: number;
   paymentTotals: PaymentTotals;
@@ -179,17 +181,20 @@ async function buildInventoryReportForPeriod(
   commissionPercent: number,
   pdfFileName: string
 ): Promise<{ report: MonthlyReportFormatInput; pdfBuffer: Buffer; pdfFileName: string }> {
-  const [movements, previousMovements] = await Promise.all([
+  const [movements, previousMovements, pendingSales] = await Promise.all([
     movementRepository.findByDateRange(period.start, period.end),
     movementRepository.findByDateRange(previousPeriod.start, previousPeriod.end),
+    pendingSaleReportRepository.findByDateRange(period.start, period.end),
   ]);
   const report = summarizeMonthlyReport(
     period,
     movements,
     previousMovements,
     commissionPercent,
-    env.inventoryLocationsEnabled
+    env.inventoryLocationsEnabled,
+    pendingSales
   );
+  report.dailyHistory = buildDailyMovementHistory(period, movements, pendingSales);
 
   return {
     pdfBuffer: await buildMonthlyInventoryPdf({
@@ -269,7 +274,8 @@ export function summarizeMonthlyReport(
   movements: MonthlyMovementWithRelations[],
   previousMovements: MonthlyMovementWithRelations[],
   commissionPercent: number,
-  showStockLocations: boolean
+  showStockLocations: boolean,
+  pendingSales: ReportPendingSale[] = []
 ): MonthlyReportFormatInput {
   const sales = movements.filter((movement) => movement.type === MovementType.SALE);
   const previousSales = previousMovements.filter(
@@ -289,9 +295,85 @@ export function summarizeMonthlyReport(
     movementCounts: countMovements(movements),
     sellers: summarizeSellers(sales, commissionPercent),
     bestSellers: summarizeProducts(sales).slice(0, 3),
-    zeroStockProducts: summarizeZeroStock(movements, sales),
+    zeroStockProducts: summarizeZeroStock(buildStockHistory(period, movements, pendingSales), sales),
     showStockLocations,
   };
+}
+
+export function buildDailyMovementHistory(
+  period: MonthlyPeriod,
+  movements: MonthlyMovementWithRelations[],
+  pendingSales: ReportPendingSale[] = []
+): NonNullable<MonthlyReportFormatInput['dailyHistory']> {
+  const days = new Map<string, { date: Date; entries: string[] }>();
+  for (const date = new Date(period.start); date < period.end; date.setDate(date.getDate() + 1)) {
+    days.set(formatDateKey(date), { date: new Date(date), entries: [] });
+  }
+  const events: Array<{ date: Date; text: string }> = [];
+  const completedSales = new Map(pendingSales.filter((pending) => pending.completedSaleGroupCode)
+    .map((pending) => [pending.completedSaleGroupCode!, pending]));
+  for (const pending of pendingSales) {
+    for (const item of pending.items) {
+      events.push({ date: pending.createdAt, text:
+        `${pending.createdBy.name} abriu a pendência para ${pending.assignedTo.name}: ${item.quantity} un. de ${item.reference} ${item.description}. Estoque disponível: ${item.previousStock} para ${item.reservedStock} un.${item.previousStock > 0 && item.reservedStock === 0 ? ' ESTOQUE ZERADO pela reserva.' : ''}`,
+      });
+    }
+  }
+  for (const movement of movements) {
+    const pending = movement.saleGroupCode ? completedSales.get(movement.saleGroupCode) : undefined;
+    const product = `${movement.product.reference} ${movement.product.description}`;
+    const quantity = movement.quantity === null ? 'quantidade não registrada' : `${movement.quantity} un.`;
+    let action: string;
+    switch (movement.type) {
+      case MovementType.SALE:
+        action = `vendeu ${quantity} de ${product}`;
+        if (pending) action += ` e fechou a pendência, aberta em ${formatDate(pending.createdAt)} para ${pending.assignedTo.name} (estoque já reservado na abertura)`;
+        if (movement.totalValue !== null) action += `. Total: ${formatCurrency(toNumber(movement.totalValue))}`;
+        if (movement.paymentMethod) action += `. Pagamento: ${movement.paymentMethod}`;
+        break;
+      case MovementType.ENTRY:
+        action = `deu entrada em ${quantity} de ${product}`;
+        if (movement.supplier) action += `. Fornecedor: ${movement.supplier}`;
+        if (movement.invoiceNumber) action += `. Nota: ${movement.invoiceNumber}`;
+        break;
+      case MovementType.ADJUSTMENT:
+        action = `ajustou o estoque de ${product}: ${movement.previousStock ?? '?'} para ${movement.newStock ?? '?'} un.`;
+        if (movement.observation?.startsWith('Retorno da pendência ')) {
+          action = `devolveu ${quantity} de ${product} ao estoque e fechou a pendência sem venda`;
+        } else if (movement.observation) {
+          action += ` ${movement.observation}`;
+        }
+        if (movement.reason) action += `. Motivo: ${movement.reason}`;
+        break;
+      case MovementType.PRICE_CHANGE:
+        action = `alterou os preços de ${product}`;
+        try {
+          const prices = JSON.parse(movement.observation ?? 'null');
+          if (prices && ['oldCashPrice', 'newCashPrice', 'oldCreditPrice', 'newCreditPrice']
+            .every((key) => typeof prices[key] === 'number' && Number.isFinite(prices[key]))) {
+            action += `: à vista ${formatCurrency(prices.oldCashPrice)} para ${formatCurrency(prices.newCashPrice)}; a prazo ${formatCurrency(prices.oldCreditPrice)} para ${formatCurrency(prices.newCreditPrice)}`;
+          } else {
+            action += ' (detalhes anteriores não disponíveis)';
+          }
+        } catch {
+          action += ' (detalhes anteriores não disponíveis)';
+        }
+        break;
+    }
+    if (!pending && movement.type !== MovementType.PRICE_CHANGE && movement.previousStock !== null && movement.newStock !== null) {
+      action += `. Estoque: ${movement.previousStock} para ${movement.newStock} un.`;
+      if (movement.previousStock > 0 && movement.newStock === 0) action += ' ESTOQUE ZERADO.';
+      if (movement.previousStock === 0 && movement.newStock > 0) action += ' ESTOQUE REPOSTO.';
+    }
+    events.push({ date: movement.createdAt, text: `${movement.user.name} ${action}` });
+  }
+  events.sort((left, right) => left.date.getTime() - right.date.getTime());
+  for (const event of events) {
+    if (event.date < period.start || event.date >= period.end) continue;
+    const time = `${String(event.date.getHours()).padStart(2, '0')}:${String(event.date.getMinutes()).padStart(2, '0')}`;
+    days.get(formatDateKey(event.date))?.entries.push(`${time} - ${event.text}`.replace(/\s+/g, ' ').trim());
+  }
+  return [...days.values()];
 }
 
 export function summarizeCommissionReport(
@@ -493,8 +575,34 @@ function summarizeProducts(sales: MonthlyMovementWithRelations[]): ProductSummar
   });
 }
 
-function summarizeZeroStock(
+type StockHistoryEvent = Pick<MonthlyMovementWithRelations, 'productId' | 'previousStock' | 'newStock' | 'createdAt'> & {
+  product: Pick<Product, 'reference' | 'description' | 'stockLocation' | 'category'>;
+};
+
+function buildStockHistory(
+  period: MonthlyPeriod,
   movements: MonthlyMovementWithRelations[],
+  pendingSales: ReportPendingSale[]
+): StockHistoryEvent[] {
+  const completedCodes = new Set(pendingSales.map((pending) => pending.completedSaleGroupCode).filter(Boolean));
+  const events: StockHistoryEvent[] = movements.filter((movement) =>
+    !movement.saleGroupCode || !completedCodes.has(movement.saleGroupCode)
+  );
+  for (const pending of pendingSales) {
+    if (pending.createdAt < period.start || pending.createdAt >= period.end) continue;
+    for (const item of pending.items) {
+      events.push({
+        productId: item.productId, previousStock: item.previousStock, newStock: item.reservedStock,
+        createdAt: pending.createdAt,
+        product: { ...item.product, reference: item.reference, description: item.description },
+      });
+    }
+  }
+  return events.sort((left, right) => left.createdAt.getTime() - right.createdAt.getTime());
+}
+
+function summarizeZeroStock(
+  movements: StockHistoryEvent[],
   sales: MonthlyMovementWithRelations[]
 ): ZeroStockSummary[] {
   const soldByProduct = new Map<string, number>();
@@ -505,7 +613,7 @@ function summarizeZeroStock(
     );
   }
 
-  const stockMovementsByProduct = new Map<string, MonthlyMovementWithRelations[]>();
+  const stockMovementsByProduct = new Map<string, StockHistoryEvent[]>();
   for (const movement of movements) {
     if (movement.previousStock === null || movement.newStock === null) {
       continue;

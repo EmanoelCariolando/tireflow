@@ -8,7 +8,7 @@ export type MonthlyInventoryProduct = Pick<
 > & Partial<Pick<Product, 'category' | 'batteryBrand'>>;
 
 export interface MonthlyInventoryPdfInput {
-  report: Pick<MonthlyReportFormatInput, 'period' | 'bestSellers' | 'zeroStockProducts' | 'showStockLocations'> & Partial<Pick<MonthlyReportFormatInput, 'totalRevenue' | 'unitsSold'>>;
+  report: Pick<MonthlyReportFormatInput, 'period' | 'bestSellers' | 'zeroStockProducts' | 'showStockLocations'> & Partial<Pick<MonthlyReportFormatInput, 'totalRevenue' | 'unitsSold' | 'dailyHistory'>>;
   mode?: 'stock' | 'monthly';
   products: MonthlyInventoryProduct[];
   branchName: string;
@@ -90,6 +90,7 @@ export async function buildMonthlyInventoryPdf(
       } else {
         drawOverview(document, input);
         drawZeroStock(document, input);
+        drawDailyHistory(document, input);
       }
       drawPageFooters(document, input);
       document.end();
@@ -297,6 +298,49 @@ function drawZeroStock(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfI
     COLORS.paleAmber,
     COLORS.amber
   );
+}
+
+function drawDailyHistory(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfInput): void {
+  if (!input.report.dailyHistory?.length) return;
+  document.moveDown(0.8);
+  ensureSpace(document, input, 90);
+  drawSectionTitle(document, '3. HISTÓRICO DO PERÍODO');
+  for (const day of input.report.dailyHistory) {
+    ensureSpace(document, input, 48);
+    const label = `DIA ${formatDate(day.date)}`;
+    drawGroupLabel(document, label);
+    for (const entry of day.entries.length ? day.entries : ['Sem movimentação.']) {
+      document.font('Helvetica').fontSize(9);
+      // Render bounded lines so even unusually long records can span pages safely.
+      const lines: string[] = [];
+      let line = '';
+      for (const word of entry.split(/\s+/)) {
+        for (const part of word.match(/.{1,80}/gu) ?? []) {
+          const candidate = line ? `${line} ${part}` : part;
+          if (line && document.widthOfString(candidate) > contentWidth(document) - 16) {
+            lines.push(line);
+            line = part;
+          } else {
+            line = candidate;
+          }
+        }
+      }
+      if (line) lines.push(line);
+      for (const text of lines) {
+        if (document.y + 14 > pageBottom(document)) {
+          addReportPage(document, input);
+          drawSectionTitle(document, 'Histórico do período (continuação)');
+          drawGroupLabel(document, `${label} — continuação`);
+        }
+        const y = document.y;
+        document.fillColor(COLORS.ink).font('Helvetica').fontSize(9)
+          .text(text, PAGE_MARGIN + 8, y, { width: contentWidth(document) - 16, lineBreak: false });
+        document.y = y + 14;
+      }
+      document.y += 3;
+    }
+    document.y += 6;
+  }
 }
 
 function drawSignatures(document: PDFKit.PDFDocument, input: MonthlyInventoryPdfInput): void {

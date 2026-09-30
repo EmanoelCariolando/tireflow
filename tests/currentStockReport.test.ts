@@ -5,6 +5,7 @@ import { ProductCategory } from '@prisma/client';
 import type { Message, MessageMedia } from 'whatsapp-web.js';
 import { productRepository } from '../src/repositories/productRepository.js';
 import { movementRepository } from '../src/repositories/movementRepository.js';
+import { pendingSaleReportRepository } from '../src/repositories/pendingSaleReportRepository.js';
 import { buildCurrentStockReportPdf, buildInventoryReportPdf } from '../src/services/monthlyReportService.js';
 import { handleCurrentStockReportCommand, handleMonthlyInventoryReportConversation } from '../src/commands/monthlyInventoryReportCommand.js';
 import { getMonthlyInventoryReportSession, clearMonthlyInventoryReportSession } from '../src/utils/monthlyInventoryReportSessionStore.js';
@@ -20,6 +21,7 @@ function pdfText(buffer: Buffer): string {
 }
 
 test('stock PDF reads current tires without consulting movement history; monthly PDF never queries current stock', async (t) => {
+  t.mock.method(pendingSaleReportRepository, 'findByDateRange', async () => { throw new Error('Must not load pending sales'); });
   t.mock.method(movementRepository, 'findByDateRange', async () => { throw new Error('History unavailable'); });
   t.mock.method(productRepository, 'findActiveWithPositiveStock', async () => [
     { id: 't', category: ProductCategory.TIRE, reference: '175/70 R14', description: 'PNEU TESTE ATUAL', stock: 7, stockLocation: null },
@@ -31,10 +33,12 @@ test('stock PDF reads current tires without consulting movement history; monthly
   assert.doesNotMatch(text, /BATERIA EXCLUIDA|MAIS VENDIDOS|ZERARAM NO/);
   assert.equal(stock.pdfFileName, 'pneus-estoque-atual-2026-09-28.pdf');
   t.mock.restoreAll();
+  const pendingQuery = t.mock.method(pendingSaleReportRepository, 'findByDateRange', async () => []);
   t.mock.method(productRepository, 'findActiveWithPositiveStock', async () => { throw new Error('Must not load stock'); });
   t.mock.method(movementRepository, 'findByDateRange', async () => []);
   const monthly = await buildInventoryReportPdf({ start: new Date(2026, 8, 1), end: new Date(2026, 8, 29), key: 'test' });
   assert.match(pdfText(monthly.pdfBuffer), /MAIS VENDIDOS/);
+  assert.equal(pendingQuery.mock.callCount(), 1);
   assert.doesNotMatch(pdfText(monthly.pdfBuffer), /CONTADO|PNEUS EM ESTOQUE ATUAL/);
 });
 

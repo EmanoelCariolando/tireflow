@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { inflateSync } from 'node:zlib';
 import { MovementType, Prisma } from '@prisma/client';
+import type { ReportPendingSale } from '../src/repositories/pendingSaleReportRepository.js';
 import {
   formatCommissionReport,
+  buildDailyMovementHistory,
   formatMonthlyReport,
   getCommissionPeriod,
   getPreviousMonthPeriod,
@@ -87,6 +90,118 @@ function movement(
     ...overrides,
   };
 }
+
+test('daily history includes empty days, chronological movements and exclusive period boundaries', () => {
+  const period = { start: new Date(2026, 8, 1), end: new Date(2026, 8, 4), key: 'test' };
+  const records = [
+    movement('price', new Date(2026, 8, 1, 12), {
+      type: MovementType.PRICE_CHANGE,
+      observation: JSON.stringify({ oldCashPrice: 100, newCashPrice: 110, oldCreditPrice: 120, newCreditPrice: 130 }),
+    }),
+    movement('entry', new Date(2026, 8, 1, 10), { type: MovementType.ENTRY, quantity: 4, user: maria }),
+    movement('sale', new Date(2026, 8, 1), { quantity: 2 }),
+    movement('adjustment', new Date(2026, 8, 3, 23, 59), { type: MovementType.ADJUSTMENT, previousStock: 4, newStock: 3 }),
+    movement('before', new Date(2026, 7, 31, 23, 59)),
+    movement('after', period.end),
+  ];
+  const history = buildDailyMovementHistory(period, records);
+  assert.equal(history.length, 3);
+  assert.equal(history[0].entries.length, 3);
+  assert.match(history[0].entries[0], /00:00 - João vendeu 2 un\. de 175\/70 R14 DYNAMO/);
+  assert.match(history[0].entries[1], /Maria deu entrada em 4 un\./);
+  assert.match(history[0].entries[2], /100,00 para R\$\s*110,00; a prazo R\$\s*120,00 para R\$\s*130,00/);
+  assert.deepEqual(history[1].entries, []);
+  assert.match(history[2].entries[0], /4 para 3 un\./);
+  assert.equal(records[0].id, 'price');
+  for (const observation of [null, 'invalid JSON', '{}', 'null']) {
+    const legacy = buildDailyMovementHistory(period, [movement('legacy', period.start, {
+      type: MovementType.PRICE_CHANGE, observation,
+    })]);
+    assert.match(legacy[0].entries[0], /detalhes anteriores não disponíveis/);
+  }
+  assert.equal(buildDailyMovementHistory(getPreviousMonthPeriod(new Date(2028, 2, 1)), []).length, 29);
+});
+
+test('pending history tracks opening, zero stock, later sale and return on the actual days', () => {
+  const period = { start: new Date(2026, 8, 1), end: new Date(2026, 8, 6), key: 'test' };
+  const pending: ReportPendingSale = {
+    code: '#PD-000001', createdAt: new Date(2026, 8, 1, 9), resolvedAt: new Date(2026, 8, 4, 10),
+    status: 'SOLD', completedSaleGroupCode: '#V-000001', createdBy: { name: 'Laudemy' }, assignedTo: { name: 'Manel' },
+    items: [{ productId: productOne.id, reference: productOne.reference, description: productOne.description,
+      quantity: 2, previousStock: 2, reservedStock: 0, product: { stockLocation: null, category: 'TIRE' } }],
+  };
+  const sale = movement('closing', pending.resolvedAt!, { saleGroupCode: pending.completedSaleGroupCode,
+    quantity: 2, previousStock: 2, newStock: 0, totalValue: new Prisma.Decimal(600), paymentMethod: 'PIX' });
+  const refill = movement('refill', new Date(2026, 8, 2, 8), {
+    type: MovementType.ENTRY, quantity: 5, previousStock: 0, newStock: 5, supplier: 'Fornecedor teste', invoiceNumber: '123',
+  });
+  const history = buildDailyMovementHistory(period, [sale, refill], [pending]);
+  assert.match(history[0].entries[0], /Laudemy abriu a pendência para Manel/);
+  assert.match(history[0].entries[0], /ESTOQUE ZERADO pela reserva/);
+  assert.doesNotMatch(history[0].entries[0], /fechou|vendeu/);
+  assert.match(history[1].entries[0], /Fornecedor teste.*Nota: 123.*ESTOQUE REPOSTO/);
+  assert.match(history[3].entries[0], /João vendeu 2 un\..*e fechou a pendência, aberta em 01\/09\/2026/);
+  assert.doesNotMatch(JSON.stringify(history), /#PD-/);
+  assert.doesNotMatch(history[3].entries[0], /ESTOQUE ZERADO|Estoque: 2 para 0/);
+  assert.match(history[3].entries[0], /600,00.*PIX/);
+  assert.deepEqual(history[4].entries, []);
+  const summary = summarizeMonthlyReport(period, [sale, refill], [], 2, false, [pending]);
+  assert.equal(summary.saleCount, 1);
+  assert.equal(summary.totalRevenue, 600);
+  assert.equal(summary.zeroStockProducts.length, 1);
+  assert.equal(summary.zeroStockProducts[0].zeroedAt.getTime(), pending.createdAt.getTime());
+  assert.equal(summary.zeroStockProducts[0].endedAtZero, false);
+
+  const closingPeriod = { ...period, start: new Date(2026, 8, 4) };
+  const closingHistory = buildDailyMovementHistory(closingPeriod, [sale], [pending]);
+  assert.equal(closingHistory[0].entries.length, 1);
+  assert.match(closingHistory[0].entries[0], /aberta em 01\/09\/2026/);
+  assert.equal(summarizeMonthlyReport(closingPeriod, [sale], [], 2, false, [pending]).zeroStockProducts.length, 0);
+  const returned = { ...pending, status: 'RETURNED' as const, completedSaleGroupCode: null };
+  const returnMovement = movement('returned', pending.resolvedAt!, { type: MovementType.ADJUSTMENT,
+    quantity: 2, previousStock: 0, newStock: 2, observation: 'Retorno da pendência #PD-000001',
+    reason: 'Produto não vendido e devolvido ao estoque' });
+  const returns = buildDailyMovementHistory(period, [returnMovement], [returned]);
+  assert.equal(returns[3].entries.length, 1);
+  assert.match(returns[3].entries[0], /João devolveu 2 un\..*fechou a pendência sem venda.*ESTOQUE REPOSTO/);
+  assert.doesNotMatch(JSON.stringify(returns), /#PD-/);
+  const openingOnly = buildDailyMovementHistory({ ...period, end: new Date(2026, 8, 2) }, [sale], [pending]);
+  assert.equal(openingOnly[0].entries.length, 1);
+  assert.doesNotMatch(openingOnly[0].entries[0], /fechou/);
+});
+
+function pdfPageTexts(pdf: Buffer): string[] {
+  return [...pdf.toString('latin1').matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)].map((match) => {
+    const stream = inflateSync(Buffer.from(match[1], 'latin1')).toString('latin1');
+    return [...stream.matchAll(/<([0-9a-f]+)>/gi)].map((text) => Buffer.from(text[1], 'hex').toString('latin1')).join('');
+  });
+}
+
+test('monthly PDF paginates complete daily history and keeps it out of current stock PDF', async () => {
+  const period = { start: new Date(2026, 8, 1), end: new Date(2026, 8, 3), key: 'test' };
+  const records = Array.from({ length: 180 }, (_, index) => movement(String(index), new Date(2026, 8, 1, 9, index), {
+    quantity: 1,
+    product: { ...productOne, description: `REGISTRO${String(index).padStart(3, '0')} ${'Descricao longa '.repeat(index === 90 ? 500 : 5)}` },
+  }));
+  const report = summarizeMonthlyReport(period, records, [], 2, false);
+  report.dailyHistory = buildDailyMovementHistory(period, records);
+  const input = { report, products: [], branchName: 'TESTE', generatedAt: period.end };
+  const pdf = await buildMonthlyInventoryPdf(input);
+  const pages = pdfPageTexts(pdf);
+  const text = pages.join('');
+  assert.match(text, /HISTÓRICO DO PERÍODO/);
+  assert.match(text, /PRODUTOS MAIS VENDIDOS/);
+  assert.match(text, /DIA 02\/09\/2026Sem movimentação/);
+  for (let index = 0; index < 180; index++) {
+    assert.ok(text.includes(`REGISTRO${String(index).padStart(3, '0')}`));
+  }
+  assert.ok(pages.length > 5 && pages.length < 35, `Unexpected page count: ${pages.length}`);
+  assert.ok(pages.every((page) => page.includes('Página') && page.length > 80));
+  assert.ok(pdf.length < 500_000);
+  const stock = pdfPageTexts(await buildMonthlyInventoryPdf({ ...input, mode: 'stock' })).join('');
+  assert.doesNotMatch(stock, /HISTÓRICO DO PERÍODO|REGISTRO/);
+  assert.match(stock, /PNEUS EM ESTOQUE ATUAL/);
+});
 
 test('counts grouped item movements as one sale while preserving units and revenue', () => {
   const period = getPreviousMonthPeriod(new Date(2026, 7, 1, 8, 0));
