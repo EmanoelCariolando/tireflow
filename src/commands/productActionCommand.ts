@@ -25,7 +25,7 @@ import { formatProductChoiceQuestion } from './pneuCommand.js';
 import { handlePriceCommand } from './priceCommand.js';
 import { handleAddPhotoCommand, handlePhotoCommand } from './productPhotoCommand.js';
 import { handleSaleCommand } from './saleCommand.js';
-import { isBatteryCategory } from '../utils/productCategory.js';
+import { isBatteryCategory, isInnerTubeCategory, getProductIcon } from '../utils/productCategory.js';
 
 type IndexedCommandHandler = (message: Message, body: string) => Promise<boolean>;
 type SaleCommandStarter = (message: Message, body: string) => Promise<boolean>;
@@ -153,7 +153,7 @@ export async function handleProductActionConversation(
   if (session.step === 'awaiting_product') {
     if (!Number.isSafeInteger(selection) || selection <= 0 || !lastQuery.products[selection - 1]) {
       const category = lastQuery.products[0]?.category;
-      const productLabel = isBatteryCategory(category) ? 'Bateria' : 'Pneu';
+      const productLabel = isInnerTubeCategory(category) ? 'Câmara' : isBatteryCategory(category) ? 'Bateria' : 'Pneu';
       await message.reply(`❌ ${productLabel} inválido.\n\n${formatProductChoiceQuestion(category)}`);
       return true;
     }
@@ -166,9 +166,8 @@ export async function handleProductActionConversation(
       session.mode
     );
     const product = lastQuery.products[selection - 1];
-    const isBattery = isBatteryCategory(product.category);
     await message.reply(
-      `${isBattery ? '🔋' : '🛞'} *${product.reference} — ${product.description}*`
+      `${getProductIcon(product.category)} *${product.reference} — ${product.description}*`
     );
     await message.reply(
       session.mode === 'zero_stock'

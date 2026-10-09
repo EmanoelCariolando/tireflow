@@ -38,7 +38,7 @@ import {
   findSuggestedActiveReferences,
 } from '../services/productService.js';
 import { formatReferenceSuggestions } from './pneuCommand.js';
-import { getProductIcon, isBatteryCategory } from '../utils/productCategory.js';
+import { getProductIcon, isBatteryCategory, isInnerTubeCategory } from '../utils/productCategory.js';
 
 const ADJUSTMENT_COMMAND_REGEX = /^ajuste\s+(\d+)$/i;
 
@@ -60,7 +60,7 @@ export function formatAdjustmentTypeQuestion(
     '1️⃣ Informar o estoque contado (saldo final)',
     '2️⃣ Adicionar unidades',
     '3️⃣ Retirar unidades',
-    ...(isBatteryCategory(session.category) ? [] : ['4️⃣ Transferir para outro pneu']),
+    ...(isBatteryCategory(session.category) || isInnerTubeCategory(session.category) ? [] : ['4️⃣ Transferir para outro pneu']),
     '0️⃣ Cancelar',
   ].join('\n');
 }
@@ -196,14 +196,14 @@ async function handleAdjustmentTypeStep(
     return;
   }
 
-  if (kind === 'transfer' && isBatteryCategory(session.category)) {
+  if (kind === 'transfer' && (isBatteryCategory(session.category) || isInnerTubeCategory(session.category))) {
     await message.reply(`❌ Opção inválida.\n\n${formatAdjustmentTypeQuestion(session)}`);
     return;
   }
 
   if ((kind === 'remove' || kind === 'transfer') && session.previousStock <= 0) {
     await message.reply(
-      `⚠️ ${isBatteryCategory(session.category) ? 'Esta bateria' : 'Este pneu'} está com estoque *0* e não possui unidades para ${
+      `⚠️ ${isInnerTubeCategory(session.category) ? 'Esta câmara' : isBatteryCategory(session.category) ? 'Esta bateria' : 'Este pneu'} está com estoque *0* e não possui unidades para ${
         kind === 'remove' ? 'retirar' : 'transferir'
       }.\n\n${formatAdjustmentTypeQuestion(session)}`
     );

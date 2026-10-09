@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { parseInnerTubeCommand, handleInnerTubeCommand } from '../commands/innerTubeCommand.js';
 import {
   isPneuCommand,
   handlePneuCommand,
@@ -243,6 +244,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isBatterySearchCommand(body)) {
     await handleBatteryCommand(message, body);
+    return;
+  }
+
+  if (parseInnerTubeCommand(body)) {
+    await handleInnerTubeCommand(message, body);
     return;
   }
 

@@ -14,7 +14,7 @@ import env from '../config/env.js';
 import { clearMenuSession } from '../utils/menuSessionStore.js';
 import { saveProductActionSession } from '../utils/productActionSessionStore.js';
 import type { ProductCategory } from '@prisma/client';
-import { isBatteryCategory } from '../utils/productCategory.js';
+import { isBatteryCategory, isInnerTubeCategory } from '../utils/productCategory.js';
 
 /**
  * Pneu Command - Fase 6 (Consulta real no banco)
@@ -66,6 +66,9 @@ export function formatProductList(
 }
 
 export function formatProductChoiceQuestion(category?: ProductCategory): string {
+  if (isInnerTubeCategory(category)) {
+    return '*ESCOLHA UMA CÂMARA DE AR ⭕*\n*Digite o número da câmara:*';
+  }
   if (isBatteryCategory(category)) {
     return [
       '*ESCOLHA UMA BATERIA 🔋*',

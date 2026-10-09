@@ -23,7 +23,7 @@ import { downloadMessageMediaResilient } from '../services/whatsappMediaDownload
 import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
 import { isCancellationResponse } from '../utils/operationResponse.js';
 import type { ProductCategory } from '@prisma/client';
-import { getProductIcon, isBatteryCategory } from '../utils/productCategory.js';
+import { getProductIcon, isBatteryCategory, isInnerTubeCategory } from '../utils/productCategory.js';
 import { isBatterySearchCommand } from '../services/batteryService.js';
 
 const { MessageMedia: WhatsAppMessageMedia } = whatsappWeb;
@@ -189,7 +189,7 @@ export async function handleAddPhotoCommand(
   });
 
   await message.reply(
-    `📷 *FOTO ${isBatteryCategory(queriedProduct.category) ? 'DA BATERIA' : 'DO PNEU'}*\n` +
+    `📷 *FOTO ${isInnerTubeCategory(queriedProduct.category) ? 'DA CÂMARA' : isBatteryCategory(queriedProduct.category) ? 'DA BATERIA' : 'DO PNEU'}*\n` +
       `*${queriedProduct.description}*\nEnvie a imagem.`
   );
 }
@@ -222,7 +222,8 @@ export async function handleAddPhotoConversation(
   if (
     normalizedBody === 'pneu' ||
     normalizedBody.startsWith('pneu ') ||
-    isBatterySearchCommand(normalizedBody)
+    isBatterySearchCommand(normalizedBody) ||
+    /^c[âa]mara(?:\s+mt)?$/.test(normalizedBody)
   ) {
     clearAddPhotoSession(userId, chatId);
     return false;
@@ -230,7 +231,7 @@ export async function handleAddPhotoConversation(
 
   if (!message.hasMedia || (message.type !== 'image' && message.type !== 'document')) {
     await message.reply(
-      `❌ Envie uma imagem válida ${isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
+      `❌ Envie uma imagem válida ${isInnerTubeCategory(session.category) ? 'da câmara' : isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
     );
     return true;
   }
@@ -275,7 +276,7 @@ export async function handleAddPhotoConversation(
 
     if (error instanceof UnsupportedProductImageError) {
       await message.reply(
-        `❌ Envie uma imagem válida ${isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
+        `❌ Envie uma imagem válida ${isInnerTubeCategory(session.category) ? 'da câmara' : isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
       );
       return true;
     }

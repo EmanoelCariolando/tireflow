@@ -23,6 +23,8 @@ enum PendingSaleStatus {
 enum ProductCategory {
   TIRE
   BATTERY
+  INNER_TUBE
+  MOTORCYCLE_INNER_TUBE
 }
 
 enum BatteryBrand {
