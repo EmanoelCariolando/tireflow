@@ -42,8 +42,9 @@ export function formatBatteryList(
     : `🔋 *BATERIAS — ${queryLabel}*\n\n`;
 
   products.forEach((product, index) => {
-    text += `\n${index + 1}️⃣ *${formatBatteryBrand(product.batteryBrand)} — ${product.reference}*\n`;
-    text += `📝 ${product.description}\n`;
+    const capacity = product.description.match(/\b(\d{2,3})\s*A\s*\/?\s*H\b/i)?.[1];
+    text += `\n${index + 1}️⃣ *BATERIA ${formatBatteryBrand(product.batteryBrand)}${capacity ? ` ${capacity} Ah` : ''}*\n`;
+    text += `📝 ${product.reference} — ${product.description}\n`;
     text += `📦 Estoque: *${product.stock}*\n`;
     if (showStockLocation) {
       const location =
@@ -55,6 +56,10 @@ export function formatBatteryList(
     if (product.hasPhoto) text += '\n📷';
     if (index < products.length - 1) text += '\n';
   });
+
+  if (queryLabel === '60' && !zeroStock) {
+    text += '\n\n♻️ *Bateria de 60 Ah sem entrega da carcaça usada:* acréscimo de *R$ 90,00* por unidade.';
+  }
 
   if (
     showStockLocation &&

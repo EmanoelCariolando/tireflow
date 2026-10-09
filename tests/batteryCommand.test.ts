@@ -85,8 +85,13 @@ test('formats batteries distinctly while preserving the existing product workflo
     false
   );
   assert.match(text, /^🔋 \*BATERIAS — 60\*/);
-  assert.match(text, /MOURA — M60GD/);
-  assert.match(text, /ZETTA — Z60D/);
+  assert.match(text, /BATERIA MOURA 60 Ah/);
+  assert.match(text, /BATERIA ZETTA 60 Ah/);
+  assert.match(text, /M60GD — 60AH 12V DIREITA/);
+  assert.match(text, /Z60D — 60 AH 12V DIREITA/);
+  assert.match(text, /sem entrega da carcaça usada:.*R\$ 90,00/);
+  assert.doesNotMatch(formatBatteryList([], '100', false, false), /carcaça/);
+  assert.doesNotMatch(formatBatteryList([], '60', true, false), /carcaça/);
   assert.doesNotMatch(text, /🛞/);
   assert.equal(
     formatProductChoiceQuestion(ProductCategory.BATTERY),
