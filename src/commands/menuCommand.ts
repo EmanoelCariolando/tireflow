@@ -1,5 +1,6 @@
 import { Message } from 'whatsapp-web.js';
 import { parseInnerTubeCommand, handleInnerTubeCommand } from './innerTubeCommand.js';
+import { parseRetreadedTireCommand, handleRetreadedTireCommand } from './retreadedTireCommand.js';
 import { handleBestSellersCommand } from './bestSellersCommand.js';
 import { handleTodayReportCommand } from './todayReportCommand.js';
 import {
@@ -70,6 +71,10 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
   const rawMeasure = body.trim().replace(/^0\s+/, '');
+  if (parseRetreadedTireCommand(rawMeasure)) {
+    await handleRetreadedTireCommand(message, rawMeasure, true);
+    return;
+  }
   if (parseInnerTubeCommand(rawMeasure)) {
     await handleInnerTubeCommand(message, rawMeasure, true);
     return;

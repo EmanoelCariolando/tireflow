@@ -26,3 +26,7 @@ export function getProductNoun(
 export function isInnerTubeCategory(category: ProductCategoryLike): boolean {
   return category === ProductCategory.INNER_TUBE || category === ProductCategory.MOTORCYCLE_INNER_TUBE;
 }
+
+export function isRetreadedTireCategory(category: ProductCategoryLike): boolean {
+  return category === ProductCategory.RETREADED_TIRE || category === ProductCategory.MOTORCYCLE_RETREADED_TIRE;
+}

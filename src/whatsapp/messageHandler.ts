@@ -1,5 +1,6 @@
 import { Message } from 'whatsapp-web.js';
 import { parseInnerTubeCommand, handleInnerTubeCommand } from '../commands/innerTubeCommand.js';
+import { parseRetreadedTireCommand, handleRetreadedTireCommand } from '../commands/retreadedTireCommand.js';
 import {
   isPneuCommand,
   handlePneuCommand,
@@ -249,6 +250,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (parseInnerTubeCommand(body)) {
     await handleInnerTubeCommand(message, body);
+    return;
+  }
+
+  if (parseRetreadedTireCommand(body)) {
+    await handleRetreadedTireCommand(message, body);
     return;
   }
 

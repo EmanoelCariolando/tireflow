@@ -25,6 +25,7 @@ import { isCancellationResponse } from '../utils/operationResponse.js';
 import type { ProductCategory } from '@prisma/client';
 import { getProductIcon, isBatteryCategory, isInnerTubeCategory } from '../utils/productCategory.js';
 import { isBatterySearchCommand } from '../services/batteryService.js';
+import { parseRetreadedTireCommand } from './retreadedTireCommand.js';
 
 const { MessageMedia: WhatsAppMessageMedia } = whatsappWeb;
 const PHOTO_COMMAND_REGEX = /^foto\s+(\d+)$/i;
@@ -223,6 +224,7 @@ export async function handleAddPhotoConversation(
     normalizedBody === 'pneu' ||
     normalizedBody.startsWith('pneu ') ||
     isBatterySearchCommand(normalizedBody) ||
+    parseRetreadedTireCommand(normalizedBody) ||
     /^c[âa]mara(?:\s+mt)?$/.test(normalizedBody)
   ) {
     clearAddPhotoSession(userId, chatId);

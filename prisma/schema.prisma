@@ -25,6 +25,8 @@ enum ProductCategory {
   BATTERY
   INNER_TUBE
   MOTORCYCLE_INNER_TUBE
+  RETREADED_TIRE
+  MOTORCYCLE_RETREADED_TIRE
 }
 
 enum BatteryBrand {

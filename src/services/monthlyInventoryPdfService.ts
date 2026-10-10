@@ -603,6 +603,8 @@ function groupInventoryRows(
       ? `BATERIAS — ${row.batteryBrand === BatteryBrand.ZETTA ? 'ZETTA' : 'MOURA'}`
       : row.category === ProductCategory.MOTORCYCLE_INNER_TUBE ? 'CÂMARAS DE AR — MOTOS'
       : row.category === ProductCategory.INNER_TUBE ? 'CÂMARAS DE AR — CARROS E AGRÍCOLAS'
+      : row.category === ProductCategory.MOTORCYCLE_RETREADED_TIRE ? 'PNEUS COBERTOS — MOTOS'
+      : row.category === ProductCategory.RETREADED_TIRE ? 'PNEUS COBERTOS — CARROS E MÁQUINAS'
       : (() => {
           const rim = getInventoryProductRim(row);
           return rim === null ? 'OUTRAS MEDIDAS' : `ARO ${formatRim(rim)}`;
