@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { ChildProcess } from 'node:child_process';
 import type { ConsoleMessage, HTTPRequest, Page } from 'puppeteer';
 import env from '../config/env.js';
+import { isStartupErrorPage, isRetryableStartupFailure, startupNetworkRetryDelay, WhatsAppStartupPageError } from './startupFailure.js';
 import {
   forceStopBrowserProcessTree,
   isExpectedBrowserProfileConflict,
@@ -119,7 +120,7 @@ function createResilientLocalAuth(): InstanceType<typeof LocalAuth> {
 
 async function waitForPuppeteerPage(): Promise<Page | undefined> {
   for (let attempt = 0; attempt < 100; attempt++) {
-    if (whatsappClient.pupPage) {
+    if (whatsappClient.pupPage && !whatsappClient.pupPage.isClosed()) {
       return whatsappClient.pupPage;
     }
 
@@ -182,7 +183,7 @@ async function readWhatsAppPageDiagnostics(): Promise<WhatsAppPageDiagnostics | 
   }
 
   try {
-    return await page.evaluate(`
+    return await withTimeout(page.evaluate(`
       (() => {
         const hasValue = (name) => {
           try {
@@ -223,7 +224,7 @@ async function readWhatsAppPageDiagnostics(): Promise<WhatsAppPageDiagnostics | 
           offlineProgress: readOfflineProgress(),
         };
       })()
-    `) as WhatsAppPageDiagnostics;
+    `), 5000) as WhatsAppPageDiagnostics;
   } catch (error) {
     console.error('Could not read WhatsApp page diagnostics:', error);
     return undefined;
@@ -261,9 +262,10 @@ async function attachMessageListenersManually(): Promise<boolean> {
   }
 }
 
-function createReadyOrManualAttachPromise(): Promise<void> {
+function createReadyOrManualAttachPromise(signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     let recoveryTimeout: NodeJS.Timeout | undefined;
+    let pageCheckTimeout: NodeJS.Timeout | undefined;
     let recoveryRunning = false;
     let settled = false;
 
@@ -279,6 +281,7 @@ function createReadyOrManualAttachPromise(): Promise<void> {
 
       try {
         const attached = await attachMessageListenersManually();
+        if (settled) return;
         if (attached) {
           markWhatsAppReady('manual recovery');
           finish();
@@ -304,6 +307,8 @@ function createReadyOrManualAttachPromise(): Promise<void> {
       whatsappClient.removeListener('ready', onReady);
       whatsappClient.removeListener('auth_failure', onAuthFailure);
       whatsappClient.removeListener('disconnected', onDisconnected);
+      if (pageCheckTimeout) clearTimeout(pageCheckTimeout);
+      signal.removeEventListener('abort', onAbort);
       resolve();
     };
 
@@ -315,8 +320,23 @@ function createReadyOrManualAttachPromise(): Promise<void> {
       whatsappClient.removeListener('ready', onReady);
       whatsappClient.removeListener('auth_failure', onAuthFailure);
       whatsappClient.removeListener('disconnected', onDisconnected);
+      if (pageCheckTimeout) clearTimeout(pageCheckTimeout);
+      signal.removeEventListener('abort', onAbort);
       reject(error);
     };
+
+    const onAbort = (): void => fail(new Error('WhatsApp startup attempt ended.'));
+    async function checkErrorPage(): Promise<void> {
+      if (settled) return;
+      const page = whatsappClient.pupPage;
+      const diagnostics = page && !page.isClosed() ? await readWhatsAppPageDiagnostics() : undefined;
+      if (settled) return;
+      if (isStartupErrorPage(diagnostics)) {
+        fail(new WhatsAppStartupPageError());
+        return;
+      }
+      pageCheckTimeout = setTimeout(() => void checkErrorPage(), 5000);
+    }
 
     const onReady = (): void => {
       markWhatsAppReady('ready event');
@@ -339,6 +359,8 @@ function createReadyOrManualAttachPromise(): Promise<void> {
     whatsappClient.once('authenticated', onAuthenticated);
     whatsappClient.once('auth_failure', onAuthFailure);
     whatsappClient.once('disconnected', onDisconnected);
+    signal.addEventListener('abort', onAbort, { once: true });
+    pageCheckTimeout = setTimeout(() => void checkErrorPage(), 5000);
   });
 }
 
@@ -486,10 +508,15 @@ export async function startWhatsAppClient(): Promise<void> {
   console.log('🚀 Starting WhatsApp client...');
   qrPromptShown = false;
   let profileConflictCount = 0;
+  let networkFailureCount = 0;
 
   while (true) {
+    const attempt = new AbortController();
+    let initializationSettled: Promise<void> | undefined;
     try {
-      const initializePromise = whatsappClient.initialize();
+      const readyPromise = createReadyOrManualAttachPromise(attempt.signal);
+      const initializePromise = Promise.resolve().then(() => whatsappClient.initialize());
+      initializationSettled = initializePromise.then(() => undefined, () => undefined);
       const initializeFailurePromise = initializePromise.then(
         () => new Promise<void>(() => undefined),
         (error: unknown) => Promise.reject(error),
@@ -498,13 +525,26 @@ export async function startWhatsAppClient(): Promise<void> {
       void attachBrowserDiagnostics();
 
       await withTimeout(
-        Promise.race([createReadyOrManualAttachPromise(), initializeFailurePromise]),
+        Promise.race([readyPromise, initializeFailurePromise]),
         START_TIMEOUT_MS,
       );
       return;
     } catch (error) {
-      await logWhatsAppPageDiagnostics();
+      attempt.abort();
+      const diagnostics = await readWhatsAppPageDiagnostics();
+      console.error('WhatsApp startup attempt failed:', error);
+      console.error('WhatsApp page diagnostics:', diagnostics);
       await stopWhatsAppClient();
+      // Never reuse this client while the previous initialize is still running.
+      if (initializationSettled) await withTimeout(initializationSettled, 5000);
+
+      if (isRetryableStartupFailure(error) || isStartupErrorPage(diagnostics)) {
+        networkFailureCount += 1;
+        const retryDelay = startupNetworkRetryDelay(networkFailureCount);
+        console.warn(`[WHATSAPP] Startup page/network failure. Retrying in ${retryDelay / 1000} seconds without removing the saved session.`);
+        await wait(retryDelay);
+        continue;
+      }
 
       if (!isExpectedBrowserProfileConflict(error, WHATSAPP_PROFILE_PATH)) {
         throw error;
@@ -517,6 +557,8 @@ export async function startWhatsAppClient(): Promise<void> {
         `[WHATSAPP] Chrome profile conflict (${recovery}). Retrying in ${Math.round(retryDelay / 1000)} seconds without restarting TireFlow.`,
       );
       await wait(retryDelay);
+    } finally {
+      attempt.abort();
     }
   }
 }
@@ -526,6 +568,7 @@ export async function startWhatsAppClient(): Promise<void> {
  */
 export async function stopWhatsAppClient(): Promise<void> {
   whatsappReady = false;
+  diagnosticsAttached = false;
   const browserProcess = whatsappClient.pupBrowser?.process?.();
   let gracefulStopFailed = false;
 
