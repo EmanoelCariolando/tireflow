@@ -50,6 +50,7 @@ export const productRepository = {
         stockLocation: true,
         cashPrice: true,
         creditPrice: true,
+        tenInstallmentPrice: true,
         imagePath: true,
       },
       where: {
@@ -66,6 +67,33 @@ export const productRepository = {
         { reference: 'asc' },
         { description: 'asc' },
       ],
+    });
+  },
+
+  findActiveMotorcycleTires(
+    zeroStock: boolean,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.findMany({
+      select: {
+        id: true,
+        reference: true,
+        description: true,
+        category: true,
+        batteryBrand: true,
+        stock: true,
+        stockLocation: true,
+        cashPrice: true,
+        creditPrice: true,
+        tenInstallmentPrice: true,
+        imagePath: true,
+      },
+      where: {
+        category: ProductCategory.MOTORCYCLE_TIRE,
+        isActive: true,
+        stock: zeroStock ? { lte: 0 } : { gt: 0 },
+      },
+      orderBy: [{ reference: 'asc' }, { description: 'asc' }],
     });
   },
 
@@ -97,6 +125,7 @@ export const productRepository = {
         stockLocation: true,
         cashPrice: true,
         creditPrice: true,
+        tenInstallmentPrice: true,
         imagePath: true,
       },
       where: {

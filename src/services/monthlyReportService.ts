@@ -210,7 +210,10 @@ async function buildInventoryReportForPeriod(
 
 export async function buildCurrentStockReportPdf(generatedAt = new Date()): Promise<InventoryReportPdfDelivery> {
   const products = (await productRepository.findActiveWithPositiveStock())
-    .filter((product) => product.category === Category.TIRE);
+    .filter((product) =>
+      product.category === Category.TIRE ||
+      product.category === Category.MOTORCYCLE_TIRE
+    );
   return {
     pdfFileName: `pneus-estoque-atual-${formatDateKey(generatedAt)}.pdf`,
     pdfBuffer: await buildMonthlyInventoryPdf({

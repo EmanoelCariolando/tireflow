@@ -33,7 +33,8 @@ export function appendPricedSaleItem(
   session: SaleSession,
   priceType: SalePriceType
 ): SaleSession {
-  const unitPrice = priceType === 'À vista' ? session.cashPrice : session.creditPrice;
+  const unitPrice = priceType === '10X' ? session.tenInstallmentPrice : priceType === 'À vista' ? session.cashPrice : session.creditPrice;
+  if (unitPrice == null || !Number.isFinite(unitPrice) || unitPrice <= 0) throw new Error('Preço selecionado indisponível.');
   const newItem: SaleItem = {
     productId: session.productId,
     reference: session.reference,
@@ -43,6 +44,7 @@ export function appendPricedSaleItem(
     quantity: session.quantity,
     cashPrice: session.cashPrice,
     creditPrice: session.creditPrice,
+    tenInstallmentPrice: session.tenInstallmentPrice,
     priceType,
     unitPrice,
     totalValue: session.quantity * unitPrice,
@@ -94,6 +96,7 @@ export function getSaleItems(session: SaleSession): SaleItem[] {
     quantity: session.quantity,
     cashPrice: session.cashPrice,
     creditPrice: session.creditPrice,
+    tenInstallmentPrice: session.tenInstallmentPrice,
     priceType,
     unitPrice: baseTotalValue / session.quantity,
     totalValue: baseTotalValue,

@@ -1,0 +1,3897 @@
+[
+  {
+    "source": "P09 6.00-9 ATF PATTERN 5491 12L TT AA",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P10 650/10 EMPILHADEIRA 10L TT GIND 230 GRP COMP",
+    "ten_price": 533.99,
+    "cash_price": 489.0
+  },
+  {
+    "source": "P12 155R12C ONYX NY-20 8PR",
+    "ten_price": 271.91,
+    "cash_price": 249.0
+  },
+  {
+    "source": "P12 700/12 EMPILHADEIRA 10L TT GIND 230 GRP COMP",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P13 165/70/13 ECOIRIS",
+    "ten_price": 337.43,
+    "cash_price": 309.0
+  },
+  {
+    "source": "P13 165/70/13 FATE AR 360 SENTIVA 82T",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P13 165/70/13 SPM MH01",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P13 175/70/13 BRAVURIS CONTINENTAL",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P13 175/70/13 DYNAMO 82 T MH 01",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P13 175/70/13 ECOIRIS 82T",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P13 175/70/13 FATE AR 360 SENTIVA 82T",
+    "ten_price": 304.67,
+    "cash_price": 279.0
+  },
+  {
+    "source": "P13 175/70/13 FATE PRESTIVA",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P13 175/70/13 GENERALTIRE ALTIMAX CONTINENTAL",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P13 175/70/13 GOODYER TOURINE",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P13 175/70/13 ITARO",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P13 175/70/13 JK TYRE TORNADO",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P13 175/70/13 MAGNUM H/T MGM51 82T",
+    "ten_price": 315.59,
+    "cash_price": 289.0
+  },
+  {
+    "source": "P13 175/70/13 ONYX NY-805 82H",
+    "ten_price": 304.67,
+    "cash_price": 279.0
+  },
+  {
+    "source": "P13 175/70/13 POWER CONTACT2 CONTINENTAL",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P13 175/70/13 SPEEDMAX STREET -H MH01",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P13 175/70/13 SPM 82 T MH01",
+    "ten_price": 337.43,
+    "cash_price": 309.0
+  },
+  {
+    "source": "P13 175/70/13 TL 82T MERIDIONAL CASUMINA",
+    "ten_price": 337.43,
+    "cash_price": 309.0
+  },
+  {
+    "source": "P13 175/75/13 G PUSH GRP TL 203 84T",
+    "ten_price": 282.83,
+    "cash_price": 259.0
+  },
+  {
+    "source": "P13 175/75/13 ITARO 84T",
+    "ten_price": 315.59,
+    "cash_price": 289.0
+  },
+  {
+    "source": "P13 175/75/13 ONYX NY806",
+    "ten_price": 304.67,
+    "cash_price": 279.0
+  },
+  {
+    "source": "P13 175/75/13 SPM 203 SPM 84T",
+    "ten_price": 304.67,
+    "cash_price": 279.0
+  },
+  {
+    "source": "P13 175/75/13 TRAZANO TRITON TT-118 85T",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P13 175/75/13 WEST LAKE REBOQUE",
+    "ten_price": 348.35,
+    "cash_price": 319.0
+  },
+  {
+    "source": "P14 165/60/14 ONYX NY-806",
+    "ten_price": 260.99,
+    "cash_price": 239.0
+  },
+  {
+    "source": "P14 165/60/14 SPM DRIVEMAX C10",
+    "ten_price": 282.83,
+    "cash_price": 259.0
+  },
+  {
+    "source": "P14 165/70/14 CONTINENTAL BARUM BRAVURIS 85T",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P14 165/70/14 ROADX RXMOTION H01 81T TL",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P14 165/70/14 SPM NEOMAX 81 T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/65/14 CEAT ECODRIVE TL T2T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/65/14 82T MERIDIONAL CASUMINA",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P14 175/65/14 82T P1 CINTURATO PIRELLI",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 175/65/14 APOLO AMEZER",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P14 175/65/14 CINT P4",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P14 175/65/14 CONTINENTAL BARUN BRAVURIS 5HM",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P14 175/65/14 ECORIS 86T",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 175/65/14 FATE AR-360 SENTIVA 82H TL",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P14 175/65/14 FATE PRESTIVA 82T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/65/14 FERENTINO E-LOGIC 86T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/65/14 JK TIRE VECTRA 82H",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/65/14 KUNHO TIRE NEW SENSE 82H",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 175/65/14 MAGNUM MGM52 82T",
+    "ten_price": 304.67,
+    "cash_price": 279.0
+  },
+  {
+    "source": "P14 175/65/14 MICHELAN ENERGY XM2 MAIS 82H",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P14 175/65/14 ONYX NY-805 82H",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/65/14 PIRELLI ENERGY FORMULA 82T",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P14 175/65/14 PIRELLI P400",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/65/14 SPEEDMAXIII STREET-MH01 86T",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P14 175/65/14 SPEEDMAXIII VT MAX 82T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/70/14 FARROUD FRD18 LT 95/93S",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P14 175/70/14 SPEEDMAX T MAX 82T",
+    "ten_price": 315.59,
+    "cash_price": 289.0
+  },
+  {
+    "source": "P14 175/70/14 SPEEDMAXIII STREET-H MH01 84T",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P14 175/70/14 SPEEDMAXIII VT MAX 84T",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 175/70/14 APOLO AMAZER 84T",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 175/70/14 C NL 106 CARGO SUNNY",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P14 175/70/14 CEAT",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P14 175/70/14 CONTINENTAL BARUN",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 175/70/14 DYNAMO STREET-H MH01 84T",
+    "ten_price": 348.35,
+    "cash_price": 319.0
+  },
+  {
+    "source": "P14 175/70/14 ECODRI CEA SC",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 175/70/14 ECOIRIS",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 175/70/14 FATE PRESTIVA 84T",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P14 175/70/14 FATE SENTIVA",
+    "ten_price": 423.7,
+    "cash_price": 388.0
+  },
+  {
+    "source": "P14 175/70/14 FERENTINO E-LOGIC 88T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/70/14 FIRESTONE F-700 848T",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P14 175/70/14 G PRO TRAIL AT GRP84T",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P14 175/70/14 JK TIRE VECTRA 84T",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 175/70/14 KUMHO KR26",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 175/70/14 MAGNUM MGM51 88T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/70/14 MERIDIONAL CASUMINA 84T",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P14 175/70/14 MICHELAN",
+    "ten_price": 518.7,
+    "cash_price": 475.0
+  },
+  {
+    "source": "P14 175/70/14 ONYX NY-06 6PR 95/93S",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/70/14 ONYX NY-805 84T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/70/14 PIRELLI CINTURADO P1",
+    "ten_price": 597.32,
+    "cash_price": 547.0
+  },
+  {
+    "source": "P14 175/70/14 SCORPION ATR PIRELLI XL 98H",
+    "ten_price": 916.19,
+    "cash_price": 839.0
+  },
+  {
+    "source": "P14 175/70/14 SPM 8L 93/90Q TRAMX V11",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 175/70/14 SPM TRANSFER",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 175/70/14 TORNEL REAL JK",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P14 175/70/14 TRAZANO SL369",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P14 175/75/14 AUTOGREEN SC007 87T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/75/14 ITARO 203",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/75/14 ITARO 203 86 T CONFORMAX",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/75/14 MIRAGE MR166 86T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/75/14 ONYX NY-806 86T",
+    "ten_price": 304.67,
+    "cash_price": 279.0
+  },
+  {
+    "source": "P14 175/75/14 SPEEDMAX SPM203 86T",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 175/75/14 TRAZANO TRITON T-118 87T",
+    "ten_price": 304.67,
+    "cash_price": 279.0
+  },
+  {
+    "source": "P14 175/R14C ONIX NY 06",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P14 185/60/14 ASR 350ATLAS",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P14 185/60/14 CONTINENTAL EP",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 185/60/14 KETER KT 626",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 185/60/14 SPM HH301 82H",
+    "ten_price": 315.59,
+    "cash_price": 289.0
+  },
+  {
+    "source": "P14 185/60/14 SPM PRIME FRD",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P14 185/60/14 TRAZANO",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P14 185/60/14 TURBO TORNEL 82T",
+    "ten_price": 315.59,
+    "cash_price": 289.0
+  },
+  {
+    "source": "P14 185/65/14 SPEEDMAXIII STREET -H MH01 SPM",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 185/65/14 APOLO AMAZER 3G MAXX 86T",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P14 185/65/14 CEAT ECO DRIVE",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P14 185/65/14 ECO IRIS",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P14 185/65/14 FATE AR-360 SENTIVA 86H",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P14 185/65/14 FERENTINO VERSO 86H",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P14 185/65/14 FORMULA ENERGY",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P14 185/65/14 FORMULA GT1",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 185/65/14 FORMULA SPEDY",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P14 185/65/14 MERIDIONAL CASUMINA 86T",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P14 185/65/14 ONYX NY-805 86H",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P14 185/65/14 PIRELLI CINTURADO P1",
+    "ten_price": 597.32,
+    "cash_price": 547.0
+  },
+  {
+    "source": "P14 185/65/14 PIRELLI P6",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 185/65/14 TORNEL",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 185/70/14 DYNAMO STREET-H MH01 88H",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P14 185/70/14 SPEEDMAXIII MH01 88H",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P14 185/70/14 APOLO AMAZER 3G 88T",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P14 185/70/14 ATREZO SAILUN",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P14 185/70/14 CEAT ECODRIVE 88H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 185/70/14 CINT P1",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P14 185/70/14 CONTINENTAL BARUN BRAVURIS 88H",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P14 185/70/14 COOPER",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P14 185/70/14 DULOOP",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P14 185/70/14 ECO IRIS",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P14 185/70/14 FATE PRETIVA 88T",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P14 185/70/14 FIRESTONE 88T F 700",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P14 185/70/14 JK VECTRA",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P14 185/70/14 KUNHO TIRE SENSI",
+    "ten_price": 446.63,
+    "cash_price": 409.0
+  },
+  {
+    "source": "P14 185/70/14 MICHELAN ENERGY XM2 MAIS",
+    "ten_price": 621.35,
+    "cash_price": 569.0
+  },
+  {
+    "source": "P14 185/70/14 ONIX",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P14 185/70/14 TL 84T MERIDIONAL CASUMINA",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P14 185/R14C FATE CARGA AVANTE",
+    "ten_price": 533.99,
+    "cash_price": 489.0
+  },
+  {
+    "source": "P14 185/R14C ONYX NY-20 8L",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P14 185/R14C SPM 8L",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P14 185/R14C TRAZANO H188",
+    "ten_price": 566.75,
+    "cash_price": 519.0
+  },
+  {
+    "source": "P14 195/60/14 FRD 16",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 195/60/14 TORNEL",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P14 195/70/14 FATE",
+    "ten_price": 446.63,
+    "cash_price": 409.0
+  },
+  {
+    "source": "P15 175/60/15 FRD16",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P15 175/65/15 FARROUD FRD16",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 175/65/15 GT RADIAL CHAMPIRO ECO",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 175/65/15 ONIX NY-801",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 185/55/15 ATLAS AS350 82V",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P15 185/55/15 ECO IRIS",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P15 185/55/15 FARROUD FRD16 82V",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P15 185/55/15 ONIX NY-806 82V",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 185/55/15 SEFAR IRIS 86V",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P15 185/55/15 SUNWIDE RS-ZERO 82V",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P15 185/60/15 CONTINENTAL POWERCONTACT 2 84",
+    "ten_price": 610.43,
+    "cash_price": 559.0
+  },
+  {
+    "source": "P15 185/60/15 DYNAMO STREET-H MH01 88H",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P15 185/60/15 ECOIRIS 88H",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 185/60/15 FATE SENTIVA SORT 84H",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P15 185/60/15 FRD16 88H",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P15 185/60/15 G PUSH 84 H GRP TL",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 185/60/15 ITARO 84H IT203",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 185/60/15 ONIX NY-806 TECHCO-1 84H",
+    "ten_price": 348.35,
+    "cash_price": 319.0
+  },
+  {
+    "source": "P15 185/60/15 PIRELLI P7",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 185/60/15 SPEEDMAX HH301 84H SPM SC",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 185/65/15 ONIX NY 806 TECHCO-1 88H",
+    "ten_price": 348.35,
+    "cash_price": 319.0
+  },
+  {
+    "source": "P15 185/65/15 88H FRD 16 SPP",
+    "ten_price": 348.35,
+    "cash_price": 319.0
+  },
+  {
+    "source": "P15 185/65/15 AOSEM",
+    "ten_price": 436.8,
+    "cash_price": 400.0
+  },
+  {
+    "source": "P15 185/65/15 CINTURATO P1 PIRELLI 92H",
+    "ten_price": 719.63,
+    "cash_price": 659.0
+  },
+  {
+    "source": "P15 185/65/15 DRC D668 86T",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P15 185/65/15 ECOIRIS 92H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 185/65/15 G PUSH GRPMS TL 88H",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P15 185/65/15 GT CHAMPIRO VP1",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 185/65/15 SPEEDMAX",
+    "ten_price": 337.43,
+    "cash_price": 309.0
+  },
+  {
+    "source": "P15 185/65/15 SPEEDMAX MH01 SPM",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P15 185/65/15 SPM HH301",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P15 185/65/15 STARFIRE 380",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P15 185/65/15 SUNNY NP226",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P15 185/65/15 TRAZANO RP28 88H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 185/65/15 TRAZANO TRITON T-118 88H",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 195/50/15 ITR IT 203 82V",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P15 195/50/15 ONYX NY-901 86V XL",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 195/50/15 PIRELLI CINT P1 PLUS",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 195/55/15 85V GREEN ATL ATLAS",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/55/15 APOLLO MANCHESTER UNITED 85V",
+    "ten_price": 446.63,
+    "cash_price": 409.0
+  },
+  {
+    "source": "P15 195/55/15 APTANY ARMONIC 55V",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/55/15 FARROUD FRD16 85V",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 195/55/15 FATE EXIMA",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/55/15 KINGSTAR SK10",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/55/15 NBLECO FRD",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 195/55/15 ONIX NY-806 85V",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 195/55/15 ONIX NY-901 85V",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 195/55/15 PIRELLI P1 PLUS 85V",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P15 195/55/15 PIRELLI PHANTOM",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/55/15 SPEEDMAX HARMONIC SPM226 85H",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P15 195/55/15 SPEEDMAX MH01 85V",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P15 195/55/15 SPM HH301",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P15 195/55/15 TRAZANO 85V",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P15 195/55/15 TRAZANO RP28 85V",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P15 195/55/15 TRAZANO TRITON T-118 85V",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P15 195/60/15 KENTER KT 626",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/60/15 ONIX NY 806 TECHCO-1 88H",
+    "ten_price": 326.51,
+    "cash_price": 299.0
+  },
+  {
+    "source": "P15 195/60/15 SPM MH-01 88V",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P15 195/60/15 SUNNY NP 226",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/60/15 88V FRD16 SSP",
+    "ten_price": 337.43,
+    "cash_price": 309.0
+  },
+  {
+    "source": "P15 195/60/15 FATE SENSITIVE 360 88 HTL",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P15 195/60/15 G PUSG GRP 88V",
+    "ten_price": 348.35,
+    "cash_price": 319.0
+  },
+  {
+    "source": "P15 195/60/15 MAGNUM GIORNATA M3 88V",
+    "ten_price": 348.35,
+    "cash_price": 319.0
+  },
+  {
+    "source": "P15 195/60/15 MAGNUM X WONDER TH2 88H",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 195/60/15 NEXEN TIRE Nblue ECO SH1",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 195/60/15 P1",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P15 195/60/15 SPEEDMAX FRD16 88V",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P15 195/60/15 SPM 226 ARMONIC 88H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/60/15 TRAZANO RP 28",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P15 195/65/15 AOSEN",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/65/15 ATLAS TIRE GREEN 91T",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P15 195/65/15 CONTINENTAL POWER CONTACT2 91H",
+    "ten_price": 566.75,
+    "cash_price": 519.0
+  },
+  {
+    "source": "P15 195/65/15 DYNAMO STREET-H M4S01 91H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/65/15 ECOIRIS 95H",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P15 195/65/15 G PUSH GRP TL 91V",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P15 195/65/15 KPATOS FM601 95V",
+    "ten_price": 370.19,
+    "cash_price": 339.0
+  },
+  {
+    "source": "P15 195/65/15 MAGNUM GIONARTA M3 91V",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P15 195/65/15 ONIX NY-806",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P15 195/65/15 PIRELLI CINT P6",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P15 195/65/15 ROADX RXMOTION H12",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 195/65/15 SPEEDMAXIII HH 301 PROM",
+    "ten_price": 359.27,
+    "cash_price": 329.0
+  },
+  {
+    "source": "P15 195/65/15 SPEEDMAXIII PRIME FRD16 91V",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 195/65/15 TRAZANO RP28 91H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/65/15 TRAZANO TRITON T-118 91V",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 195/70/15 C DYNAMO 8L HMC02 104 102R",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P15 195/70/15 C FATE AVANTIA CARGA 104/102 R",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P15 195/70/15C ITR IT 108 104/102 R",
+    "ten_price": 533.99,
+    "cash_price": 489.0
+  },
+  {
+    "source": "P15 195/70/15C ONIX NY-80 PLUS 8PR",
+    "ten_price": 533.99,
+    "cash_price": 489.0
+  },
+  {
+    "source": "P15 205/55/15 ATLAS TIRE GREEN 88V",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P15 205/55/15 G PUSH GRP TL XL",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P15 205/55/15 P1 PLUS PIRELLI",
+    "ten_price": 490.31,
+    "cash_price": 449.0
+  },
+  {
+    "source": "P15 205/55/15 SPEEDMAX SPM305 95W",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P15 205/60/15 91 H G PUSH GRP",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 205/60/15 DYNAMO STREET-H MH01 95H XL",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 205/60/15 FATE ADVANCE AR 35",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P15 205/60/15 EVOXX NX TL ESMX 91H",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P15 205/60/15 ONIX NY806 91H",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P15 205/60/15 PIRELLI SCOORPION ATR 91H",
+    "ten_price": 916.19,
+    "cash_price": 839.0
+  },
+  {
+    "source": "P15 205/60/15 SPEEDMAX HH301 91V",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P15 205/60/15 TRAZANO RP28 91H",
+    "ten_price": 577.67,
+    "cash_price": 529.0
+  },
+  {
+    "source": "P15 205/65/15 94V IT 203 ITR",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P15 205/65/15 APOLLO 94V",
+    "ten_price": 577.67,
+    "cash_price": 529.0
+  },
+  {
+    "source": "P15 205/65/15 ATLAS TIRE GREEN 94H",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 205/65/15 FRD 16 94 V",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P15 205/65/15 G PROTRAIL AT 94H GRP TL",
+    "ten_price": 566.75,
+    "cash_price": 519.0
+  },
+  {
+    "source": "P15 205/65/15 MAGNUM MGM226 V",
+    "ten_price": 457.55,
+    "cash_price": 419.0
+  },
+  {
+    "source": "P15 205/65/15 ONYX NY-806 94H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P15 205/65/15 PIRELLI SCOORPION ATR 94H",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P15 205/65/15 TRAZANO SL369- A/T",
+    "ten_price": 490.31,
+    "cash_price": 449.0
+  },
+  {
+    "source": "P15 205/65/15 WESTLAKE RP18 94H",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P15 205/70/15 BARUN BRAVURIS 4X4",
+    "ten_price": 621.35,
+    "cash_price": 569.0
+  },
+  {
+    "source": "P15 205/70/15 GENERAL TIRE EUROVAN 2 106/104R",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P15 205/70/15 VAN SEMPERITE CONTINENTAL ALL TERRAN 96",
+    "ten_price": 708.71,
+    "cash_price": 649.0
+  },
+  {
+    "source": "P15 205/70/15 96 H NP226 SUNNY",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P15 205/70/15 96T S-ATR PIRELI",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P15 205/70/15 ATLAS PARALLER AT 967",
+    "ten_price": 490.31,
+    "cash_price": 449.0
+  },
+  {
+    "source": "P15 205/70/15 C FRD 96 106 104 S CARGO",
+    "ten_price": 577.67,
+    "cash_price": 529.0
+  },
+  {
+    "source": "P15 205/70/15 C NEXEN",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P15 205/70/15 C ROADSTONE",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P15 205/70/15 DYNAMO STREET H MH01 96T",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P15 205/70/15 FATE",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P15 205/70/15 ONYX NY-801 96H",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P15 205/70/15 TRAZANO SL369 A/T",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P15 205/70/15C BARUN VAN UTILITARIO CARGO",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P15 205/70/15C MICHELAN AGILIS 106R",
+    "ten_price": 1200.11,
+    "cash_price": 1099.0
+  },
+  {
+    "source": "P15 205/70/15C TRAZANO H188 8L 106/104R",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P15 205/70/15C VAN TROVOMATE UTILITARIO PR8",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P15 205/75/15 CONTINENTAL",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P15 215/70/15C WEST LAKE SC301",
+    "ten_price": 610.43,
+    "cash_price": 559.0
+  },
+  {
+    "source": "P15 225/70/15 C CARGO FATE AVANTIA 112/110R",
+    "ten_price": 774.23,
+    "cash_price": 709.0
+  },
+  {
+    "source": "P15 225/70/15 C SPM 108 112 110R",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P15 225/70/15C ATLAS GREN VAN 8 LONAS",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P15 225/70/15C ONIX NY-20 8LONAS 112/110R",
+    "ten_price": 566.75,
+    "cash_price": 519.0
+  },
+  {
+    "source": "P15 225/70/15C SPM TRAC FORCA 108 SPM",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P15 225/75/15 FRD66",
+    "ten_price": 730.55,
+    "cash_price": 669.0
+  },
+  {
+    "source": "P15 235/70/15 FATE RUNER ZETA",
+    "ten_price": 730.55,
+    "cash_price": 669.0
+  },
+  {
+    "source": "P15 235/70/15 MICHELAN FORCA",
+    "ten_price": 1134.59,
+    "cash_price": 1039.0
+  },
+  {
+    "source": "P15 235/75/15 CONTINENTAL AT SEMPERITE",
+    "ten_price": 916.19,
+    "cash_price": 839.0
+  },
+  {
+    "source": "P15 235/75/15 FATE RAGER RUNER HT SERIE 2",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P15 235/75/15 FRD 66 ST",
+    "ten_price": 785.15,
+    "cash_price": 719.0
+  },
+  {
+    "source": "P15 235/75/15 FRD86 AT LT 10 PR 116 113R",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P15 265/70/15 ONIX",
+    "ten_price": 883.43,
+    "cash_price": 809.0
+  },
+  {
+    "source": "P15 265/70/15 WEST LAKE",
+    "ten_price": 894.35,
+    "cash_price": 819.0
+  },
+  {
+    "source": "P15 31X10.50R15 106 PGA AT SPP ALL TERRAN",
+    "ten_price": 1047.23,
+    "cash_price": 959.0
+  },
+  {
+    "source": "P15 31X10.50R15 APTANY CAVALIER A/T 109R",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P15 31X10.50R15 FIRSETONE DESTINATION ATX",
+    "ten_price": 1200.11,
+    "cash_price": 1099.0
+  },
+  {
+    "source": "P15 31X10.50R15 GT RADIAL ADVENTURE AT 3",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P15 31X10.50R15 HIFLY AT 601",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P15 31X10.50R15 ITR ALMAT XL OLW",
+    "ten_price": 992.63,
+    "cash_price": 909.0
+  },
+  {
+    "source": "P15 31X10.50R15 ONYX AT-187 6 LONAS",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P15 31X10.50R15 ONYX HT187 6LONA",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P15 31X10.50R15 PIRELLI SCORPIO ATR",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P15 31X10.50R15 SPEEDMAXIII EXPEDITY",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P15 31X10.50R15 SPM 101",
+    "ten_price": 839.75,
+    "cash_price": 769.0
+  },
+  {
+    "source": "P16 115/70/16 GT SPIN SUPORTE",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P16 175/55/16 SPM 022 ENRGRIP EV 80H",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P16 185/55/16 FRD16",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P16 185/55/16 SPM RX MOTION 83V H12",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P16 185/55/16 TRAZANO 83V T118",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P16 195/55/16 85V HH301 SPM SC",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P16 195/55/16 DYNAMO STREET H MU02 91V",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P16 195/55/16 FATE EXIMIA 91H",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P16 195/55/16 ONYX NY-806 91V",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P16 195/60/16 ATLAS AS350 89H",
+    "ten_price": 490.31,
+    "cash_price": 449.0
+  },
+  {
+    "source": "P16 195/60/16 FRD 26 89 H",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P16 195/60/16 ONIX NY801 89 H",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P16 195/60/16 SPEEDMAX ENERGRI 89H SPM 022 SPM EV",
+    "ten_price": 533.99,
+    "cash_price": 489.0
+  },
+  {
+    "source": "P16 195/65/16 C SPEEDMAX 8L DRMX V10 104 102S",
+    "ten_price": 643.19,
+    "cash_price": 589.0
+  },
+  {
+    "source": "P16 195/65/16C ATLAS GREEN VAN 104/102S 8 LONAS",
+    "ten_price": 730.55,
+    "cash_price": 669.0
+  },
+  {
+    "source": "P16 195/75/16 TRAZANO 8 L 107/105 R H188",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P16 195/75/16C ONIX NY-06 107/105R",
+    "ten_price": 719.63,
+    "cash_price": 659.0
+  },
+  {
+    "source": "P16 195/75/16C ONIX NY-20",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P16 195/75/16C SPM 8 L DRMX 10V 8LONAS",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P16 205/55/16 91V P7 CINTURATO PIRELLI",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 205/55/16 ATLAS TIRE GREEN 91V",
+    "ten_price": 392.03,
+    "cash_price": 359.0
+  },
+  {
+    "source": "P16 205/55/16 FIRESTONE F-700 91V",
+    "ten_price": 577.67,
+    "cash_price": 529.0
+  },
+  {
+    "source": "P16 205/55/16 FRD16 94W SSP XL",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P16 205/55/16 OASEN HH 301 91V",
+    "ten_price": 533.99,
+    "cash_price": 489.0
+  },
+  {
+    "source": "P16 205/55/16 ONIX TECHCO-1 NY-806 91V",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P16 205/55/16 PIRELLI CINT P1 PLUS",
+    "ten_price": 644.28,
+    "cash_price": 590.0
+  },
+  {
+    "source": "P16 205/55/16 SPEEDMAX HH301 91V",
+    "ten_price": 402.95,
+    "cash_price": 369.0
+  },
+  {
+    "source": "P16 205/55/16 SPEEDMAX SPM 203 91V",
+    "ten_price": 381.11,
+    "cash_price": 349.0
+  },
+  {
+    "source": "P16 205/55/16 SPM PRIME FRD 16",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P16 205/60/16 RP 68 NIP 92H TL",
+    "ten_price": 446.63,
+    "cash_price": 409.0
+  },
+  {
+    "source": "P16 205/60/16 CONTINENTAL BARUN BRAVURIS 4X4 92H",
+    "ten_price": 675.95,
+    "cash_price": 619.0
+  },
+  {
+    "source": "P16 205/60/16 FARROUD FRD16 92V",
+    "ten_price": 533.99,
+    "cash_price": 489.0
+  },
+  {
+    "source": "P16 205/60/16 ONYX NY806 TECHCO 1 92H",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P16 205/60/16 PIRELLI SCOORPION ATR 92H",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P16 205/60/16 SPEEDMAXIII ADVENTUREMAX A/T 92H",
+    "ten_price": 591.76,
+    "cash_price": 569.0
+  },
+  {
+    "source": "P16 205/60/16 SPEEDMAXIII HH 301",
+    "ten_price": 577.67,
+    "cash_price": 529.0
+  },
+  {
+    "source": "P16 205/60/16 SPEEDMAXIII SPM 006 AT 92H",
+    "ten_price": 394.16,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P16 205/60/16 TRAZANO SL369 A/T",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P16 205/65/16 KUNHO TIRE 95W",
+    "ten_price": 697.79,
+    "cash_price": 639.0
+  },
+  {
+    "source": "P16 205/65/16 ONIX NY-801 95H",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P16 205/70/16 FATE",
+    "ten_price": 674.86,
+    "cash_price": 618.0
+  },
+  {
+    "source": "P16 205/75/16 CONTINENTAL SEMPERITE VAN LIFE2 8 LONAS",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P16 205/75/16C ATLAS TIRE GREENVAN 8LONAS",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P16 205/75/16C DYNAMO MC02 8LONAS",
+    "ten_price": 632.27,
+    "cash_price": 579.0
+  },
+  {
+    "source": "P16 205/75/16C FARROUD FRD96 110/108 SPM",
+    "ten_price": 730.55,
+    "cash_price": 669.0
+  },
+  {
+    "source": "P16 205/75/16C FATE AR-410 AVANTIA 8PR",
+    "ten_price": 697.79,
+    "cash_price": 639.0
+  },
+  {
+    "source": "P16 205/75/16C KUNHO TIRE 857",
+    "ten_price": 632.27,
+    "cash_price": 579.0
+  },
+  {
+    "source": "P16 205/75/16C ONIX NY-20 8LONAS 110/108R",
+    "ten_price": 752.39,
+    "cash_price": 689.0
+  },
+  {
+    "source": "P16 205/75/16C ONYX NY -01 8L 110/108R",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P16 205/75/16C SPM 8L 110 108S DRMX V10 CARGA",
+    "ten_price": 686.87,
+    "cash_price": 629.0
+  },
+  {
+    "source": "P16 215/65/16 CONTINENTAL CROS CONTACT",
+    "ten_price": 719.63,
+    "cash_price": 659.0
+  },
+  {
+    "source": "P16 215/65/16 EVOXX NX TL ESMX 98H",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P16 215/65/16 GPMASTER",
+    "ten_price": 643.19,
+    "cash_price": 589.0
+  },
+  {
+    "source": "P16 215/65/16 GT RADIAL SAVERO SUV",
+    "ten_price": 720.72,
+    "cash_price": 660.0
+  },
+  {
+    "source": "P16 215/65/16 ITARO CONFORMAX 98H",
+    "ten_price": 501.23,
+    "cash_price": 459.0
+  },
+  {
+    "source": "P16 215/65/16 SPEEDMAX ADVMAX AT 98T SPM",
+    "ten_price": 610.43,
+    "cash_price": 559.0
+  },
+  {
+    "source": "P16 215/65/16 SPEEDMAX DRIVEMAX 98H",
+    "ten_price": 577.67,
+    "cash_price": 529.0
+  },
+  {
+    "source": "P16 215/65/16 SPEEDMAX PGA AT SPP WL 102 H",
+    "ten_price": 752.39,
+    "cash_price": 689.0
+  },
+  {
+    "source": "P16 215/65/16 WEST LAKE RP18 98H",
+    "ten_price": 697.79,
+    "cash_price": 639.0
+  },
+  {
+    "source": "P16 215/70/16 FRD16",
+    "ten_price": 643.19,
+    "cash_price": 589.0
+  },
+  {
+    "source": "P16 215/70/16 KUNHO SOLUS KL21",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P16 215/75/16C DYNAMO HISCEND-H MC02",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P16 215/80/16 ATR SCOPION MTR",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P16 215/80/16 ATR SCOPION PIRELLI",
+    "ten_price": 1069.07,
+    "cash_price": 979.0
+  },
+  {
+    "source": "P16 215/80/16 FATE RANGE RUNER AT SERIE 4",
+    "ten_price": 861.59,
+    "cash_price": 789.0
+  },
+  {
+    "source": "P16 215/80/16 FATE RANGE RUNER MT",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P16 215/80/16 FATE RANGE RUNER MT SERIE 2",
+    "ten_price": 916.19,
+    "cash_price": 839.0
+  },
+  {
+    "source": "P16 215/80/16 FIRESTONE DESTINATION ATX107S",
+    "ten_price": 1069.07,
+    "cash_price": 979.0
+  },
+  {
+    "source": "P16 215/80/16 FIRESTONE DESTINATION HT107S",
+    "ten_price": 1047.23,
+    "cash_price": 959.0
+  },
+  {
+    "source": "P16 215/80/16 TRAZANO MISTO SL369",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P16 215/80/16 WEST LAKE MISTO SL369",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P16 225/65/16C OVATION V02",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P16 225/65/16C SPM8 LONAS 112/110S DRMX V10",
+    "ten_price": 665.03,
+    "cash_price": 609.0
+  },
+  {
+    "source": "P16 225/65/16C ATLAS TIRE GREEN VAN 112/110S",
+    "ten_price": 610.43,
+    "cash_price": 559.0
+  },
+  {
+    "source": "P16 225/65/16C CONTINENTAL V CONTACT AP",
+    "ten_price": 742.56,
+    "cash_price": 680.0
+  },
+  {
+    "source": "P16 225/65/16C ONYX NY-06 112/110T 8L",
+    "ten_price": 632.27,
+    "cash_price": 579.0
+  },
+  {
+    "source": "P16 225/65/16C STORMY ECO IRIS",
+    "ten_price": 828.83,
+    "cash_price": 759.0
+  },
+  {
+    "source": "P16 225/70/16 FARROUD FRD86",
+    "ten_price": 880.15,
+    "cash_price": 806.0
+  },
+  {
+    "source": "P16 225/70/16 FRD16 103 T",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P16 225/70/16 PIRELLI SCORPION VERDE",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P16 225/75/16 SPEEDMAXIII WILDWOLF W01",
+    "ten_price": 861.59,
+    "cash_price": 789.0
+  },
+  {
+    "source": "P16 225/75/16C CONTINENTAL VANCONTACT 100/116",
+    "ten_price": 1342.07,
+    "cash_price": 1229.0
+  },
+  {
+    "source": "P16 225/75/16C H188 TRAZANO",
+    "ten_price": 828.83,
+    "cash_price": 759.0
+  },
+  {
+    "source": "P16 225/75/16C ONYX NY -20 12LONAS",
+    "ten_price": 752.39,
+    "cash_price": 689.0
+  },
+  {
+    "source": "P16 225/75/16C PGA AT SSP WL SPEEDMAXIII 112 115R",
+    "ten_price": 796.07,
+    "cash_price": 729.0
+  },
+  {
+    "source": "P16 225/75/16C SPEEDMAXIII PRIME FRD96",
+    "ten_price": 796.07,
+    "cash_price": 729.0
+  },
+  {
+    "source": "P16 225/75/16C WESTLAKE H188 10L 118/116R",
+    "ten_price": 796.07,
+    "cash_price": 729.0
+  },
+  {
+    "source": "P16 235/60/16 FRD 66",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P16 235/60/16 SPORT GREEN ATLAS",
+    "ten_price": 686.87,
+    "cash_price": 629.0
+  },
+  {
+    "source": "P16 235/70/16 ATLAS SPORT GREEN SUV 106 H",
+    "ten_price": 839.75,
+    "cash_price": 769.0
+  },
+  {
+    "source": "P16 235/70/16 ATLAS TIRE 106 T BATMAN",
+    "ten_price": 873.6,
+    "cash_price": 800.0
+  },
+  {
+    "source": "P16 235/70/16 FATE RANGE RUNER HTS2",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P16 235/70/16 FRD 66 106T",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 235/70/16 FRD 86",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 235/70/16 GT ADVENTURE AT3 104T",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 235/70/16 MICHELAN LTX FORCE",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P16 235/70/16 SPM CONTMAX SUV 106 H SP10",
+    "ten_price": 752.39,
+    "cash_price": 689.0
+  },
+  {
+    "source": "P16 235/70/16 ONYX NY-AT187 106T",
+    "ten_price": 752.39,
+    "cash_price": 689.0
+  },
+  {
+    "source": "P16 235/70/16 ONYX NY-HT187 106H",
+    "ten_price": 719.63,
+    "cash_price": 659.0
+  },
+  {
+    "source": "P16 235/70/16 SPM 006 AT 106 S",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P16 235/75/16 GT CARGO",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P16 245/70/16 CROOS CONTINELTAL C LX2",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P16 245/70/16 FRD 86",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P16 245/70/16 ONIX HT187",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 245/70/16 ONIX NY-AT187 107T",
+    "ten_price": 697.79,
+    "cash_price": 639.0
+  },
+  {
+    "source": "P16 245/70/16 SPEEDMAX CONTROL 107H",
+    "ten_price": 774.23,
+    "cash_price": 709.0
+  },
+  {
+    "source": "P16 245/70/16 SPM 10 CONTMX 107 H",
+    "ten_price": 774.23,
+    "cash_price": 709.0
+  },
+  {
+    "source": "P16 255/70/16 FRD86",
+    "ten_price": 938.03,
+    "cash_price": 859.0
+  },
+  {
+    "source": "P16 255/70/16 GT HT2",
+    "ten_price": 916.19,
+    "cash_price": 839.0
+  },
+  {
+    "source": "P16 255/70/16 SPEED MAXIII SPM006",
+    "ten_price": 1079.99,
+    "cash_price": 989.0
+  },
+  {
+    "source": "P16 255/70/16 SPM PGA AT 111T SPP WL",
+    "ten_price": 1003.55,
+    "cash_price": 919.0
+  },
+  {
+    "source": "P16 265/65/17 SPEEDMAXIII W01",
+    "ten_price": 938.03,
+    "cash_price": 859.0
+  },
+  {
+    "source": "P16 265/70/16 ATLAS SPORT GREEN SUV 112H",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 265/70/16 ATR STREET PIRELLI SCOORPION",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 265/70/16 BARUM BRAVURIS AT 112T CONTINENTAL",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P16 265/70/16 DYNAMO HISCEND-H MHT01 112T",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P16 265/70/16 FATE RANGE RUNE AT S4 117/114",
+    "ten_price": 894.35,
+    "cash_price": 819.0
+  },
+  {
+    "source": "P16 265/70/16 FIRESTONE DESTINATION MT23",
+    "ten_price": 1736.28,
+    "cash_price": 1590.0
+  },
+  {
+    "source": "P16 265/70/16 GT ADVENTURE AT3",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 265/70/16 GT SAVERO HT2",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P16 265/70/16 HIFLY VIGORE AT 601",
+    "ten_price": 970.79,
+    "cash_price": 889.0
+  },
+  {
+    "source": "P16 265/70/16 LT WILDWOLF W01 110/107Q SPM",
+    "ten_price": 1025.39,
+    "cash_price": 939.0
+  },
+  {
+    "source": "P16 265/70/16 MAGNUM MGM006 112S",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P16 265/70/16 MICHELAN 112T LTX FORCE",
+    "ten_price": 1527.71,
+    "cash_price": 1399.0
+  },
+  {
+    "source": "P16 265/70/16 ONIX NY-AT 187 112T",
+    "ten_price": 806.99,
+    "cash_price": 739.0
+  },
+  {
+    "source": "P16 265/70/16 ONIX NY-HT 187 112H",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 265/70/16 ROADX RXQUEST H/T01",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 265/70/16 SPEEDMAXII RANGERTUR PLUS SPM025",
+    "ten_price": 948.95,
+    "cash_price": 869.0
+  },
+  {
+    "source": "P16 265/70/16 SPEEDMAXIII PRIME FRD66",
+    "ten_price": 850.67,
+    "cash_price": 779.0
+  },
+  {
+    "source": "P16 265/70/16 SPM 112T SPM025",
+    "ten_price": 796.07,
+    "cash_price": 729.0
+  },
+  {
+    "source": "P16 265/70/16 TOWNHALL ALL TERRAIIN TH-AT802",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 265/70/16 TRAZANO SL399 OWL",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 265/75/16 ONIX NY AT187 116S",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P16 265/75/16 PIRELLI SCORPION ALLTERRAIN",
+    "ten_price": 2565.11,
+    "cash_price": 2349.0
+  },
+  {
+    "source": "P16 265/75/16 SPEED MAX PANGEIA",
+    "ten_price": 1254.71,
+    "cash_price": 1149.0
+  },
+  {
+    "source": "P16 265/75/16 TRAZANO SL369 116S",
+    "ten_price": 1014.47,
+    "cash_price": 929.0
+  },
+  {
+    "source": "P16 600/16 10L TT INDMX CL 619 SPM",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P16 650/16 PIRELLI ANTEO AT52 10LONAS",
+    "ten_price": 719.63,
+    "cash_price": 659.0
+  },
+  {
+    "source": "P16 650/16 PIRELLI CT",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P16 650/16 TRAÇAO CEAT FARMAX X3 TF 8LONAS",
+    "ten_price": 686.87,
+    "cash_price": 629.0
+  },
+  {
+    "source": "P16 700/16 DIRECIONAL ANTEO PIRELLI AT52 10LONAS",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P16 700/16 DIRECIONAL MIXTO TORNEL",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P16 700/16 DIRECIONAL S CENTAURO PIRELLI CT 52",
+    "ten_price": 868.14,
+    "cash_price": 795.0
+  },
+  {
+    "source": "P16 700/16 DIRECIONAL SPEEDMAXIII STEER 12LONAS",
+    "ten_price": 948.95,
+    "cash_price": 869.0
+  },
+  {
+    "source": "P16 700/16 DIRECIONAL TORNEL",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P16 700/16 TRACAO BORRACHUDO SPEEDMAXIII MLITARY",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 700/16 TRACAO BUR ANTEO PIRELLI AT59 10 LONAS",
+    "ten_price": 1036.31,
+    "cash_price": 949.0
+  },
+  {
+    "source": "P16 700/16 TRAÇAO SPEEDMAXIII DRIVE TT 14LONAS",
+    "ten_price": 1014.47,
+    "cash_price": 929.0
+  },
+  {
+    "source": "P16 700/16 TRACAO TORNEL TXL PLUS",
+    "ten_price": 1138.96,
+    "cash_price": 1043.0
+  },
+  {
+    "source": "P16 750 AGRICOLA TRACTOR MAX SPM HG 703",
+    "ten_price": 1036.31,
+    "cash_price": 949.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONA SPEEDMAX STEER 14L 123/119M",
+    "ten_price": 1069.07,
+    "cash_price": 979.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONAL ANTEO AT52 PIRELLI 10LONAS",
+    "ten_price": 1058.15,
+    "cash_price": 969.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONAL CENTAURO CT52 PIRELLI",
+    "ten_price": 1036.31,
+    "cash_price": 949.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONAL CENTELLA CR100",
+    "ten_price": 1025.39,
+    "cash_price": 939.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONAL JET RIB JK",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONAL SIMPLES TORNEL MIXTO",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONAL TRAK KING VIKRANT",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P16 750/16 DIRECIONAL WESTLAKE CR852 14L 122/118G TT",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P16 750/16 TRACAO BURRACHUDO ANTEO PIRELLI AT59",
+    "ten_price": 1265.63,
+    "cash_price": 1159.0
+  },
+  {
+    "source": "P16 750/16 TRACAO BURRACHUDO JK JET TRACK",
+    "ten_price": 1221.95,
+    "cash_price": 1119.0
+  },
+  {
+    "source": "P16 750/16 TRACAO BURRACHUDO DURABLE DR856",
+    "ten_price": 1265.63,
+    "cash_price": 1159.0
+  },
+  {
+    "source": "P16 750/16 TRACAO BURRACHUDO SPEED MAX DRIVE TT",
+    "ten_price": 1025.39,
+    "cash_price": 939.0
+  },
+  {
+    "source": "P16 750/16 TRACAO BURRACHUDO TORNEL TXL PLUS",
+    "ten_price": 1242.7,
+    "cash_price": 1138.0
+  },
+  {
+    "source": "P16 750/16 TRAÇAO CENTELLA CR150",
+    "ten_price": 1134.59,
+    "cash_price": 1039.0
+  },
+  {
+    "source": "P16 750/16 TRACAO WEST LIKE CL830 14LONAS",
+    "ten_price": 872.51,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P16 AGRICOLA 650/16 SPEEDMAXIII F2 6LONAS",
+    "ten_price": 643.19,
+    "cash_price": 589.0
+  },
+  {
+    "source": "P16.5 10-16.5 RETRO TRATOR ATF 10LONAS",
+    "ten_price": 1527.71,
+    "cash_price": 1399.0
+  },
+  {
+    "source": "P16.5 12/16.5 RETRO ATF SS 12 LONAS",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P16.5 12/16.5 NHS RETRO JK TIRE VIDE WALL 12 LONAS",
+    "ten_price": 1636.91,
+    "cash_price": 1499.0
+  },
+  {
+    "source": "P16.5 12/80/16.5 RETRO ROOD GUIDER SUPERSTAR",
+    "ten_price": 1691.51,
+    "cash_price": 1549.0
+  },
+  {
+    "source": "P16.5 12/80/16.5 RETRO TORNEL JK TIRE GET TRACK WER",
+    "ten_price": 1691.51,
+    "cash_price": 1549.0
+  },
+  {
+    "source": "P16.5 12/80/16.5 RETRO TRATOR TORNEL",
+    "ten_price": 1691.51,
+    "cash_price": 1549.0
+  },
+  {
+    "source": "P16.5 12-16.5 NHS ASCENSO SSB330 12 LONAS 152 A2",
+    "ten_price": 1636.91,
+    "cash_price": 1499.0
+  },
+  {
+    "source": "P16.5 12-16.5 NHS WESTLAKE EL79 12 LONAS",
+    "ten_price": 1582.31,
+    "cash_price": 1449.0
+  },
+  {
+    "source": "P16.5 12-16.5 SPEEDMAX STEERKING+",
+    "ten_price": 1069.07,
+    "cash_price": 979.0
+  },
+  {
+    "source": "P16.5 12-16.5 SPEEDMAXII SUPER TRACTOR NHS 12 LONAS",
+    "ten_price": 1418.51,
+    "cash_price": 1299.0
+  },
+  {
+    "source": "P17 195/40/17 TRAZANO SA 37",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P17 205/40/17 ONYX NY-901 84W",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P17 205/40/17 SPM 84W DRIVEMAX C10 XL",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P17 205/40/17 SPM 84Y HU901 SCXL DRIVEMAX C10 XL",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P17 205/45/17 G PUSH 88H GRP TL XL",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P17 205/45/17 ITARO 301 XL",
+    "ten_price": 424.79,
+    "cash_price": 389.0
+  },
+  {
+    "source": "P17 205/45/17 ONYX NY-901 88W XL",
+    "ten_price": 435.71,
+    "cash_price": 399.0
+  },
+  {
+    "source": "P17 205/45/17 NIP 88V RP68 TL XL",
+    "ten_price": 413.87,
+    "cash_price": 379.0
+  },
+  {
+    "source": "P17 205/50/17 CONTINENTAL",
+    "ten_price": 643.19,
+    "cash_price": 589.0
+  },
+  {
+    "source": "P17 205/50/17 KUMHO",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P17 205/50/17 SPM 93W SPM 301",
+    "ten_price": 446.63,
+    "cash_price": 409.0
+  },
+  {
+    "source": "P17 205/55/17 NIP 91V RP68 TL",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P17 205/55/17 SPM 305 95Y RXMOTION U11 XL",
+    "ten_price": 479.39,
+    "cash_price": 439.0
+  },
+  {
+    "source": "P17 215/45/17 FATE EXIMAX",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P17 215/45/17 FERENTINO MYTHOS",
+    "ten_price": 566.75,
+    "cash_price": 519.0
+  },
+  {
+    "source": "P17 215/50/17 FATE EXIMA",
+    "ten_price": 562.38,
+    "cash_price": 515.0
+  },
+  {
+    "source": "P17 215/50/17 SPEED MAX SPM 305 95W",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P17 215/55/17 ATLAS TIRE SPORT GREEN 94W",
+    "ten_price": 512.15,
+    "cash_price": 469.0
+  },
+  {
+    "source": "P17 215/55/17 GPMASTER",
+    "ten_price": 621.35,
+    "cash_price": 569.0
+  },
+  {
+    "source": "P17 215/55/17 SPM HU 901 98W",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P17 215/55/17 WEST LIKE",
+    "ten_price": 730.55,
+    "cash_price": 669.0
+  },
+  {
+    "source": "P17 215/60/17 ONYX NY-HP187",
+    "ten_price": 544.91,
+    "cash_price": 499.0
+  },
+  {
+    "source": "P17 225/45/17 AOSEN",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P17 225/45/17 DYNAMO STREET H MH01 94W",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P17 225/45/17 FRD26 94W",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P17 225/45/17 ONYX NY-901",
+    "ten_price": 468.47,
+    "cash_price": 429.0
+  },
+  {
+    "source": "P17 225/50/17 SPEEDMAXIII SPORT MACRO SPM302",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P17 225/60/17 ITARO 99H IT101",
+    "ten_price": 566.75,
+    "cash_price": 519.0
+  },
+  {
+    "source": "P17 225/60/17 SPM HH301 99H SC",
+    "ten_price": 632.27,
+    "cash_price": 579.0
+  },
+  {
+    "source": "P17 225/60/17 SPM PGA AT SPP AL TERRAN WL XL 103H",
+    "ten_price": 796.07,
+    "cash_price": 729.0
+  },
+  {
+    "source": "P17 225/65/17 DYNAMO HISCEND-H MHT01",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P17 225/65/17 FARROUD FRD66 106H",
+    "ten_price": 752.39,
+    "cash_price": 689.0
+  },
+  {
+    "source": "P17 225/65/17 RP 68 NIP TL 102H",
+    "ten_price": 610.43,
+    "cash_price": 559.0
+  },
+  {
+    "source": "P17 225/65/17 ONYX NY-HT187 102H",
+    "ten_price": 599.51,
+    "cash_price": 549.0
+  },
+  {
+    "source": "P17 225/65/17 SPM 1102T PGA AT SP WL",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P17 235/55/17 KUMHO TIRE",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P17 235/55/17 KUNHO",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P17 235/60/17 FRD26",
+    "ten_price": 632.27,
+    "cash_price": 579.0
+  },
+  {
+    "source": "P17 245/60/17 FRD 26",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P17 245/65/17 FRD66",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P17 265/65/17 FRD 86",
+    "ten_price": 1031.94,
+    "cash_price": 945.0
+  },
+  {
+    "source": "P17 265/65/17 GT RADIAL ADVENTURE AT3",
+    "ten_price": 1014.47,
+    "cash_price": 929.0
+  },
+  {
+    "source": "P17 265/65/17 GT RADIAL SAVERO HT2",
+    "ten_price": 948.95,
+    "cash_price": 869.0
+  },
+  {
+    "source": "P17 265/65/17 ITARO AT ALL TERRAN",
+    "ten_price": 1069.07,
+    "cash_price": 979.0
+  },
+  {
+    "source": "P17 265/65/17 ONYX NYAT-187 112T",
+    "ten_price": 806.99,
+    "cash_price": 739.0
+  },
+  {
+    "source": "P17 265/65/17 ONYX NY-H/T 187 112H",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P17 265/65/17 SPEEDMAX HISCEND H-MHT01",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P17 265/65/17 ATLAS TIRE SPORT GREEN SUV 112H",
+    "ten_price": 1167.35,
+    "cash_price": 1069.0
+  },
+  {
+    "source": "P17 265/65/17 DYNAMO HISCEND-H MHT01",
+    "ten_price": 806.99,
+    "cash_price": 739.0
+  },
+  {
+    "source": "P17 265/65/17 FATE RANGE RUNNER AT 116T S4",
+    "ten_price": 916.19,
+    "cash_price": 839.0
+  },
+  {
+    "source": "P17 265/65/17 PIRELLI SCOORPION ATR",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P17 265/65/17 SPEEDMAXIII CONTROL SUV SP10",
+    "ten_price": 817.91,
+    "cash_price": 749.0
+  },
+  {
+    "source": "P17 265/65/17 SPEEDMAXIII WILDWOLF AT",
+    "ten_price": 916.19,
+    "cash_price": 839.0
+  },
+  {
+    "source": "P17 265/70/17 ALTERMAX ITARO A/T",
+    "ten_price": 1069.07,
+    "cash_price": 979.0
+  },
+  {
+    "source": "P17 265/70/17 SPEEDMAX PRIME PANGEA 10LONAS",
+    "ten_price": 1746.11,
+    "cash_price": 1599.0
+  },
+  {
+    "source": "P17 285/70/17 SPM PANGEA EXTREME",
+    "ten_price": 1625.99,
+    "cash_price": 1489.0
+  },
+  {
+    "source": "P17.5 14-17.5 14L SKS1 SPEEDMAXII",
+    "ten_price": 3265.08,
+    "cash_price": 2990.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 MIXTO CARGO POWER 12L",
+    "ten_price": 992.63,
+    "cash_price": 909.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL ADVANCE",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL AELOS COOP",
+    "ten_price": 992.63,
+    "cash_price": 909.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL COMPASAL CPS21 18L",
+    "ten_price": 1025.39,
+    "cash_price": 939.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL DSR 16 L",
+    "ten_price": 992.63,
+    "cash_price": 909.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL EVERGREEN EGT68 16L",
+    "ten_price": 970.79,
+    "cash_price": 889.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL EVERGREEN ESR579 16L",
+    "ten_price": 970.79,
+    "cash_price": 889.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL MAGNUM MGM17",
+    "ten_price": 905.27,
+    "cash_price": 829.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL MICHELAN",
+    "ten_price": 1855.31,
+    "cash_price": 1699.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL MILEVER SAH01 16PR",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL ONYX 135/133l HO111 16PR",
+    "ten_price": 806.99,
+    "cash_price": 739.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL ROADX RH 621",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL SPEEDMAX SPM 01 16 LONAS",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL SPEEDMAXIII PRIME S 16PR",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL SPEEDMAXIII PRIME SPM02P 18PR",
+    "ten_price": 905.27,
+    "cash_price": 829.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL SUNY",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL WESTLAKE CR960A 18L",
+    "ten_price": 796.07,
+    "cash_price": 729.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 DIRECIONAL WINDPOWER WSR24 18LONAS",
+    "ten_price": 959.87,
+    "cash_price": 879.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 MIXTO DOUBLESTAR DSR 116",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 MIXTO LINGLONG 16L 135/133J",
+    "ten_price": 905.27,
+    "cash_price": 829.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 TRAÇÃO SPEEDMAX PRIME D 16LONAS",
+    "ten_price": 948.95,
+    "cash_price": 869.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 TRAÇÃO SPEEDMAX SPM 01 T 16LONAS",
+    "ten_price": 1036.31,
+    "cash_price": 949.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 TRACAO ADVANCE GL 265 D",
+    "ten_price": 1112.75,
+    "cash_price": 1019.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 TRACAO ATLAS 303 16 L J135/133J",
+    "ten_price": 1287.47,
+    "cash_price": 1179.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 TRAÇÃO ONYX HO309 16LONAS",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 TRACAO WEST LAKE CM986 16LONAS",
+    "ten_price": 959.87,
+    "cash_price": 879.0
+  },
+  {
+    "source": "P17.5 215/75/17.5 TRAZANO CM986 TRACAO 135/133J 16L TL",
+    "ten_price": 970.79,
+    "cash_price": 889.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 DIRECIONAL SPEEDMAX 18 LONAS",
+    "ten_price": 1178.27,
+    "cash_price": 1079.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 DIRECIONAL ADVANCE",
+    "ten_price": 1101.83,
+    "cash_price": 1009.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 DIRECIONAL CR960A WESTLAKE 18LONAS",
+    "ten_price": 1079.99,
+    "cash_price": 989.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 DIRECIONAL SPEEDMAX PRIME SPM 01 18 L",
+    "ten_price": 1090.91,
+    "cash_price": 999.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 DIRECIONAL SPM AZ531W SPM",
+    "ten_price": 1189.19,
+    "cash_price": 1089.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 MIXTO AELOS ASR 35",
+    "ten_price": 1189.19,
+    "cash_price": 1089.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 MIXTO CGR120 CARGOPOWER",
+    "ten_price": 1352.99,
+    "cash_price": 1239.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 MIXTO DIRECIONAL TRAZANO CM988 16PR",
+    "ten_price": 1243.79,
+    "cash_price": 1139.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 MIXTO SPM 01 18 L",
+    "ten_price": 1385.75,
+    "cash_price": 1269.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 TRAÇÃO SPEEDMAX FACTOR MAXD 18LONAS",
+    "ten_price": 1309.31,
+    "cash_price": 1199.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 TRAÇÃO SPEEDMAX PRIME D 18LONAS",
+    "ten_price": 1167.35,
+    "cash_price": 1069.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 TRAÇÃO SPEEDMAX QUESTMAX D 18LONAS",
+    "ten_price": 1243.79,
+    "cash_price": 1139.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 TRAÇAO AELUS ADR35 18",
+    "ten_price": 1254.71,
+    "cash_price": 1149.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 TRACAO TRAZANO",
+    "ten_price": 1167.35,
+    "cash_price": 1069.0
+  },
+  {
+    "source": "P17.5 235/75/17.5 TRAÇÃO WESTLAKE CM986 16LONAS",
+    "ten_price": 1167.35,
+    "cash_price": 1069.0
+  },
+  {
+    "source": "P18 12.5/80/18 RETRO G MPT GRP A L3 12 L TL",
+    "ten_price": 1800.71,
+    "cash_price": 1649.0
+  },
+  {
+    "source": "P18 12.5/80/18 RETRO ROADGUIDER R-4 12PR",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P18 12.5/80/18 RETRO SPEEDMAX R-4 HGA 02 12L 142A8SPMTL",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P18 12.5/80/18 RETRO TRATOR ASCENSO",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P18 12.5/80/18 RETRO TRATOR JK 12L TL",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P18 12.5/80/18 RETRO TRATOR PIRELLI",
+    "ten_price": 2619.71,
+    "cash_price": 2399.0
+  },
+  {
+    "source": "P18 12.5/80-18 12L G-MPT643JD 13 GRP",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P18 215/40/18 89Y DSU02 SPM XL",
+    "ten_price": 577.67,
+    "cash_price": 529.0
+  },
+  {
+    "source": "P18 215/40/18 ITARO 85W IT301",
+    "ten_price": 555.83,
+    "cash_price": 509.0
+  },
+  {
+    "source": "P18 215/45/18 ITARO 93W IT301",
+    "ten_price": 523.07,
+    "cash_price": 479.0
+  },
+  {
+    "source": "P18 225/45/18 ATLAS TIRES AM520",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P18 225/45/18 FARROUD FRD26 95W",
+    "ten_price": 654.11,
+    "cash_price": 599.0
+  },
+  {
+    "source": "P18 225/45/18 G PUSH GRP TL 95H",
+    "ten_price": 490.31,
+    "cash_price": 449.0
+  },
+  {
+    "source": "P18 225/50/18 FARROAD FRD 26",
+    "ten_price": 675.95,
+    "cash_price": 619.0
+  },
+  {
+    "source": "P18 225/55/18 ATLAS TIRE A51 98V",
+    "ten_price": 610.43,
+    "cash_price": 559.0
+  },
+  {
+    "source": "P18 225/55/18 KUNHO TYRE HT",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P18 225/55/18 PIRELLI SCORPION",
+    "ten_price": 730.55,
+    "cash_price": 669.0
+  },
+  {
+    "source": "P18 225/55/18 PIRELLI SCORPION VERDE RENEGIETE",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P18 225/55/18 SPEED MAX 98V",
+    "ten_price": 621.35,
+    "cash_price": 569.0
+  },
+  {
+    "source": "P18 225/55/18 SPM FRD 26 SPP XL",
+    "ten_price": 719.63,
+    "cash_price": 659.0
+  },
+  {
+    "source": "P18 225/60/18 ATLAS TIRE PARALLER A/T50 104H",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P18 225/60/18 ATLAS TIRE SUV A50 100H",
+    "ten_price": 741.47,
+    "cash_price": 679.0
+  },
+  {
+    "source": "P18 225/60/18 SPEEDMAX HR805 100H",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P18 225/60/18 SPM ADMAX 104H AT XL ADVENTURE",
+    "ten_price": 719.63,
+    "cash_price": 659.0
+  },
+  {
+    "source": "P18 235/55/18 MAX ZEZ",
+    "ten_price": 871.42,
+    "cash_price": 798.0
+  },
+  {
+    "source": "P18 235/55/18 SPEEDMAX 100 T W01",
+    "ten_price": 610.43,
+    "cash_price": 559.0
+  },
+  {
+    "source": "P18 235/60/18 GT MARCHAL",
+    "ten_price": 730.55,
+    "cash_price": 669.0
+  },
+  {
+    "source": "P18 235/60/18 SPEEDMAX 103H HR805 SPM",
+    "ten_price": 752.39,
+    "cash_price": 689.0
+  },
+  {
+    "source": "P18 235/60/18 SPEEDMAX 107WCONTROL SUV",
+    "ten_price": 861.59,
+    "cash_price": 789.0
+  },
+  {
+    "source": "P18 255/55/18 FRD66 SPP XL 109V",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "P18 255/60/18 TRAZANO SU318 H/T 112V",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  },
+  {
+    "source": "P18 265/60/18 BRIDSTONE DWING HT 684VII 110H",
+    "ten_price": 1505.87,
+    "cash_price": 1379.0
+  },
+  {
+    "source": "P18 265/60/18 DYNAMO HICEND H MSU01 110V",
+    "ten_price": 839.75,
+    "cash_price": 769.0
+  },
+  {
+    "source": "P18 265/60/18 GRP G PROTRAIL AT",
+    "ten_price": 938.03,
+    "cash_price": 859.0
+  },
+  {
+    "source": "P18 265/60/18 ITARO IT 101",
+    "ten_price": 861.59,
+    "cash_price": 789.0
+  },
+  {
+    "source": "P18 265/60/18 PIRELI SCORPIOS ST",
+    "ten_price": 948.95,
+    "cash_price": 869.0
+  },
+  {
+    "source": "P18 265/60/18 SPEEDMAXII EXPEDITE SPM101 110H",
+    "ten_price": 1014.47,
+    "cash_price": 929.0
+  },
+  {
+    "source": "P18 265/60/18 SPEEDMAXII SPM SPEDYT ST",
+    "ten_price": 828.83,
+    "cash_price": 759.0
+  },
+  {
+    "source": "P18 265/60/18 SPEEDMAXIII ADVENTURENAX 114H",
+    "ten_price": 1079.99,
+    "cash_price": 989.0
+  },
+  {
+    "source": "P18 265/65/18 SPEEDMAXIII PRIME PANGEA ALL-TERRAIN 10 L",
+    "ten_price": 1276.55,
+    "cash_price": 1169.0
+  },
+  {
+    "source": "P18 AGRICOLA 750/18 AMAZON",
+    "ten_price": 1101.83,
+    "cash_price": 1009.0
+  },
+  {
+    "source": "P19 235/45/19 SPEEDMAX 99V ENGP VLTOUA 14EV XL",
+    "ten_price": 708.71,
+    "cash_price": 649.0
+  },
+  {
+    "source": "P19 235/45/19 SPEEDMAX SPM 306",
+    "ten_price": 872.51,
+    "cash_price": 799.0
+  },
+  {
+    "source": "P20 1000/20 DIR CENTAURO CT 65 PIRELLI",
+    "ten_price": 2073.71,
+    "cash_price": 1899.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL ANTEO AT65 PIRELLI 16L TT",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL ATAC",
+    "ten_price": 1800.71,
+    "cash_price": 1649.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL CR600 CENTELLA",
+    "ten_price": 1844.39,
+    "cash_price": 1689.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL GOODERIDE",
+    "ten_price": 1691.51,
+    "cash_price": 1549.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL SPEEDMAXIII STEER 16 LONAS",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL TORNEL T2400",
+    "ten_price": 1909.91,
+    "cash_price": 1749.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL TRACKING VIKRANTE",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P20 1000/20 DIRECIONAL WEST LAKE CR942 16L",
+    "ten_price": 1855.31,
+    "cash_price": 1699.0
+  },
+  {
+    "source": "P20 1000/20 DRC RADIAL DIRECIONAL D651",
+    "ten_price": 2063.88,
+    "cash_price": 1890.0
+  },
+  {
+    "source": "P20 1000/20 DRC RADIAL TRACAO D821",
+    "ten_price": 2292.11,
+    "cash_price": 2099.0
+  },
+  {
+    "source": "P20 1000/20 DRC RADIAL TRACAO FG PIRELLI",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P20 1000/20 RADIAL MISTO DRC 841",
+    "ten_price": 2238.6,
+    "cash_price": 2050.0
+  },
+  {
+    "source": "P20 1000/20 TRACAO PIRELLI",
+    "ten_price": 2619.71,
+    "cash_price": 2399.0
+  },
+  {
+    "source": "P20 1000/20 TRACAO SPEEDMAXIII DRIVE 16LONAS",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P20 1000/20 TRACAO STAR LUG",
+    "ten_price": 1997.27,
+    "cash_price": 1829.0
+  },
+  {
+    "source": "P20 1000/20 TRACAO TORNEL TXG PLUS",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P20 1000/20 TRACAO TRACK KING VIR",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P20 1000/20 TRACAO WEST LAKE CL946 16LONAS",
+    "ten_price": 1800.71,
+    "cash_price": 1649.0
+  },
+  {
+    "source": "P20 265/50/20 DYNAMO 111 Y HMU01 XL LV",
+    "ten_price": 948.95,
+    "cash_price": 869.0
+  },
+  {
+    "source": "P20 825/20 CENTAURO PIRELLI CT65",
+    "ten_price": 981.71,
+    "cash_price": 899.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL ANTEO AT65 PIRELLI",
+    "ten_price": 1636.91,
+    "cash_price": 1499.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL CENTELHA CR500",
+    "ten_price": 1636.91,
+    "cash_price": 1499.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL GOODERICHE CR 942",
+    "ten_price": 1418.51,
+    "cash_price": 1299.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL PIRELLI CENTAURO",
+    "ten_price": 1494.95,
+    "cash_price": 1369.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL SPEEDMAXIII STEER 14 LONAS",
+    "ten_price": 1954.68,
+    "cash_price": 1790.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL TORNEL",
+    "ten_price": 1527.71,
+    "cash_price": 1399.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL VIKRANT",
+    "ten_price": 1746.11,
+    "cash_price": 1599.0
+  },
+  {
+    "source": "P20 900/20 DIRECIONAL WEST LAKE CR942 14LONAS",
+    "ten_price": 1735.19,
+    "cash_price": 1589.0
+  },
+  {
+    "source": "P20 900/20 TRACAO ANTEO PIRELLI 140/137J AT59",
+    "ten_price": 1855.31,
+    "cash_price": 1699.0
+  },
+  {
+    "source": "P20 900/20 TRACAO PIRELLI 140/137J 14 RT52",
+    "ten_price": 1855.31,
+    "cash_price": 1699.0
+  },
+  {
+    "source": "P20 900/20 TRACAO TORNEL",
+    "ten_price": 1636.91,
+    "cash_price": 1499.0
+  },
+  {
+    "source": "P20 900/20 TRACAO VIKRANT",
+    "ten_price": 1636.91,
+    "cash_price": 1499.0
+  },
+  {
+    "source": "P20 900/20 TRAÇAO WEST LAKE CL946 14PR 141/137G",
+    "ten_price": 1746.11,
+    "cash_price": 1599.0
+  },
+  {
+    "source": "P22 1100/22 DIRECIONAL ANTEO AT65",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P22 1100/22 DIRECIONAL WEST LAKE",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIR ONYX RSHO162+LISO 18L 149/146M",
+    "ten_price": 2128.31,
+    "cash_price": 1949.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL ANTEO PRO-S 16LONAS",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL CASUMINA GS 625 16PR",
+    "ten_price": 2674.31,
+    "cash_price": 2449.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL DRC D621 16 LONAS",
+    "ten_price": 2510.51,
+    "cash_price": 2299.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL DRC D622",
+    "ten_price": 2019.11,
+    "cash_price": 1849.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL EVERGREEN ESL01 18PR",
+    "ten_price": 2619.71,
+    "cash_price": 2399.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL GP MASTER 16 L",
+    "ten_price": 2073.71,
+    "cash_price": 1899.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL LANDSPIDER A800 18LONAS 149/146M TL",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL MAGNUM MGM02",
+    "ten_price": 2728.91,
+    "cash_price": 2499.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL MAGNUM MGM03",
+    "ten_price": 2618.62,
+    "cash_price": 2398.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL MAGNUM MGM09 16PR",
+    "ten_price": 2173.08,
+    "cash_price": 1990.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL MAGNUM MGM21 16LONAS",
+    "ten_price": 2073.71,
+    "cash_price": 1899.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL MAGNUM TIRES MGM42 16 L",
+    "ten_price": 2019.11,
+    "cash_price": 1849.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL SPEEDMAXII EASYMAX S 18 L",
+    "ten_price": 2019.11,
+    "cash_price": 1849.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL SPM 18 L",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL TEGRYS",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL TRAZANO CR976A 16L",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 DIRECIONAL TYRE ADVANCE GL283A 18PR",
+    "ten_price": 2292.11,
+    "cash_price": 2099.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 MIXTO AP100 ATLAS TIRE",
+    "ten_price": 2589.13,
+    "cash_price": 2371.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 MIXTO DIRECIONAL APOLLO ENDUTRAX 16L",
+    "ten_price": 1909.91,
+    "cash_price": 1749.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 MIXTO SPEEDMAX HIGH SPEED SD755 16 L",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 MIXTO TRAÇAO APOLLO ENDUTRAX 16L",
+    "ten_price": 2019.11,
+    "cash_price": 1849.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAC WEST LAKE AD153 TRACAO",
+    "ten_price": 2796.61,
+    "cash_price": 2561.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAC XBRI ROBUSTO BOR 18L 149/146L",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAÇAO ANTEO PRO-D 16LONAS",
+    "ten_price": 2292.11,
+    "cash_price": 2099.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRACAO DRC 721",
+    "ten_price": 2827.19,
+    "cash_price": 2589.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRACAO GPERMASTER FD 16 LONAS",
+    "ten_price": 2073.71,
+    "cash_price": 1899.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAÇAO LANDSPIDER DR880 18L TL",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAÇAO ONYXRSHO356 18L 149/146L",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAÇAO SPEEDMAX D2 16LONAS",
+    "ten_price": 2292.11,
+    "cash_price": 2099.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAÇAO SPEEDMAX DJALMAX D3 16LONAS",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRACAO SPEEDMAX EXTRA MAX XD 16 L",
+    "ten_price": 2455.91,
+    "cash_price": 2249.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRAÇAO SPEEDMAX MXMAD SPPTL D1 16 L",
+    "ten_price": 2390.39,
+    "cash_price": 2189.0
+  },
+  {
+    "source": "P22.5 275/80/22.5 TRACAO TRAZANO AD153 16LONAS",
+    "ten_price": 2073.71,
+    "cash_price": 1899.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIR. SPEEDMAXIII EASYMAX S2 18LONAS",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIR. SPEEDMAXIII PRIME DALMAX 18 LONAS",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIR. STRYKER SS622 18L 152/148M",
+    "ten_price": 2434.07,
+    "cash_price": 2229.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONA FORMULA",
+    "ten_price": 2619.71,
+    "cash_price": 2399.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL ANTEO PRO-S 18LONAS",
+    "ten_price": 2510.51,
+    "cash_price": 2299.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL AT 196 NIPTL 18 L",
+    "ten_price": 2128.31,
+    "cash_price": 1949.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL CASUMINA GS611 18PR",
+    "ten_price": 2728.91,
+    "cash_price": 2499.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL CR926D WEST LAKE",
+    "ten_price": 2728.91,
+    "cash_price": 2499.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL DRC D671 18 LONAS",
+    "ten_price": 2674.31,
+    "cash_price": 2449.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL EVERGREEN ESL01 18PR",
+    "ten_price": 2838.11,
+    "cash_price": 2599.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL MGM09 MAGNUM 16 LONAS",
+    "ten_price": 2073.71,
+    "cash_price": 1899.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL MGM21 MAGNUM 18 LONAS",
+    "ten_price": 2783.51,
+    "cash_price": 2549.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL ROADX RH621",
+    "ten_price": 2942.94,
+    "cash_price": 2695.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL SPEEDMAX PRIMEMAX 18 LONAS",
+    "ten_price": 2357.63,
+    "cash_price": 2159.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL SPEEDMAX SS622 18LONAS",
+    "ten_price": 2227.68,
+    "cash_price": 2040.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL TAURUS",
+    "ten_price": 2390.39,
+    "cash_price": 2189.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL TRAZANO CR976-A 18L",
+    "ten_price": 2292.11,
+    "cash_price": 2099.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL TYGRES",
+    "ten_price": 2455.91,
+    "cash_price": 2249.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL TYRE ADVANCE GL282A 18PR",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 DIRECIONAL TYRE ADVANCE GL296A 18PR",
+    "ten_price": 2728.91,
+    "cash_price": 2499.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 MISTO STRYKER SD 755 18L 152/148",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 MIXTO DRC D851 152/149L18 L",
+    "ten_price": 2510.51,
+    "cash_price": 2299.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 MIXTO SPEEDMAX SD755 18 LONAS",
+    "ten_price": 2358.72,
+    "cash_price": 2160.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 MIXTO TRAZANO CR926D 18L TL",
+    "ten_price": 2182.91,
+    "cash_price": 1999.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 MIXTO WEST LAKE CR926D",
+    "ten_price": 2838.11,
+    "cash_price": 2599.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRAÇAO ANTEO PRO-D 18 LONAS",
+    "ten_price": 2619.71,
+    "cash_price": 2399.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRACAO APOLLO ENDURACE 16LONAS",
+    "ten_price": 3165.71,
+    "cash_price": 2899.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRACAO CASUMINA GS 851",
+    "ten_price": 2947.31,
+    "cash_price": 2699.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRACAO DRC",
+    "ten_price": 2947.31,
+    "cash_price": 2699.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRACAO DRC D722 18 L",
+    "ten_price": 2948.4,
+    "cash_price": 2700.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRAÇAO SPEEDMAX DALMAXS2 D 18 LONAS",
+    "ten_price": 2346.71,
+    "cash_price": 2149.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRAÇAO SPEEDMAX EASYMAX XD 18 LONAS",
+    "ten_price": 2510.51,
+    "cash_price": 2299.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRACAO TAURUS",
+    "ten_price": 2728.91,
+    "cash_price": 2499.0
+  },
+  {
+    "source": "P22.5 295/80/22.5 TRACAO TRAZANO AD153",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P22.5 385/65/22.5 DRC D711 20 L",
+    "ten_price": 3820.91,
+    "cash_price": 3499.0
+  },
+  {
+    "source": "P24 8.3/24 FARMAX CEAT TT 8LONAS",
+    "ten_price": 1190.28,
+    "cash_price": 1090.0
+  },
+  {
+    "source": "P24 9.5.24 SPM",
+    "ten_price": 1298.39,
+    "cash_price": 1189.0
+  },
+  {
+    "source": "P24 12.4/24 ADDO TRATOR PETLAS 12 L",
+    "ten_price": 2292.11,
+    "cash_price": 2099.0
+  },
+  {
+    "source": "P24 12.4/24 ASCENSO TDB120 12LONAS",
+    "ten_price": 2292.11,
+    "cash_price": 2099.0
+  },
+  {
+    "source": "P24 12.4/24 ATF TRATOR 12 L",
+    "ten_price": 2400.22,
+    "cash_price": 2198.0
+  },
+  {
+    "source": "P24 12.4/24 CEAT FARMAX R1 TRATOR 12LONAS",
+    "ten_price": 2510.51,
+    "cash_price": 2299.0
+  },
+  {
+    "source": "P24 12.4/24 FIRESTONE SUPER ALL TRACTION R-1 10PR",
+    "ten_price": 2936.39,
+    "cash_price": 2689.0
+  },
+  {
+    "source": "P24 12.4/24 GRIPKING SPEEDWAS R-1 12L",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P24 12.4/24 SPEEDMAXIII",
+    "ten_price": 2455.91,
+    "cash_price": 2249.0
+  },
+  {
+    "source": "P24 12.4/24 SPEEDMAXIII PRIME FORCEMAX AT20 12 PR",
+    "ten_price": 2838.11,
+    "cash_price": 2599.0
+  },
+  {
+    "source": "P24 12.4/24 SPM 12 LONAS TT R1 TRCMX HGA 03",
+    "ten_price": 2051.87,
+    "cash_price": 1879.0
+  },
+  {
+    "source": "P24 14.00/24 STRYKER TG G2/L2 STR PATROL 16PR",
+    "ten_price": 3493.31,
+    "cash_price": 3199.0
+  },
+  {
+    "source": "P24 14.00/24 GRIPMASTER G-EARTH 1220HD G2/L2 16L",
+    "ten_price": 4257.71,
+    "cash_price": 3899.0
+  },
+  {
+    "source": "P24 14.00/24 GRIPMASTER G-EARTH IND 320JG G2 16L",
+    "ten_price": 4257.71,
+    "cash_price": 3899.0
+  },
+  {
+    "source": "P24 14.00/24 L-2 G13 TRATOR AELUS 16 LONAS",
+    "ten_price": 4694.51,
+    "cash_price": 4299.0
+  },
+  {
+    "source": "P24 14.00/24 SAMY G2/L2 16L TL",
+    "ten_price": 4355.99,
+    "cash_price": 3989.0
+  },
+  {
+    "source": "P24 14.00/24 SPEEDMAXIII G2/L2 12L",
+    "ten_price": 3700.79,
+    "cash_price": 3389.0
+  },
+  {
+    "source": "P24 14.00/24 SPEEDMAXIII QH808 N G2/L2 16L",
+    "ten_price": 4257.71,
+    "cash_price": 3899.0
+  },
+  {
+    "source": "P24 14.00/24 STRYKER 16 L TRATOR TL ST1220HD G2/L2",
+    "ten_price": 3384.11,
+    "cash_price": 3099.0
+  },
+  {
+    "source": "P24 14.00/24 TRATOR 16 ADDO AIOT13",
+    "ten_price": 4803.71,
+    "cash_price": 4399.0
+  },
+  {
+    "source": "P24 14.00/24 TRATOR 16 AMAZON PATROL",
+    "ten_price": 2619.71,
+    "cash_price": 2399.0
+  },
+  {
+    "source": "P24 14.00/24 TRATOR MANCHER G/2 16LONAS",
+    "ten_price": 3930.11,
+    "cash_price": 3599.0
+  },
+  {
+    "source": "P24 14.00/24 TRATOR MANCHER W-3DN G2/L2 16LONAS",
+    "ten_price": 5022.11,
+    "cash_price": 4599.0
+  },
+  {
+    "source": "P24 14.9/24 TRATOR DIANT CEAT FARMAX 12LONAS",
+    "ten_price": 2401.31,
+    "cash_price": 2199.0
+  },
+  {
+    "source": "P24 14.9/24 TRATOR DIANT SPEEDMAX GRIPEN 8 LONAS",
+    "ten_price": 2459.74,
+    "cash_price": 2252.51
+  },
+  {
+    "source": "P24 14.9/24 TRATOR DIANT SPEEDMAXII 12 LONAS",
+    "ten_price": 2652.47,
+    "cash_price": 2429.0
+  },
+  {
+    "source": "P24 14.9/24 TRATOR DIANT SPEEDMAXIII IR007 6 LONAS",
+    "ten_price": 1964.51,
+    "cash_price": 1799.0
+  },
+  {
+    "source": "P24 14.9/24 TRATOR GRIPENG 8L",
+    "ten_price": 2728.91,
+    "cash_price": 2499.0
+  },
+  {
+    "source": "P24 16.9/24 TRATOR DIANT ERTMX SPM TL R4 HGA01 12 L",
+    "ten_price": 4148.51,
+    "cash_price": 3799.0
+  },
+  {
+    "source": "P24 19.5/24 RETRO",
+    "ten_price": 4585.31,
+    "cash_price": 4199.0
+  },
+  {
+    "source": "P24 19.5/24 RETRO AMAZON",
+    "ten_price": 4694.51,
+    "cash_price": 4299.0
+  },
+  {
+    "source": "P24 19.5/24 RETRO GPMT 12 L TL R 4 642JD",
+    "ten_price": 4355.99,
+    "cash_price": 3989.0
+  },
+  {
+    "source": "P24 19.5/24 RETRO JK",
+    "ten_price": 4694.51,
+    "cash_price": 4299.0
+  },
+  {
+    "source": "P24 19.5/24 RETRO ROADGUIDER 21 PR",
+    "ten_price": 5022.11,
+    "cash_price": 4599.0
+  },
+  {
+    "source": "P24 19.5L/24 12L TL R4 M-MPT 641 QD OTRMAX",
+    "ten_price": 4148.51,
+    "cash_price": 3799.0
+  },
+  {
+    "source": "P24 19.5L/24 RETRO POWERLUG R-4 SPEEDMAXII 12LONAS",
+    "ten_price": 4760.03,
+    "cash_price": 4359.0
+  },
+  {
+    "source": "P24 19.5L/24 RETRO SPEEDMAX R4 ERTMX QH601 12LONAS",
+    "ten_price": 4257.71,
+    "cash_price": 3899.0
+  },
+  {
+    "source": "P25 17.5-25 AELUS L-3 G-12B 16 LONAS",
+    "ten_price": 4366.91,
+    "cash_price": 3999.0
+  },
+  {
+    "source": "P25 17.5-25 CEAT G2/L2 16 L",
+    "ten_price": 5022.11,
+    "cash_price": 4599.0
+  },
+  {
+    "source": "P25 17.5-25 GRIPMASTER GEAR 1130 HD TL E3/L3 20 L",
+    "ten_price": 4858.31,
+    "cash_price": 4449.0
+  },
+  {
+    "source": "P25 17.5-25 MANCHER L3",
+    "ten_price": 2947.31,
+    "cash_price": 2699.0
+  },
+  {
+    "source": "P25 17.5-25 MANCHER W-1 L3/E3 16 LONAS",
+    "ten_price": 5449.08,
+    "cash_price": 4990.0
+  },
+  {
+    "source": "P25 17.5-25 SPEEDMAXII E3/L3 16 LONAS",
+    "ten_price": 4192.19,
+    "cash_price": 3839.0
+  },
+  {
+    "source": "P25 17.5-25 SPEEDMAXII G2/L2 16 LONAS",
+    "ten_price": 4914.0,
+    "cash_price": 4500.0
+  },
+  {
+    "source": "P28 14.9/28 TRATOR DIANT CEAT GRIPEN 8 LONAS",
+    "ten_price": 4476.11,
+    "cash_price": 4099.0
+  },
+  {
+    "source": "P28 16.9-28 TRATOR DIANT CEAT FARMAX 14PR",
+    "ten_price": 3154.79,
+    "cash_price": 2889.0
+  },
+  {
+    "source": "P30 18.4/30 FMX R1 AT20 152A8 14 LONAS",
+    "ten_price": 4476.11,
+    "cash_price": 4099.0
+  },
+  {
+    "source": "P30 18.4/30 JK TIRE 10 L",
+    "ten_price": 4803.71,
+    "cash_price": 4399.0
+  },
+  {
+    "source": "P30 18.4/30 SPEEDMAX HGA03 R-1 12 LONAS",
+    "ten_price": 4366.91,
+    "cash_price": 3999.0
+  },
+  {
+    "source": "P30 18.4/30 SPEEDMAXII R-2 10 LONAS",
+    "ten_price": 5218.67,
+    "cash_price": 4779.0
+  },
+  {
+    "source": "P30 18.4/30 SPEEDWAYS GRIPKING R1 12L TL",
+    "ten_price": 4912.91,
+    "cash_price": 4499.0
+  },
+  {
+    "source": "P30 18.4/30 TM 95",
+    "ten_price": 4585.31,
+    "cash_price": 4199.0
+  },
+  {
+    "source": "P34 18.4/30 TRATOR STREMAX GRIPEN 12 L",
+    "ten_price": 4972.97,
+    "cash_price": 4554.0
+  },
+  {
+    "source": "P34 18.4/30 TRATOR VANTAGE",
+    "ten_price": 5240.51,
+    "cash_price": 4799.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR ATF 14L",
+    "ten_price": 5699.15,
+    "cash_price": 5219.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR CEAT FARMAX 14LONAS",
+    "ten_price": 5022.11,
+    "cash_price": 4599.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR FIALE KING",
+    "ten_price": 4903.08,
+    "cash_price": 4490.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR GRIPKING 14 L",
+    "ten_price": 5568.11,
+    "cash_price": 5099.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR JK 12 L",
+    "ten_price": 5460.0,
+    "cash_price": 5000.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR SPEEDMAX FORCEMAX 16 LONAS",
+    "ten_price": 5131.31,
+    "cash_price": 4699.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR SPEEDMAXIII R1 14 LONAS",
+    "ten_price": 4910.72,
+    "cash_price": 4497.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR SPM GRIPMASTER R1-W 12 LONAS",
+    "ten_price": 4694.51,
+    "cash_price": 4299.0
+  },
+  {
+    "source": "P34 18.4/34 TRATOR VANTAGE 2 PIRELLI",
+    "ten_price": 4366.91,
+    "cash_price": 3999.0
+  },
+  {
+    "source": "RODA 17.5 6 F400",
+    "ten_price": 644.28,
+    "cash_price": 590.0
+  },
+  {
+    "source": "RODA 17.5 6 FUROS (17.5X6.00)",
+    "ten_price": 621.35,
+    "cash_price": 569.0
+  },
+  {
+    "source": "RODA 275 10 FUROS (22.5X750)",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "RODA 275 8 FUROS (22.5X750)",
+    "ten_price": 763.31,
+    "cash_price": 699.0
+  },
+  {
+    "source": "RODA 295 10 FUROS (22.5X8.25)",
+    "ten_price": 927.11,
+    "cash_price": 849.0
+  }
+]

@@ -15,6 +15,7 @@ import { clearMenuSession } from '../utils/menuSessionStore.js';
 import { saveProductActionSession } from '../utils/productActionSessionStore.js';
 import type { ProductCategory } from '@prisma/client';
 import { isBatteryCategory, isInnerTubeCategory } from '../utils/productCategory.js';
+import { formatSimilarProductSearchHelp } from './productSearchHelp.js';
 
 /**
  * Pneu Command - Fase 6 (Consulta real no banco)
@@ -88,12 +89,18 @@ export function isPneuHelpCommand(body: string): boolean {
 
 export function isPneuCommand(body: string): boolean {
   const normalized = body.trim().toLowerCase();
-  return normalized.startsWith('pneu ');
+  return normalized.startsWith('pneu ') && !formatSimilarProductSearchHelp(body);
 }
 
 export async function handleLegacyPneuCommandNotice(message: Message): Promise<void> {
   await message.reply(
-    'ℹ️ A consulta mudou. Agora, digite apenas a medida.\nEx.: *175 70 14*'
+    [
+      'ℹ️ *CONSULTA DE PNEUS*',
+      '',
+      'Carros: digite apenas a medida. Ex.: *175 70 14*',
+      'Motos por aro: *mt 21*',
+      'Motos zerados: *0 mt 21*',
+    ].join('\n')
   );
 }
 

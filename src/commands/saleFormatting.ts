@@ -137,6 +137,9 @@ export function formatPriceTypeQuestion(session: SaleSession): string {
     '',
     `1️⃣ 💰 À vista: *${formatCurrency(calculateSaleTotal(session.quantity, session.cashPrice))}*`,
     `2️⃣ 💳 A prazo: *${formatCurrency(calculateSaleTotal(session.quantity, session.creditPrice))}*`,
+    ...(Number.isFinite(session.tenInstallmentPrice) && Number(session.tenInstallmentPrice) > 0
+      ? [`3️⃣ 💳 10X: *${formatCurrency(calculateSaleTotal(session.quantity, session.tenInstallmentPrice!))}*`]
+      : []),
   ].join('\n');
 }
 

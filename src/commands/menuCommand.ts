@@ -1,6 +1,7 @@
 import { Message } from 'whatsapp-web.js';
 import { parseInnerTubeCommand, handleInnerTubeCommand } from './innerTubeCommand.js';
 import { parseRetreadedTireCommand, handleRetreadedTireCommand } from './retreadedTireCommand.js';
+import { handleMotorcycleTireCommand, parseMotorcycleTireCommand } from './motorcycleTireCommand.js';
 import { handleBestSellersCommand } from './bestSellersCommand.js';
 import { handleTodayReportCommand } from './todayReportCommand.js';
 import {
@@ -33,6 +34,7 @@ import {
 } from './batteryCommand.js';
 import { handleMonthlyInventoryReportCommand, handleCurrentStockReportCommand } from './monthlyInventoryReportCommand.js';
 import { handleMonthlyCommissionReportCommand } from './monthlyCommissionReportCommand.js';
+import { formatSimilarProductSearchHelp } from './productSearchHelp.js';
 
 const MENU_TEXT = [
   '🤖 *TIREFLOW — MENU*',
@@ -71,6 +73,10 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
   const rawMeasure = body.trim().replace(/^0\s+/, '');
+  if (parseMotorcycleTireCommand(body)) {
+    await handleMotorcycleTireCommand(message, body);
+    return;
+  }
   if (parseRetreadedTireCommand(rawMeasure)) {
     await handleRetreadedTireCommand(message, rawMeasure, true);
     return;
@@ -81,6 +87,11 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
   }
   if (isBatterySearchCommand(rawMeasure)) {
     await handleZeroStockBatteryCommand(message, rawMeasure);
+    return;
+  }
+  const similarProductSearchHelp = formatSimilarProductSearchHelp(rawMeasure);
+  if (similarProductSearchHelp) {
+    await message.reply(similarProductSearchHelp);
     return;
   }
   const normalized = normalizeTireSize(rawMeasure);

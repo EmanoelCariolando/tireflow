@@ -6,7 +6,7 @@ import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
 export type MixedPaymentMethod = 'Dinheiro' | 'PIX' | 'Cartão';
 export type ReceiptPaymentMethod = MixedPaymentMethod | 'Nota';
 export type PaymentMethod = MixedPaymentMethod | 'Nota' | 'Misto' | 'Pendência';
-export type SalePriceType = 'À vista' | 'A prazo';
+export type SalePriceType = 'À vista' | 'A prazo' | '10X';
 
 export interface PaymentBreakdownPart {
   method: MixedPaymentMethod;
@@ -28,6 +28,7 @@ export interface SaleItem {
   quantity: number;
   cashPrice: number;
   creditPrice: number;
+  tenInstallmentPrice?: number | null;
   priceType: SalePriceType;
   unitPrice: number;
   totalValue: number;
@@ -66,6 +67,7 @@ export interface SaleSession {
   quantity: number;
   cashPrice: number;
   creditPrice: number;
+  tenInstallmentPrice?: number | null;
   unitPrice?: number;
   totalValue?: number;
   priceType?: SalePriceType;

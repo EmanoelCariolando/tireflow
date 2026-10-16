@@ -33,7 +33,7 @@ export async function handleRetreadedTireCommand(message: Message, body: string,
       where: { category, isActive: true, stock: zeroStock ? { lte: 0 } : { gt: 0 } },
       orderBy: [{ reference: 'asc' }, { description: 'asc' }],
     });
-    const products: QueriedProduct[] = rows.map(row => ({ ...row, cashPrice: Number(row.cashPrice), creditPrice: Number(row.creditPrice), hasPhoto: hasProductImageFile(row.imagePath) }));
+    const products: QueriedProduct[] = rows.map(row => ({ ...row, cashPrice: Number(row.cashPrice), creditPrice: Number(row.creditPrice), tenInstallmentPrice: row.tenInstallmentPrice == null ? null : Number(row.tenInstallmentPrice), hasPhoto: hasProductImageFile(row.imagePath) }));
     if (!products.length) {
       await message.reply(zeroStock ? '✅ Nenhum pneu coberto desta categoria está zerado.' : '📦 Nenhum pneu coberto desta categoria disponível em estoque.');
       return;

@@ -159,10 +159,11 @@ function mapPendingSaleToSaleSession(
     quantity: item.quantity,
     cashPrice: Number(item.cashPrice),
     creditPrice: Number(item.creditPrice),
-    priceType: item.priceType === 'A prazo' ? 'A prazo' : 'À vista',
-    unitPrice: item.priceType === 'A prazo' ? Number(item.creditPrice) : Number(item.cashPrice),
+    tenInstallmentPrice: item.tenInstallmentPrice == null ? null : Number(item.tenInstallmentPrice),
+    priceType: item.priceType === '10X' ? '10X' : item.priceType === 'A prazo' ? 'A prazo' : 'À vista',
+    unitPrice: item.priceType === '10X' ? Number(item.tenInstallmentPrice ?? item.unitPrice) : item.priceType === 'A prazo' ? Number(item.creditPrice) : Number(item.cashPrice),
     totalValue: item.quantity * (
-      item.priceType === 'A prazo' ? Number(item.creditPrice) : Number(item.cashPrice)
+      item.priceType === '10X' ? Number(item.tenInstallmentPrice ?? item.unitPrice) : item.priceType === 'A prazo' ? Number(item.creditPrice) : Number(item.cashPrice)
     ),
   }));
   const lastItem = items.at(-1)!;
@@ -180,6 +181,7 @@ function mapPendingSaleToSaleSession(
     quantity: lastItem.quantity,
     cashPrice: lastItem.cashPrice,
     creditPrice: lastItem.creditPrice,
+    tenInstallmentPrice: lastItem.tenInstallmentPrice,
     unitPrice: lastItem.unitPrice,
     totalValue: Number(pendingSale.totalValue),
     priceType: sharedPriceType,

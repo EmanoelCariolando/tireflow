@@ -15,7 +15,7 @@ type ProductQueryRow = Pick<
   | 'cashPrice'
   | 'creditPrice'
   | 'imagePath'
->;
+> & Partial<Pick<Product, 'tenInstallmentPrice'>>;
 
 function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
   return {
@@ -28,6 +28,7 @@ function mapProductToQueryResult(product: ProductQueryRow): QueriedProduct {
     stockLocation: product.stockLocation,
     cashPrice: Number(product.cashPrice),
     creditPrice: Number(product.creditPrice),
+    tenInstallmentPrice: product.tenInstallmentPrice == null ? null : Number(product.tenInstallmentPrice),
     hasPhoto: hasProductImageFile(product.imagePath),
   };
 }

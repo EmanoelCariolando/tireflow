@@ -46,7 +46,10 @@ test('redirects the legacy pneu measure format to the standalone size', async ()
 
   assert.equal(
     replyText,
-    'ℹ️ A consulta mudou. Agora, digite apenas a medida.\nEx.: *175 70 14*'
+    'ℹ️ *CONSULTA DE PNEUS*\n\n' +
+      'Carros: digite apenas a medida. Ex.: *175 70 14*\n' +
+      'Motos por aro: *mt 21*\n' +
+      'Motos zerados: *0 mt 21*'
   );
 });
 
@@ -160,7 +163,10 @@ test('pneu without a measure shows only the short migration notice', async () =>
 
   assert.equal(
     replyText,
-    'ℹ️ A consulta mudou. Agora, digite apenas a medida.\nEx.: *175 70 14*'
+    'ℹ️ *CONSULTA DE PNEUS*\n\n' +
+      'Carros: digite apenas a medida. Ex.: *175 70 14*\n' +
+      'Motos por aro: *mt 21*\n' +
+      'Motos zerados: *0 mt 21*'
   );
   assert.doesNotMatch(replyText, /COMANDOS|ATALHOS|foto|entrada|venda/);
 });

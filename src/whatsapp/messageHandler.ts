@@ -2,6 +2,10 @@ import { Message } from 'whatsapp-web.js';
 import { parseInnerTubeCommand, handleInnerTubeCommand } from '../commands/innerTubeCommand.js';
 import { parseRetreadedTireCommand, handleRetreadedTireCommand } from '../commands/retreadedTireCommand.js';
 import {
+  handleMotorcycleTireCommand,
+  parseMotorcycleTireCommand,
+} from '../commands/motorcycleTireCommand.js';
+import {
   isPneuCommand,
   handlePneuCommand,
   isPneuHelpCommand,
@@ -82,6 +86,7 @@ import {
   handleMonthlyCommissionReportConversation,
   isMonthlyCommissionReportCommand,
 } from '../commands/monthlyCommissionReportCommand.js';
+import { formatSimilarProductSearchHelp } from '../commands/productSearchHelp.js';
 
 /**
  * Message Handler (Fase 3)
@@ -255,6 +260,17 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (parseRetreadedTireCommand(body)) {
     await handleRetreadedTireCommand(message, body);
+    return;
+  }
+
+  if (parseMotorcycleTireCommand(body)) {
+    await handleMotorcycleTireCommand(message, body);
+    return;
+  }
+
+  const similarProductSearchHelp = formatSimilarProductSearchHelp(body);
+  if (similarProductSearchHelp) {
+    await message.reply(similarProductSearchHelp);
     return;
   }
 

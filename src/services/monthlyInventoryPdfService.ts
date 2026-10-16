@@ -601,6 +601,7 @@ function groupInventoryRows(
     const location = row.stockLocation?.trim() || 'Não cadastrado';
     const productGroup = row.category === ProductCategory.BATTERY
       ? `BATERIAS — ${row.batteryBrand === BatteryBrand.ZETTA ? 'ZETTA' : 'MOURA'}`
+      : row.category === ProductCategory.MOTORCYCLE_TIRE ? 'PNEUS DE MOTO'
       : row.category === ProductCategory.MOTORCYCLE_INNER_TUBE ? 'CÂMARAS DE AR — MOTOS'
       : row.category === ProductCategory.INNER_TUBE ? 'CÂMARAS DE AR — CARROS E AGRÍCOLAS'
       : row.category === ProductCategory.MOTORCYCLE_RETREADED_TIRE ? 'PNEUS COBERTOS — MOTOS'
@@ -677,7 +678,11 @@ export function getTireRim(reference: string): number | null {
 function getInventoryProductRim(
   product: Pick<MonthlyInventoryProduct, 'reference' | 'description' | 'category'>
 ): number | null {
-  if (product.category && product.category !== ProductCategory.TIRE) return null;
+  if (
+    product.category &&
+    product.category !== ProductCategory.TIRE &&
+    product.category !== ProductCategory.MOTORCYCLE_TIRE
+  ) return null;
   return getTireRim(product.reference) ?? getTireRim(product.description);
 }
 

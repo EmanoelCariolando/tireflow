@@ -14,6 +14,18 @@ import type { SaleSession } from '../src/utils/saleSessionStore.js';
 
 const products: Parameters<typeof filterBatteryProducts>[0] = [
   {
+    id: 'moura-50',
+    reference: 'M50ED',
+    description: '50AH 12V DIREITA',
+    category: ProductCategory.BATTERY,
+    batteryBrand: BatteryBrand.MOURA,
+    stock: 4,
+    stockLocation: null,
+    cashPrice: new Prisma.Decimal(489),
+    creditPrice: new Prisma.Decimal(517.36),
+    imagePath: null,
+  },
+  {
     id: 'moura-60',
     reference: 'M60GD',
     description: '60AH 12V DIREITA',
@@ -49,6 +61,18 @@ const products: Parameters<typeof filterBatteryProducts>[0] = [
     creditPrice: new Prisma.Decimal(952.2),
     imagePath: null,
   },
+  {
+    id: 'moura-150',
+    reference: 'M150BD',
+    description: '150AH 12V DIREITA',
+    category: ProductCategory.BATTERY,
+    batteryBrand: BatteryBrand.MOURA,
+    stock: 3,
+    stockLocation: null,
+    cashPrice: new Prisma.Decimal(1199),
+    creditPrice: new Prisma.Decimal(1268.54),
+    imagePath: null,
+  },
 ];
 
 test('recognizes direct battery searches without consuming ordinary numbers or messages', () => {
@@ -73,9 +97,20 @@ test('shows both brands for the informed battery capacity', () => {
   assert.deepEqual(sixtyAmp.map((product) => product.id), ['moura-60', 'zetta-60']);
 });
 
+test('matches the complete battery capacity instead of finding 50 inside 150', () => {
+  const fiftyAmp = filterBatteryProducts(products, parseBatterySearchQuery('bateria 50')!);
+  assert.deepEqual(fiftyAmp.map((product) => product.id), ['moura-50']);
+
+  const oneHundredFiftyAmp = filterBatteryProducts(
+    products,
+    parseBatterySearchQuery('bateria 150')!
+  );
+  assert.deepEqual(oneHundredFiftyAmp.map((product) => product.id), ['moura-150']);
+});
+
 test('formats batteries distinctly while preserving the existing product workflow', () => {
   const text = formatBatteryList(
-    products.slice(0, 2).map((product) => ({
+    filterBatteryProducts(products, parseBatterySearchQuery('bateria 60')!).map((product) => ({
       ...product,
       cashPrice: Number(product.cashPrice),
       creditPrice: Number(product.creditPrice),

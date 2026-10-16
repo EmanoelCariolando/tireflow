@@ -25,11 +25,13 @@ test('stock PDF reads current tires without consulting movement history; monthly
   t.mock.method(movementRepository, 'findByDateRange', async () => { throw new Error('History unavailable'); });
   t.mock.method(productRepository, 'findActiveWithPositiveStock', async () => [
     { id: 't', category: ProductCategory.TIRE, reference: '175/70 R14', description: 'PNEU TESTE ATUAL', stock: 7, stockLocation: null },
+    { id: 'mt', category: ProductCategory.MOTORCYCLE_TIRE, reference: '90/90-21', description: 'PNEU MOTO ATUAL', stock: 2, stockLocation: null },
     { id: 'b', category: ProductCategory.BATTERY, reference: '60AH', description: 'BATERIA EXCLUIDA', stock: 3, stockLocation: null },
   ]);
   const stock = await buildCurrentStockReportPdf(new Date(2026, 8, 28, 18));
   const text = pdfText(stock.pdfBuffer);
   assert.match(text, /PNEU TESTE ATUAL/);
+  assert.match(text, /PNEU MOTO ATUAL/);
   assert.doesNotMatch(text, /BATERIA EXCLUIDA|MAIS VENDIDOS|ZERARAM NO/);
   assert.equal(stock.pdfFileName, 'pneus-estoque-atual-2026-09-28.pdf');
   t.mock.restoreAll();

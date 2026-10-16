@@ -178,6 +178,7 @@ export async function handleSaleCommand(message: Message, body: string): Promise
     quantity,
     cashPrice: product.cashPrice,
     creditPrice: product.creditPrice,
+    tenInstallmentPrice: product.tenInstallmentPrice,
     updatedAt: Date.now(),
   };
   saveSaleSession(saleSession);
@@ -780,6 +781,7 @@ async function prepareAdditionalSaleItem(
     quantity,
     cashPrice: product.cashPrice,
     creditPrice: product.creditPrice,
+    tenInstallmentPrice: product.tenInstallmentPrice,
     unitPrice: undefined,
     priceType: undefined,
     additionalMeasure: undefined,
@@ -798,7 +800,7 @@ async function handlePriceTypeStep(
 ): Promise<void> {
   const priceType = parsePriceType(normalizedBody);
 
-  if (!priceType) {
+  if (!priceType || (priceType === '10X' && !(Number.isFinite(session.tenInstallmentPrice) && Number(session.tenInstallmentPrice) > 0))) {
     await message.reply(`Opção inválida.\n\n${formatPriceTypeQuestion(session)}`);
     return;
   }
@@ -1623,6 +1625,7 @@ async function returnToPreparedSale(
     quantity: lastItem.quantity,
     cashPrice: lastItem.cashPrice,
     creditPrice: lastItem.creditPrice,
+    tenInstallmentPrice: lastItem.tenInstallmentPrice,
     unitPrice: lastItem.unitPrice,
     priceType: sharedPriceType,
     additionalMeasure: undefined,

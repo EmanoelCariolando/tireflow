@@ -6,6 +6,7 @@ import { prisma } from '../src/database/prisma.js';
 import { parseRetreadedTireCommand, handleRetreadedTireCommand } from '../src/commands/retreadedTireCommand.js';
 import { getLastQuery } from '../src/utils/lastQueryStore.js';
 import { getProductActionSession } from '../src/utils/productActionSessionStore.js';
+import fs from 'node:fs';
 
 test('recognizes separate retreaded tire commands without consuming other searches', () => {
   assert.equal(parseRetreadedTireCommand('coberto'), ProductCategory.RETREADED_TIRE);
@@ -35,4 +36,16 @@ test('queries only the selected category and stock mode and preserves indexed pr
   } finally {
     prisma.product.findMany = originalFind;
   }
+});
+
+test('the reviewed PDF catalog contains only priced products and the updated final stock', () => {
+  const rows = fs.readFileSync('data/seed/congo_retreaded_tires_2026-10-15.csv', 'utf8')
+    .trim().split(/\r?\n/).slice(1).map((line) => line.split(','));
+
+  assert.equal(rows.length, 17);
+  assert.equal(rows.filter((row) => row[6] === ProductCategory.MOTORCYCLE_RETREADED_TIRE).length, 7);
+  assert.equal(rows.filter((row) => row[6] === ProductCategory.RETREADED_TIRE).length, 10);
+  assert.equal(rows.reduce((total, row) => total + Number(row[5]), 0), 28);
+  assert.equal(rows.find((row) => row[0] === 'COB-16-750-16-TRAZ')?.[5], '4');
+  assert.ok(rows.every((row) => /^\d+\.\d{2}$/.test(row[2]!) && /^\d+\.\d{2}$/.test(row[3]!) && /^\d+\.\d{2}$/.test(row[4]!)));
 });

@@ -118,6 +118,7 @@ export async function registerPendingSale(
           quantity: item.quantity,
           cashPrice: item.cashPrice,
           creditPrice: item.creditPrice,
+          tenInstallmentPrice: item.tenInstallmentPrice,
           priceType: item.priceType,
           unitPrice: item.unitPrice,
           totalValue: item.totalValue,

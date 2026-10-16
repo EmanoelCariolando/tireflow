@@ -35,6 +35,18 @@ function normalizeSearchText(value: string): string {
     .replace(/\s+/g, ' ');
 }
 
+function extractBatteryCapacity(
+  product: Pick<BatteryProductRow, 'reference' | 'description'>
+): string | null {
+  const description = normalizeSearchText(product.description);
+  const descriptionMatch = description.match(/(?:^|\s)(\d{2,3})AH(?:\s|$)/);
+  if (descriptionMatch) return descriptionMatch[1]!;
+
+  const reference = product.reference.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const referenceMatch = reference.match(/^[A-Z]+(\d{2,3})(?:[A-Z]|$)/);
+  return referenceMatch?.[1] ?? null;
+}
+
 export function parseBatterySearchQuery(body: string): BatterySearchQuery | null {
   const normalizedBody = normalizeSearchText(body);
   if (!normalizedBody) return null;
@@ -60,10 +72,13 @@ export function filterBatteryProducts(
   return products.filter((product) => {
     if (query.brand && product.batteryBrand !== query.brand) return false;
 
+    const [capacity, ...remainingTerms] = query.terms;
+    if (!capacity || extractBatteryCapacity(product) !== capacity) return false;
+
     const haystack = normalizeSearchText(
       `${product.reference} ${product.description} ${product.batteryBrand ?? ''}`
     );
-    return query.terms.every((term) => haystack.includes(term));
+    return remainingTerms.every((term) => haystack.includes(term));
   });
 }
 

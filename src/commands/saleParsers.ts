@@ -113,6 +113,7 @@ export function parseAdditionalItemSelection(
 }
 
 export function parsePriceType(value: string): SalePriceType | null {
+  if (/^(3|10\s*x)$/i.test(value.trim())) return '10X';
   const normalized = removeAccents(value).replace(/\s+/g, ' ').trim();
 
   if (normalized === '1' || normalized === 'avista' || normalized === 'a vista') {
