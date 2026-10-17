@@ -73,11 +73,12 @@ async function main(): Promise<void> {
   const apply = process.argv.includes('--apply');
   const rows = await readCatalog();
   const products = await prisma.product.findMany();
-  const byReference = new Map<string, (typeof products)[number]>();
+  const byReference = new Map<string, Array<(typeof products)[number]>>();
   for (const product of products) {
     const key = normalize(product.reference);
-    if (byReference.has(key)) throw new Error(`Referência duplicada no banco: ${product.reference}`);
-    byReference.set(key, product);
+    const matches = byReference.get(key) ?? [];
+    matches.push(product);
+    byReference.set(key, matches);
   }
   const descriptionCounts = new Map<string, number>();
   for (const row of rows) {
@@ -91,7 +92,17 @@ async function main(): Promise<void> {
 
   for (const row of rows) {
     const descriptionKey = normalize(row.description);
-    const exactReference = byReference.get(normalize(row.reference));
+    const referenceMatches = byReference.get(normalize(row.reference)) ?? [];
+    const exactIdentityMatches = referenceMatches.filter(
+      (product) => normalize(product.description) === descriptionKey
+    );
+    if (exactIdentityMatches.length > 1) {
+      throw new Error(`Linha ${row.line}: identidade duplicada no banco.`);
+    }
+    if (referenceMatches.length > 1 && exactIdentityMatches.length === 0) {
+      throw new Error(`Linha ${row.line}: referência do catálogo corresponde a vários cadastros.`);
+    }
+    const exactReference = exactIdentityMatches[0] ?? referenceMatches[0];
     const descriptionMatches = products.filter((product) =>
       normalize(product.description) === descriptionKey &&
       (descriptionCounts.get(descriptionKey) === 1 || product.cashPrice.toFixed(2) === row.cashPrice)

@@ -36,6 +36,18 @@ test('imports the priced retreaded-tire catalog idempotently and preserves exist
         imagePath: 'uploads/products/coberto.jpg',
       },
     });
+    await prisma.product.createMany({
+      data: [
+        {
+          reference: '165/70 R13', description: 'PNEU MODELO A',
+          cashPrice: 300, creditPrice: 317.4, stock: 2,
+        },
+        {
+          reference: '165/70 R13', description: 'PNEU MODELO B',
+          cashPrice: 320, creditPrice: 338.56, stock: 3,
+        },
+      ],
+    });
 
     const preview = execFileSync(
       process.execPath,
@@ -43,7 +55,7 @@ test('imports the priced retreaded-tire catalog idempotently and preserves exist
       { cwd: process.cwd(), env: congoEnvironment, encoding: 'utf8' }
     );
     assert.match(preview, /17 modelos com preço/);
-    assert.equal(await prisma.product.count(), 1);
+    assert.equal(await prisma.product.count(), 3);
 
     execFileSync(
       process.execPath,
@@ -58,7 +70,7 @@ test('imports the priced retreaded-tire catalog idempotently and preserves exist
     assert.equal(Number(updated.tenInstallmentPrice), 103.74);
     assert.equal(updated.stockLocation, 'CG');
     assert.equal(updated.imagePath, 'uploads/products/coberto.jpg');
-    assert.equal(await prisma.product.count(), 17);
+    assert.equal(await prisma.product.count(), 19);
 
     const rear750 = await prisma.product.findFirstOrThrow({
       where: { reference: 'COB-16-750-16-TRAZ' },
