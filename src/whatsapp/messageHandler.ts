@@ -87,6 +87,9 @@ import {
   isMonthlyCommissionReportCommand,
 } from '../commands/monthlyCommissionReportCommand.js';
 import { formatSimilarProductSearchHelp } from '../commands/productSearchHelp.js';
+import {
+  handleProductNameCommand, handleProductNameConversation, isProductNameCommand,
+} from '../commands/productNameCommand.js';
 
 /**
  * Message Handler (Fase 3)
@@ -206,6 +209,10 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
+  if (await handleProductNameConversation(message, body)) {
+    return;
+  }
+
   if (await handlePriceConversation(message, body)) {
     return;
   }
@@ -321,6 +328,11 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
 
   if (isLocationCommand(body)) {
     await handleLocationCommand(message, body);
+    return;
+  }
+
+  if (isProductNameCommand(body)) {
+    await handleProductNameCommand(message, body);
     return;
   }
 

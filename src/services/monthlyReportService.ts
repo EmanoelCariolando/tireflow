@@ -8,6 +8,7 @@ import { formatCurrency } from '../utils/formatCurrency.js';
 import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
 import {
   DISCOUNTED_COMMISSION_PERCENT,
+  getCommissionPercentForCategory,
   STANDARD_COMMISSION_PERCENT,
 } from '../utils/commissionRates.js';
 import {
@@ -515,9 +516,10 @@ function summarizeSellers(
     current.quantity += sale.quantity ?? 0;
     current.totalValue += toNumber(sale.totalValue);
     const saleValue = toNumber(sale.totalValue);
-    const saleCommissionPercent = sale.commissionPercent === null
-      ? commissionPercent
-      : toNumber(sale.commissionPercent);
+    const saleCommissionPercent = getCommissionPercentForCategory(
+      sale.product.category,
+      sale.commissionPercent === null ? commissionPercent : toNumber(sale.commissionPercent)
+    );
     if (sale.isCityHallSale || saleCommissionPercent === 0) {
       current.cityHallSalesValue += toNumber(sale.totalValue);
     } else if (saleCommissionPercent === DISCOUNTED_COMMISSION_PERCENT) {

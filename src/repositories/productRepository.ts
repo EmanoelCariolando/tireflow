@@ -177,6 +177,18 @@ export const productRepository = {
     });
   },
 
+  updateDescriptionIfUnchanged(
+    id: string,
+    expectedDescription: string,
+    description: string,
+    client: PrismaClientOrTransaction = prisma
+  ) {
+    return client.product.updateMany({
+      where: { id, isActive: true, description: expectedDescription },
+      data: { description },
+    });
+  },
+
   updateStock(id: string, stock: number, client: PrismaClientOrTransaction = prisma) {
     return client.product.update({
       where: { id },

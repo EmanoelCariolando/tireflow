@@ -53,7 +53,7 @@ export function startMonthlyReportScheduler(): void {
 
   void sendReportsIfDue();
   console.log(
-    `[MONTHLY_REPORT] Scheduler enabled at ${env.monthlyReportTime}: monthly report on day 1; previous-month commissions on day 20 at 2%, or 1% when a discount was applied.`
+    `[MONTHLY_REPORT] Scheduler enabled at ${env.monthlyReportTime}: monthly report on day 1; previous-month commissions on day 20 at 2%, or 1% for batteries, inner tubes and discounted sales.`
   );
 }
 

@@ -94,6 +94,18 @@ export function clearLastQuery(userId: string, chatId?: string): void {
   }
 }
 
+export function updateLastQueryProductDescription(productId: string, description: string): void {
+  for (const [key, stored] of lastQueries) {
+    if (Date.now() - stored.timestamp > LAST_QUERY_TTL_MS) {
+      lastQueries.delete(key);
+      continue;
+    }
+    stored.products = stored.products.map((product) =>
+      product.id === productId ? { ...product, description } : product
+    );
+  }
+}
+
 export function updateLastQueryProductLocation(
   userId: string,
   chatId: string,

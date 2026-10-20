@@ -73,6 +73,7 @@ function createDependencies(calls: string[]): ProductActionDependencies {
     adjustment: handler('adjustment'),
     addPhoto: handler('addPhoto'),
     location: handler('location'),
+    rename: handler('rename'),
     inventoryLocationsEnabled: true,
   };
 }
@@ -93,8 +94,8 @@ test('formats the three new instructional messages exactly', () => {
       '',
       '1️⃣ Venda | 2️⃣ Entrada',
       '3️⃣ Preço | 4️⃣ Foto',
-      '5️⃣ Ajustar estoque | 6️⃣ Adicionar foto',
-      '7️⃣ Localização',
+      '5️⃣ Ajustar | 6️⃣ Adicionar foto',
+      '7️⃣ Localização | 8️⃣ Mudar nome',
     ].join('\n')
   );
 
@@ -105,8 +106,9 @@ test('formats the three new instructional messages exactly', () => {
       '',
       '1️⃣ Entrada',
       '2️⃣ Preço',
-      '3️⃣ Ajustar estoque',
+      '3️⃣ Ajustar',
       '4️⃣ Localização',
+      '5️⃣ Mudar nome',
     ].join('\n')
   );
 
@@ -122,6 +124,25 @@ test('formats the three new instructional messages exactly', () => {
 test('keeps the consultation and its selection flow active for twelve minutes', () => {
   assert.equal(LAST_QUERY_TTL_MS, 12 * 60 * 1000);
   assert.equal(PRODUCT_ACTION_SESSION_TTL_MS, 12 * 60 * 1000);
+});
+
+test('offers name correction in both stock menus without locations', async () => {
+  const calls: string[] = [];
+  const dependencies = { ...createDependencies(calls), inventoryLocationsEnabled: false };
+  try {
+    saveQuery();
+    assert.match(formatProductActionMenu(false), /7️⃣ Mudar nome$/);
+    assert.match(formatZeroStockActionMenu(false), /4️⃣ Mudar nome$/);
+    for (const mode of ['standard', 'zero_stock'] as const) {
+      calls.length = 0;
+      saveProductActionSession(userId, chatId, 'awaiting_action', 2, mode);
+      await handleProductActionConversation(createMessage([]), mode === 'standard' ? '7' : '4', dependencies);
+      assert.deepEqual(calls, ['rename:nome 2']);
+    }
+  } finally {
+    clearProductActionSession(userId, chatId);
+    clearLastQuery(userId, chatId);
+  }
 });
 
 test('selects a tire, opens the action menu and asks the sale quantity', async () => {
@@ -161,6 +182,7 @@ test('routes every additional product action to the selected tire', async () => 
     ['5', 'adjustment:ajuste 2'],
     ['6', 'addPhoto:addfoto 2'],
     ['7', 'location:local 2'],
+    ['8', 'rename:nome 2'],
   ]);
 
   try {
@@ -257,6 +279,7 @@ test('zero-stock selection offers and routes entry, price, adjustment and locati
     ['2', 'price:preco 2'],
     ['3', 'adjustment:ajuste 2'],
     ['4', 'location:local 2'],
+    ['5', 'rename:nome 2'],
   ]);
 
   try {

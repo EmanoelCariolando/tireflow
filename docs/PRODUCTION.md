@@ -33,8 +33,13 @@ MONTHLY_COMMISSION_PERCENT=2
 
 No dia 1, o bot envia o relatório operacional do mês anterior sem dados de funcionários ou
 comissões. No dia 20, envia separadamente o fechamento das comissões, calculado sobre todas as
-vendas do mês-calendário anterior. Vendas normais rendem 2% e vendas com desconto rendem 1%;
-notas de prefeitura ficam fora da comissão.
+vendas do mês-calendário anterior. Pneus novos e cobertos (incluindo os de moto) sem desconto
+rendem 2%; com desconto em reais
+ou porcentagem, rendem 1%. Isso vale para os preços à vista, a prazo e 10x, sobre o valor final
+vendido. Escolher o preço à vista, por si só, não conta como desconto. Baterias e câmaras de ar
+(incluindo as de moto) rendem 1%, mesmo sem desconto. Vendas com
+desconto também rendem 1%; notas de prefeitura ficam fora da comissão. A regra por categoria
+também se aplica às vendas já registradas ao gerar relatórios, sem alterar os registros originais.
 
 Deixe `MONTHLY_REPORT_TIME` vazio para manter os dois envios desativados. Os envios são privados,
 não usam o grupo oficial e distribuem pagamentos mistos entre suas formas reais.

@@ -8,6 +8,7 @@ import { allocatePaymentBreakdownAcrossTotals } from '../utils/saleAllocation.js
 import { serializePaymentBreakdown } from '../utils/salePayment.js';
 import {
   DISCOUNTED_COMMISSION_PERCENT,
+  getCommissionPercentForCategory,
   STANDARD_COMMISSION_PERCENT,
 } from '../utils/commissionRates.js';
 import type {
@@ -253,7 +254,10 @@ export async function registerSaleItems(
           invoiceName: input.paymentMethod === 'Nota' ? input.invoiceName : undefined,
           invoiceNumber: input.paymentMethod === 'Nota' ? input.invoiceNumber : undefined,
           isCityHallSale: input.paymentMethod === 'Nota' && input.isCityHallSale === true,
-          commissionPercent: getSaleCommissionPercent(input),
+          commissionPercent: getCommissionPercentForCategory(
+            product.category,
+            getSaleCommissionPercent(input)
+          ),
         },
         tx
       );
@@ -281,7 +285,7 @@ function getSaleCommissionPercent(input: RegisterSaleItemsInput): number {
   if (input.paymentMethod === 'Nota' && input.isCityHallSale === true) {
     return 0;
   }
-  return (input.discountAmount ?? 0) > 0
+  return (input.discountAmount ?? 0) > 0 || (input.discountPercent ?? 0) > 0
     ? DISCOUNTED_COMMISSION_PERCENT
     : STANDARD_COMMISSION_PERCENT;
 }

@@ -23,6 +23,9 @@ import {
 } from './productRegistrationSessionStore.js';
 import { clearProductActionSession } from './productActionSessionStore.js';
 import {
+  clearProductNameSession, getProductNameSession, hasExpiredProductNameSession,
+} from './productNameSessionStore.js';
+import {
   clearPendingSaleResolutionSession,
   getPendingSaleResolutionSession,
   hasExpiredPendingSaleResolutionSession,
@@ -40,7 +43,8 @@ import {
 
 export function hasActiveOperationSession(userId: string, chatId: string): boolean {
   return Boolean(
-    getSaleSession(userId, chatId) ||
+    getProductNameSession(userId, chatId) ||
+      getSaleSession(userId, chatId) ||
       getEntrySession(userId, chatId) ||
       getAdjustmentSession(userId, chatId) ||
       getPriceSession(userId, chatId) ||
@@ -55,6 +59,7 @@ export function hasActiveOperationSession(userId: string, chatId: string): boole
 
 export function clearAllOperationSessions(userId: string, chatId: string): void {
   clearProductActionSession(userId, chatId);
+  clearProductNameSession(userId, chatId);
   clearSaleSession(userId, chatId);
   clearEntrySession(userId, chatId);
   clearAdjustmentSession(userId, chatId);
@@ -69,6 +74,7 @@ export function clearAllOperationSessions(userId: string, chatId: string): void 
 
 export function clearExpiredOperationSessions(userId: string, chatId: string): boolean {
   const expired = [
+    hasExpiredProductNameSession(userId, chatId),
     hasExpiredSaleSession(userId, chatId),
     hasExpiredEntrySession(userId, chatId),
     hasExpiredAdjustmentSession(userId, chatId),
@@ -84,17 +90,17 @@ export function clearExpiredOperationSessions(userId: string, chatId: string): b
 }
 
 export function isOperationStartCommand(body: string): boolean {
-  return /^(pendentes?|relat[oó]rio\s+(mensal|estoque|comiss[oõ]es)|venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|pre[cç]o\s+\d+|addfoto\s+\d+|local\s+\d+|(cadastrar|adicionar)\s+pneu)$/i.test(
+  return /^(pendentes?|relat[oó]rio\s+(mensal|estoque|comiss[oõ]es)|venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|pre[cç]o\s+\d+|addfoto\s+\d+|local\s+\d+|nome\s+\d+|(cadastrar|adicionar)\s+pneu)$/i.test(
     body.trim()
   );
 }
 
 export function isNewOperationConversationCommand(body: string): boolean {
-  return /^(pendentes?|venda|entrada|ajuste|pre[cç]o|local)\b/i.test(body.trim());
+  return /^(pendentes?|venda|entrada|ajuste|pre[cç]o|local|nome)\b/i.test(body.trim());
 }
 
 export function isProductRegistrationNavigationCommand(body: string): boolean {
-  return /^(menu|venda|entrada|ajuste|pre[cç]o|local|addfoto|cadastrar\s+pneu|adicionar\s+pneu)\b/i.test(
+  return /^(menu|venda|entrada|ajuste|pre[cç]o|local|nome|addfoto|cadastrar\s+pneu|adicionar\s+pneu)\b/i.test(
     body.trim()
   );
 }

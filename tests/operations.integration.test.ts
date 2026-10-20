@@ -4,6 +4,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { ProductCategory } from '@prisma/client';
+import type { Message } from 'whatsapp-web.js';
 
 test('keeps sale, stock movements and prices atomic on a migrated SQLite database', async () => {
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'tireflow-operations-'));
@@ -438,6 +440,106 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
       }),
       [{ stock: 2 }, { stock: 3 }]
     );
+    const commissionCategories = [
+      ProductCategory.TIRE, ProductCategory.MOTORCYCLE_TIRE, ProductCategory.BATTERY,
+      ProductCategory.INNER_TUBE, ProductCategory.MOTORCYCLE_INNER_TUBE,
+      ProductCategory.RETREADED_TIRE, ProductCategory.MOTORCYCLE_RETREADED_TIRE,
+    ];
+    const commissionProducts = [];
+    for (const category of commissionCategories) {
+      commissionProducts.push(await prisma.product.create({
+        data: {
+          reference: `COMMISSION-${category}`, description: category, category,
+          stock: 3, cashPrice: 100, creditPrice: 110,
+        },
+      }));
+    }
+    for (const scenario of ['regular', 'discounted', 'no-commission']) {
+      const unitPrice = scenario === 'discounted' ? 90 : 100;
+      const sale = await registerSaleItems({
+        items: commissionProducts.map((item) => ({
+          productId: item.id, quantity: 1, unitPrice, totalValue: unitPrice,
+        })),
+        sellerPhone: 'category-seller', sellerName: 'Category Seller',
+        totalValue: unitPrice * commissionProducts.length,
+        paymentMethod: scenario === 'no-commission' ? 'Nota' : 'PIX',
+        isCityHallSale: scenario === 'no-commission',
+        discountAmount: scenario === 'discounted' ? 10 * commissionProducts.length : undefined,
+      });
+      const movements = await prisma.movement.findMany({
+        where: { saleGroupCode: sale.saleGroupCode }, include: { product: true },
+      });
+      assert.equal(movements.length, commissionProducts.length);
+      for (const movement of movements) {
+        const isTire = movement.product.category === ProductCategory.TIRE ||
+          movement.product.category === ProductCategory.MOTORCYCLE_TIRE ||
+          movement.product.category === ProductCategory.RETREADED_TIRE ||
+          movement.product.category === ProductCategory.MOTORCYCLE_RETREADED_TIRE;
+        const expected = scenario === 'no-commission' ? 0 :
+          scenario === 'regular' && isTire ? 2 : 1;
+        assert.equal(Number(movement.commissionPercent), expected,
+          `${scenario}: ${movement.product.category}`);
+      }
+    }
+    const { handleSaleConversation } = await import('../src/commands/saleCommand.js');
+    const { saveSaleSession, getSaleSession, clearSaleSession } =
+      await import('../src/utils/saleSessionStore.js');
+    const { buildPersistedSaleItems } = await import('../src/utils/saleSessionHelpers.js');
+    for (const category of [
+      ProductCategory.TIRE, ProductCategory.MOTORCYCLE_TIRE,
+      ProductCategory.RETREADED_TIRE, ProductCategory.MOTORCYCLE_RETREADED_TIRE,
+    ]) {
+      const product = await prisma.product.create({
+        data: {
+          reference: `PRICE-COMMISSION-${category}`, description: category, category,
+          stock: 9, cashPrice: 100, creditPrice: 110, tenInstallmentPrice: 120,
+        },
+      });
+      for (const priceChoice of ['1', '2', '3']) {
+        for (const discount of ['none', 'percent', 'amount']) {
+          const userId = `price-commission-${category}-${priceChoice}-${discount}`;
+          const chatId = 'price-commission-chat';
+          const message = {
+            author: userId, from: chatId, reply: async () => undefined,
+          } as unknown as Message;
+          try {
+            saveSaleSession({
+              userId, chatId, step: 'awaiting_price_type', productId: product.id,
+              reference: product.reference, description: product.description, category,
+              quantity: 1, cashPrice: 100, creditPrice: 110, tenInstallmentPrice: 120,
+              updatedAt: Date.now(),
+            });
+            await handleSaleConversation(message, priceChoice);
+            if (discount !== 'none') {
+              await handleSaleConversation(message, '6');
+              await handleSaleConversation(message, discount === 'percent' ? '1' : '2');
+              await handleSaleConversation(message, '10');
+              await handleSaleConversation(message, 'confirmar');
+            }
+            const session = getSaleSession(userId, chatId)!;
+            assert.equal(session.step, 'awaiting_payment');
+            const basePrice = priceChoice === '1' ? 100 : priceChoice === '2' ? 110 : 120;
+            const expectedTotal = discount === 'none' ? basePrice :
+              discount === 'percent' ? basePrice * 0.9 : basePrice - 10;
+            assert.equal(session.totalValue, expectedTotal);
+            const sale = await registerSaleItems({
+              items: buildPersistedSaleItems(session), sellerPhone: userId, sellerName: userId,
+              totalValue: session.totalValue!, paymentMethod: 'PIX',
+              originalTotalValue: session.originalTotalValue,
+              discountPercent: session.discountPercent, discountAmount: session.discountAmount,
+            });
+            const movement = await prisma.movement.findUniqueOrThrow({
+              where: { code: sale.items[0]!.movementCode },
+            });
+            assert.equal(Number(movement.commissionPercent), discount === 'none' ? 2 : 1,
+              `${category}, price ${priceChoice}, discount ${discount}`);
+            assert.equal(Number(movement.totalValue), expectedTotal);
+          } finally {
+            clearSaleSession(userId, chatId);
+          }
+        }
+      }
+    }
   } finally {
     await prisma.$disconnect();
     await rm(temporaryRoot, { recursive: true, force: true });

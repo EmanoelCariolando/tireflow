@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { inflateSync } from 'node:zlib';
-import { MovementType, Prisma } from '@prisma/client';
+import { MovementType, Prisma, ProductCategory } from '@prisma/client';
 import type { ReportPendingSale } from '../src/repositories/pendingSaleReportRepository.js';
 import {
   formatCommissionReport,
@@ -444,6 +444,64 @@ test('pays 2 percent on regular sales and 1 percent on discounted sales', () => 
   assert.match(report, /Comissão 2%: \*R\$20,00\* \(base R\$1000,00\)/);
   assert.match(report, /Comissão 1%: \*R\$5,00\* \(base R\$500,00\)/);
   assert.match(report, /Prefeitura 0%: \*R\$200,00\*/);
+});
+
+test('applies 1 percent by category to historical sales and preserves zero commission', () => {
+  const period = getCommissionPeriod(new Date(2026, 8, 20));
+  const categories = [
+    ProductCategory.BATTERY, ProductCategory.INNER_TUBE, ProductCategory.MOTORCYCLE_INNER_TUBE,
+    ProductCategory.RETREADED_TIRE, ProductCategory.MOTORCYCLE_RETREADED_TIRE,
+  ];
+  const sales = categories.flatMap((category) => [null, new Prisma.Decimal(2)].map((rate) =>
+    movement(`${category}-${rate}`, new Date(2026, 7, 10), {
+      product: { ...productOne, category }, quantity: 1,
+      totalValue: new Prisma.Decimal(100), commissionPercent: rate,
+      saleGroupCode: 'mixed-category-sale',
+    })
+  ));
+  sales.push(movement('new-tire', new Date(2026, 7, 10), {
+    quantity: 1, totalValue: new Prisma.Decimal(200), saleGroupCode: 'mixed-category-sale',
+  }));
+  sales.push(movement('no-commission-battery', new Date(2026, 7, 11), {
+    product: { ...productOne, category: ProductCategory.BATTERY }, quantity: 1,
+    totalValue: new Prisma.Decimal(300), commissionPercent: new Prisma.Decimal(0),
+  }));
+  for (const summary of [
+    summarizeCommissionReport(period, sales, 2),
+    summarizeMonthlyReport(period, sales, [], 2, false),
+  ]) {
+    const seller = summary.sellers[0]!;
+    assert.equal(seller.totalValue, 1500);
+    assert.equal(seller.saleCount, 2);
+    assert.equal(seller.standardCommissionBase, 600);
+    assert.equal(seller.discountedCommissionBase, 600);
+    assert.equal(seller.cityHallSalesValue, 300);
+    assert.equal(seller.commission, 18);
+  }
+});
+
+test('reports retreaded tires at 2 percent without discount and 1 percent with discount', () => {
+  const period = getCommissionPeriod(new Date(2026, 8, 20));
+  const sales = [ProductCategory.RETREADED_TIRE, ProductCategory.MOTORCYCLE_RETREADED_TIRE]
+    .flatMap((category) => [2, 1, 0].map((rate) =>
+      movement(`${category}-${rate}`, new Date(2026, 7, 10), {
+        product: { ...productOne, category }, quantity: 1,
+        totalValue: new Prisma.Decimal(rate === 1 ? 90 : 100),
+        commissionPercent: new Prisma.Decimal(rate),
+      })
+    ));
+  for (const summary of [
+    summarizeCommissionReport(period, sales, 2),
+    summarizeMonthlyReport(period, sales, [], 2, false),
+  ]) {
+    const seller = summary.sellers[0]!;
+    assert.equal(seller.totalValue, 580);
+    assert.equal(seller.standardCommissionBase, 200);
+    assert.equal(seller.discountedCommissionBase, 180);
+    assert.equal(seller.cityHallSalesValue, 200);
+    assert.equal(seller.commission, 5.8);
+    assert.match(formatCommissionReport(summary), /Comissão total: \*R\$5,80\*/);
+  }
 });
 
 test('keeps the financial message independent from stock-location configuration', () => {

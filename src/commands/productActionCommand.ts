@@ -25,6 +25,7 @@ import { formatProductChoiceQuestion } from './pneuCommand.js';
 import { handlePriceCommand } from './priceCommand.js';
 import { handleAddPhotoCommand, handlePhotoCommand } from './productPhotoCommand.js';
 import { handleSaleCommand } from './saleCommand.js';
+import { handleProductNameCommand } from './productNameCommand.js';
 import { isBatteryCategory, isInnerTubeCategory, getProductIcon } from '../utils/productCategory.js';
 
 type IndexedCommandHandler = (message: Message, body: string) => Promise<boolean>;
@@ -38,6 +39,7 @@ export interface ProductActionDependencies {
   adjustment: IndexedCommandHandler;
   addPhoto: IndexedCommandHandler;
   location: IndexedCommandHandler;
+  rename: IndexedCommandHandler;
   inventoryLocationsEnabled: boolean;
 }
 
@@ -75,6 +77,7 @@ const defaultDependencies: ProductActionDependencies = {
     return Boolean(getLocationSession(getMessageUserId(message), getMessageChatId(message)));
   },
   inventoryLocationsEnabled: env.inventoryLocationsEnabled,
+  rename: handleProductNameCommand,
 };
 
 export function formatProductActionMenu(
@@ -85,8 +88,8 @@ export function formatProductActionMenu(
     '',
     '1️⃣ Venda | 2️⃣ Entrada',
     '3️⃣ Preço | 4️⃣ Foto',
-    '5️⃣ Ajustar estoque | 6️⃣ Adicionar foto',
-    ...(inventoryLocationsEnabled ? ['7️⃣ Localização'] : []),
+    '5️⃣ Ajustar | 6️⃣ Adicionar foto',
+    inventoryLocationsEnabled ? '7️⃣ Localização | 8️⃣ Mudar nome' : '7️⃣ Mudar nome',
   ].join('\n');
 }
 
@@ -98,8 +101,9 @@ export function formatZeroStockActionMenu(
     '',
     '1️⃣ Entrada',
     '2️⃣ Preço',
-    '3️⃣ Ajustar estoque',
+    '3️⃣ Ajustar',
     ...(inventoryLocationsEnabled ? ['4️⃣ Localização'] : []),
+    inventoryLocationsEnabled ? '5️⃣ Mudar nome' : '4️⃣ Mudar nome',
   ].join('\n');
 }
 
@@ -200,6 +204,9 @@ export async function handleProductActionConversation(
         command: 'local',
       };
     }
+    zeroStockActionHandlers[dependencies.inventoryLocationsEnabled ? 5 : 4] = {
+      handler: dependencies.rename, command: 'nome',
+    };
 
     const zeroStockAction = zeroStockActionHandlers[selection];
     if (!zeroStockAction) {
@@ -248,6 +255,9 @@ export async function handleProductActionConversation(
   if (dependencies.inventoryLocationsEnabled) {
     actionHandlers[7] = { handler: dependencies.location, command: 'local' };
   }
+  actionHandlers[dependencies.inventoryLocationsEnabled ? 8 : 7] = {
+    handler: dependencies.rename, command: 'nome',
+  };
 
   if (selection === 1) {
     saveProductActionSession(

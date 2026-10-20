@@ -81,6 +81,7 @@ test('keeps pending stock atomic until sale or return', async () => {
     });
     assert.equal(Number(completedMovement.totalValue), 270);
     assert.equal(Number(completedMovement.unitPrice), 270);
+    assert.equal(Number(completedMovement.commissionPercent), 1);
     const completedPending = await prisma.pendingSale.findUniqueOrThrow({
       where: { id: pending.id },
     });
@@ -126,6 +127,7 @@ test('keeps pending stock atomic until sale or return', async () => {
       where: { id: repricedPending.id },
     });
     assert.equal(Number(repricedMovement.totalValue), 350);
+    assert.equal(Number(repricedMovement.commissionPercent), 2);
     assert.equal(Number(completedRepricedPending.totalValue), 350);
     assert.equal(Number(completedRepricedPending.originalTotalValue), 300);
     assert.equal(completedRepricedPending.discountPercent, null);

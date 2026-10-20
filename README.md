@@ -59,6 +59,7 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 | `preco <item>` | Atualizar preços |
 | `foto <item>` | Visualizar uma foto |
 | `addfoto <item>` | Cadastrar uma foto |
+| `nome <item>` | Corrigir o nome do produto, com confirmação |
 | `local <item>` | Atualizar a localização física |
 | `cadastrar pneu` | Cadastrar um novo produto |
 | `menu` | Abrir o menu de relatórios |
