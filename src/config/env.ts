@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 import path from 'node:path';
 
-// Load environment variables from .env file
-dotenv.config({ quiet: true });
+// Tests supply their own environment and must never load an installation's .env.
+if (process.env.NODE_ENV !== 'test') dotenv.config({ quiet: true });
 
 export const DEFAULT_BRANCH_NAME = 'ATC PNEUS';
 

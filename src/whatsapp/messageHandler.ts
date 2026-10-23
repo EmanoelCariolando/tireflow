@@ -56,6 +56,7 @@ import {
   clearExpiredOperationSessions,
   hasActiveOperationSession,
   isOperationStartCommand,
+  runOperationMessage,
 } from '../utils/operationSessionCoordinator.js';
 import {
   handleProductRegistrationConversation,
@@ -125,6 +126,16 @@ export async function handleIncomingMessage(message: Message): Promise<void> {
     return;
   }
 
+  const processed = await runOperationMessage(
+    getMessageUserId(message), getMessageChatId(message),
+    () => handleAuthorizedMessage(message, body)
+  );
+  if (!processed) {
+    await message.reply('⏳ Processando sua mensagem anterior. Aguarde a conclusão e envie o comando novamente. Esta mensagem não foi aplicada.');
+  }
+}
+
+async function handleAuthorizedMessage(message: Message, body: string): Promise<void> {
   console.log('[MESSAGE] Incoming authorized message.', {
     command: identifyCommand(body, message.hasMedia),
     user: anonymizeIdentifier(message.author || message.from),

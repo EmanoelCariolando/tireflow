@@ -128,6 +128,14 @@ npm run check      # validar tipos, testes, build e Prisma
 npm run backup     # criar um backup
 ```
 
+Execute os testes com `npm test`. Para selecionar um arquivo, use
+`npm test -- tests/operationConcurrency.test.ts`.
+O runner cria uma cópia temporária das fontes e fixtures públicas, configura um
+banco de testes e bloqueia rede e operações reais do WhatsApp, inclusive nos
+subprocessos Node que herdam seu ambiente. Não execute `tsx --test` diretamente:
+isso contorna o isolamento. Veja a validação do primeiro lote em
+[docs/AUDITORIA_LOTE_1.md](docs/AUDITORIA_LOTE_1.md).
+
 ## Estrutura
 
 ```text

@@ -41,6 +41,23 @@ import {
   hasExpiredMonthlyCommissionReportSession,
 } from './monthlyCommissionReportSessionStore.js';
 
+const processingMessages = new Set<string>();
+
+export async function runOperationMessage(
+  userId: string, chatId: string, operation: () => Promise<void>
+): Promise<boolean> {
+  const key = JSON.stringify([chatId, userId]);
+  if (processingMessages.has(key)) return false;
+  processingMessages.add(key);
+  try {
+    await operation();
+    return true;
+  } finally {
+    // Ownership lasts through persistence and cleanup, independently of session TTL.
+    processingMessages.delete(key);
+  }
+}
+
 export function hasActiveOperationSession(userId: string, chatId: string): boolean {
   return Boolean(
     getProductNameSession(userId, chatId) ||
