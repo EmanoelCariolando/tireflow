@@ -88,6 +88,7 @@ import {
   isMonthlyCommissionReportCommand,
 } from '../commands/monthlyCommissionReportCommand.js';
 import { formatSimilarProductSearchHelp } from '../commands/productSearchHelp.js';
+import { clearLastQuery } from '../utils/lastQueryStore.js';
 import {
   handleProductNameCommand, handleProductNameConversation, isProductNameCommand,
 } from '../commands/productNameCommand.js';
@@ -186,6 +187,7 @@ async function handleAuthorizedMessage(message: Message, body: string): Promise<
 
   // A fresh tire query intentionally abandons every incompatible operation.
   if (body && isPneuCommand(body)) {
+    clearLastQuery(userId, chatId);
     await handleLegacyPneuCommandNotice(message);
     return;
   }
@@ -288,6 +290,7 @@ async function handleAuthorizedMessage(message: Message, body: string): Promise<
 
   const similarProductSearchHelp = formatSimilarProductSearchHelp(body);
   if (similarProductSearchHelp) {
+    clearLastQuery(userId, chatId);
     await message.reply(similarProductSearchHelp);
     return;
   }

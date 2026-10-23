@@ -1,5 +1,6 @@
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
 import type { BatteryBrand, ProductCategory } from '@prisma/client';
+import { clearProductActionSession } from './productActionSessionStore.js';
 
 /**
  * In-memory store for the last tire consultation per user.
@@ -48,6 +49,8 @@ export function saveLastQuery(
   normalizedMeasure: string,
   products: QueriedProduct[]
 ): void {
+  clearLastQuery(userId, chatId);
+  if (products.length === 0) return;
   lastQueries.set(buildKey(userId, chatId), {
     userId,
     chatId,
@@ -58,7 +61,7 @@ export function saveLastQuery(
 }
 
 /**
- * Get the last query if it is still valid (< 9 minutes old).
+ * Get the last query while it is within the employee session duration.
  * Automatically removes expired entries.
  */
 export function getLastQuery(userId: string, chatId: string): {
@@ -70,7 +73,7 @@ export function getLastQuery(userId: string, chatId: string): {
   if (!stored) return null;
 
   if (Date.now() - stored.timestamp > LAST_QUERY_TTL_MS) {
-    lastQueries.delete(key);
+    clearLastQuery(userId, chatId);
     return null;
   }
 
@@ -85,12 +88,16 @@ export function getLastQuery(userId: string, chatId: string): {
  */
 export function clearLastQuery(userId: string, chatId?: string): void {
   if (chatId) {
+    clearProductActionSession(userId, chatId);
     lastQueries.delete(buildKey(userId, chatId));
     return;
   }
 
   for (const [key, query] of lastQueries) {
-    if (query.userId === userId) lastQueries.delete(key);
+    if (query.userId === userId) {
+      clearProductActionSession(userId, query.chatId);
+      lastQueries.delete(key);
+    }
   }
 }
 

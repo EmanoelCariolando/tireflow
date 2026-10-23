@@ -2,7 +2,7 @@ import { ProductCategory } from '@prisma/client';
 import type { Message } from 'whatsapp-web.js';
 import { prisma } from '../database/prisma.js';
 import { formatProductList, formatProductChoiceQuestion } from './pneuCommand.js';
-import { saveLastQuery, type QueriedProduct } from '../utils/lastQueryStore.js';
+import { clearLastQuery, saveLastQuery, type QueriedProduct } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
 import { clearMenuSession } from '../utils/menuSessionStore.js';
@@ -26,6 +26,7 @@ export async function handleInnerTubeCommand(message: Message, body: string, zer
   if (!category) return;
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
+  clearLastQuery(userId, chatId);
   clearAllOperationSessions(userId, chatId);
   clearMenuSession(userId, chatId);
   try {
@@ -43,6 +44,7 @@ export async function handleInnerTubeCommand(message: Message, body: string, zer
     saveProductActionSession(userId, chatId, 'awaiting_product', undefined, zeroStock ? 'zero_stock' : undefined);
     await message.reply(formatProductChoiceQuestion(category));
   } catch (error) {
+    clearLastQuery(userId, chatId);
     console.error('[INNER TUBE]', error);
     await message.reply('❌ Erro na consulta de câmaras de ar. Tente novamente.');
   }

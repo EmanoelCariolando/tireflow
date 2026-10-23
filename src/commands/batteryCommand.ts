@@ -7,7 +7,7 @@ import {
 } from '../services/batteryService.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
-import { saveLastQuery } from '../utils/lastQueryStore.js';
+import { clearLastQuery, saveLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { clearMenuSession } from '../utils/menuSessionStore.js';
 import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
@@ -74,6 +74,7 @@ export function formatBatteryList(
 export async function handleBatteryCommand(message: Message, body: string): Promise<void> {
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
+  clearLastQuery(userId, chatId);
   clearAllOperationSessions(userId, chatId);
   const query = parseBatterySearchQuery(body);
 
@@ -107,6 +108,7 @@ export async function handleBatteryCommand(message: Message, body: string): Prom
     saveProductActionSession(userId, chatId, 'awaiting_product');
     await message.reply(formatProductChoiceQuestion(ProductCategory.BATTERY));
   } catch (error) {
+    clearLastQuery(userId, chatId);
     console.error('[BATTERY] Error:', error);
     await message.reply('❌ *ERRO NA CONSULTA DE BATERIA*\nTente novamente.');
   }
@@ -118,6 +120,7 @@ export async function handleZeroStockBatteryCommand(
 ): Promise<void> {
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
+  clearLastQuery(userId, chatId);
   clearAllOperationSessions(userId, chatId);
   const query = parseBatterySearchQuery(body);
 
@@ -139,6 +142,7 @@ export async function handleZeroStockBatteryCommand(
     saveProductActionSession(userId, chatId, 'awaiting_product', undefined, 'zero_stock');
     await message.reply(formatProductChoiceQuestion(ProductCategory.BATTERY));
   } catch (error) {
+    clearLastQuery(userId, chatId);
     console.error('[ZERO BATTERY STOCK] Error:', error);
     await message.reply('❌ *ERRO NA CONSULTA DE BATERIA*\nTente novamente.');
   }

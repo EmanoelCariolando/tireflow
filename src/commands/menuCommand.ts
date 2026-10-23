@@ -11,7 +11,7 @@ import {
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { formatStockLocationLine } from '../utils/stockLocation.js';
 import type { QueriedProduct } from '../utils/lastQueryStore.js';
-import { saveLastQuery } from '../utils/lastQueryStore.js';
+import { clearLastQuery, saveLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
 import {
@@ -72,6 +72,7 @@ export function isZeroStockCommand(body: string): boolean {
 export async function handleZeroStockCommand(message: Message, body: string): Promise<void> {
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
+  clearLastQuery(userId, chatId);
   const rawMeasure = body.trim().replace(/^0\s+/, '');
   if (parseMotorcycleTireCommand(body)) {
     await handleMotorcycleTireCommand(message, body);
@@ -111,6 +112,7 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
 
     await replyWithZeroStockProducts(message, normalized, userId, chatId);
   } catch (error) {
+    clearLastQuery(userId, chatId);
     console.error('[ZERO STOCK] Error:', error);
     await message.reply('❌ *ERRO NA CONSULTA*\nTente novamente.');
   }

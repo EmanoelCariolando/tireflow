@@ -645,22 +645,22 @@ async function handleAdditionalMeasureStep(
       );
       return;
     }
+    saveSaleSession({
+      ...session,
+      step: 'awaiting_additional_item',
+      additionalMeasure: normalizedMeasure,
+      additionalProducts: products,
+      additionalProduct: undefined,
+      updatedAt: Date.now(),
+    });
+    await message.reply(formatProductList(products, normalizedMeasure));
+    await message.reply(formatProductChoiceQuestion());
   } catch (error) {
+    saveSaleSession({ ...session, step: 'awaiting_additional_measure',
+      additionalMeasure: undefined, additionalProducts: undefined, additionalProduct: undefined });
     console.error('[SALE] Error searching an additional tire:', error);
     await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite *voltar*.');
-    return;
   }
-
-  saveSaleSession({
-    ...session,
-    step: 'awaiting_additional_item',
-    additionalMeasure: normalizedMeasure,
-    additionalProducts: products,
-    additionalProduct: undefined,
-    updatedAt: Date.now(),
-  });
-  await message.reply(formatProductList(products, normalizedMeasure));
-  await message.reply(formatProductChoiceQuestion());
 }
 
 async function handleAdditionalItemStep(

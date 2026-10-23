@@ -480,6 +480,8 @@ async function handleAdditionalMeasureStep(
   session: EntrySession,
   body: string
 ): Promise<void> {
+  session = { ...session, additionalMeasure: undefined, additionalProducts: undefined };
+  saveEntrySession(session);
   const rawMeasure = body.trim().replace(/^pneu\s+/i, '');
   const normalizedMeasure = normalizeTireSize(rawMeasure);
 
@@ -539,6 +541,7 @@ async function handleAdditionalMeasureStep(
     await message.reply(formatAdditionalEntryProductChoiceQuestion());
     scheduleAdditionalEntryHelp(message, session.userId, session.chatId, normalizedMeasure);
   } catch (error) {
+    saveEntrySession(session);
     console.error('[ENTRY] Error searching an additional tire:', error);
     await message.reply('Ocorreu um erro ao buscar a medida. Tente novamente ou digite *voltar*.');
   }

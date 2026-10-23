@@ -1,6 +1,6 @@
 import { Message } from 'whatsapp-web.js';
 import { normalizeTireSize } from '../utils/normalizeTireSize.js';
-import { saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
+import { clearLastQuery, saveLastQuery, QueriedProduct } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
@@ -163,6 +163,7 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
 
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
+  clearLastQuery(userId, chatId);
   clearAllOperationSessions(userId, chatId);
 
   try {
@@ -240,6 +241,7 @@ export async function handlePneuCommand(message: Message, rawMeasure: string): P
       }`
     );
   } catch (error) {
+    clearLastQuery(userId, chatId);
     console.error('[PNEU] Error:', error);
     await message.reply('❌ *ERRO NA CONSULTA*\nTente novamente.');
   }

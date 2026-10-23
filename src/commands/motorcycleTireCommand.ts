@@ -5,7 +5,7 @@ import { hasProductImageFile } from '../services/productPhotoStorage.js';
 import { clearAllOperationSessions } from '../utils/operationSessionCoordinator.js';
 import { clearMenuSession } from '../utils/menuSessionStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
-import { saveLastQuery, type QueriedProduct } from '../utils/lastQueryStore.js';
+import { clearLastQuery, saveLastQuery, type QueriedProduct } from '../utils/lastQueryStore.js';
 import { saveProductActionSession } from '../utils/productActionSessionStore.js';
 import { formatProductChoiceQuestion, formatProductList } from './pneuCommand.js';
 
@@ -40,6 +40,7 @@ export async function handleMotorcycleTireCommand(
 
   const userId = getMessageUserId(message);
   const chatId = getMessageChatId(message);
+  clearLastQuery(userId, chatId);
   clearAllOperationSessions(userId, chatId);
   clearMenuSession(userId, chatId);
 
@@ -77,6 +78,7 @@ export async function handleMotorcycleTireCommand(
     );
     await message.reply(formatProductChoiceQuestion(ProductCategory.MOTORCYCLE_TIRE));
   } catch (error) {
+    clearLastQuery(userId, chatId);
     console.error('[MOTORCYCLE TIRE]', error);
     await message.reply('❌ Erro na consulta de pneus de moto. Tente novamente.');
   }
