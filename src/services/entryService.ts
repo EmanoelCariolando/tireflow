@@ -7,6 +7,8 @@ import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
 import { normalizeStockLocation } from '../utils/stockLocation.js';
+import { isValidStockQuantity } from '../utils/stockQuantity.js';
+import { isSafeMonetaryValue } from '../utils/salePayment.js';
 
 export class EntryProductNotFoundError extends Error {
   constructor() {
@@ -101,6 +103,7 @@ export async function registerEntryItems(
       }
 
       const previousStock = product.stock;
+      if (!isValidStockQuantity(previousStock + item.quantity)) throw new Error('Invalid resulting stock balance.');
 
       if (item.stockLocation !== undefined) {
         const locationUpdate = await productRepository.updateStockLocationIfActive(
@@ -208,12 +211,12 @@ export async function registerEntryItems(
 function hasValidEntryItems(items: RegisterEntryItemInput[]): boolean {
   return items.length > 0 && items.every((item) =>
     Boolean(item.productId) &&
-    Number.isInteger(item.quantity) &&
+    isValidStockQuantity(item.quantity) &&
     item.quantity > 0 &&
     Boolean(item.supplier.trim()) &&
     (item.stockLocation === undefined ||
       normalizeStockLocation(item.stockLocation) === item.stockLocation) &&
     (item.newCashPrice === undefined ||
-      (Number.isFinite(item.newCashPrice) && item.newCashPrice >= 0))
+      (isSafeMonetaryValue(item.newCashPrice) && isSafeMonetaryValue(calculateCreditPrice(item.newCashPrice))))
   );
 }

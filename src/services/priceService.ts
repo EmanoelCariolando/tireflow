@@ -6,6 +6,7 @@ import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
+import { isSafeMonetaryValue } from '../utils/salePayment.js';
 
 export class PriceProductNotFoundError extends Error {
   constructor() {
@@ -42,6 +43,9 @@ function buildPriceChangeObservation(
 export async function registerPriceChange(
   input: RegisterPriceChangeInput
 ): Promise<RegisteredPriceChange> {
+  if (!isSafeMonetaryValue(input.newCashPrice) || !isSafeMonetaryValue(calculateCreditPrice(input.newCashPrice))) {
+    throw new Error('Invalid product price.');
+  }
   return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
     const product = await productRepository.findById(input.productId, tx);
 

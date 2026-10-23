@@ -5,7 +5,8 @@ import { productRepository } from '../repositories/productRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { allocatePaymentBreakdownAcrossTotals } from '../utils/saleAllocation.js';
-import { serializePaymentBreakdown } from '../utils/salePayment.js';
+import { isSafeMonetaryValue, serializePaymentBreakdown } from '../utils/salePayment.js';
+import { isValidStockQuantity } from '../utils/stockQuantity.js';
 import {
   DISCOUNTED_COMMISSION_PERCENT,
   getCommissionPercentForCategory,
@@ -292,15 +293,14 @@ function getSaleCommissionPercent(input: RegisterSaleItemsInput): number {
 
 function hasValidSaleItems(items: RegisterSaleItemInput[], totalValue: number): boolean {
   return (
+    isSafeMonetaryValue(totalValue) &&
     items.length > 0 &&
     items.every((item) =>
       Boolean(item.productId) &&
-      Number.isInteger(item.quantity) &&
+      isValidStockQuantity(item.quantity) &&
       item.quantity > 0 &&
-      Number.isFinite(item.unitPrice) &&
-      item.unitPrice >= 0 &&
-      Number.isFinite(item.totalValue) &&
-      item.totalValue >= 0
+      isSafeMonetaryValue(item.unitPrice) &&
+      isSafeMonetaryValue(item.totalValue)
     ) &&
     items.reduce((total, item) => total + Math.round(item.totalValue * 100), 0) ===
       Math.round(totalValue * 100)
@@ -326,7 +326,7 @@ function hasValidPaymentBreakdown(
     parts.some(
       (part) =>
         !['Dinheiro', 'PIX', 'Cartão'].includes(part.method) ||
-        !Number.isFinite(part.amount) ||
+        !isSafeMonetaryValue(part.amount) ||
         part.amount <= 0 ||
         Math.abs(part.amount * 100 - Math.round(part.amount * 100)) > 0.000001
     )

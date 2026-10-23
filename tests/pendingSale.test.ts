@@ -94,6 +94,28 @@ test('changes the total price only while closing a pending sale', async () => {
   clearSaleSession(userId, chatId);
 });
 
+for (const [input, totalValue, unitPrice] of [
+  ['1000.123', 1000.12, 500.06], ['1.0050', 1.01, 0.505],
+  ['1.000', 1000, 500], ['1,234.567', 1234.57, 617.285],
+] as const) {
+  test(`pending price follows the approved monetary convention: ${input}`, async () => {
+    const userId = 'pending-rounded-price-user';
+    const chatId = 'pending-rounded-price-chat';
+    const message = { author: userId, from: chatId, reply: async () => {} } as unknown as Message;
+    try {
+      saveSaleSession({ userId, chatId, step: 'awaiting_pending_price', productId: 'p',
+        reference: '175/70 R14', description: 'PNEU', quantity: 2, cashPrice: 100, creditPrice: 105.8,
+        unitPrice: 100, totalValue: 200, priceType: 'À vista', pendingSaleId: 'pending', updatedAt: Date.now() });
+      await handleSaleConversation(message, input);
+      const session = getSaleSession(userId, chatId);
+      assert.equal(session?.step, 'awaiting_payment');
+      assert.equal(session?.totalValue, totalValue);
+      assert.equal(session?.unitPrice, unitPrice);
+      assert.equal(session?.pendingPreviousTotalValue, 200);
+    } finally { clearSaleSession(userId, chatId); }
+  });
+}
+
 test('distributes a changed pending total across multiple items in the confirmation', () => {
   const session: SaleSession = {
     userId: 'multi-price-user',

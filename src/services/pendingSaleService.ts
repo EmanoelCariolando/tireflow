@@ -7,6 +7,8 @@ import { generateMovementCode } from '../utils/generateMovementCode.js';
 import type { SaleItem } from '../utils/saleSessionStore.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
 import { InsufficientStockError, SaleProductNotFoundError } from './saleService.js';
+import { isSafeMonetaryValue } from '../utils/salePayment.js';
+import { isValidStockQuantity } from '../utils/stockQuantity.js';
 
 const pendingSaleInclude = {
   assignedTo: true,
@@ -220,14 +222,14 @@ function validatePendingSaleInput(input: RegisterPendingSaleInput): void {
     input.items.length === 0 ||
     !input.createdByPhone ||
     !input.assignedPhone ||
-    !Number.isFinite(input.totalValue) ||
+    !isSafeMonetaryValue(input.totalValue) ||
     itemTotalInCents !== Math.round(input.totalValue * 100) ||
     input.items.some((item) =>
       !item.productId ||
-      !Number.isInteger(item.quantity) ||
+      !isValidStockQuantity(item.quantity) ||
       item.quantity <= 0 ||
-      !Number.isFinite(item.unitPrice) ||
-      !Number.isFinite(item.totalValue)
+      !isSafeMonetaryValue(item.unitPrice) ||
+      !isSafeMonetaryValue(item.totalValue)
     )
   ) {
     throw new Error('Invalid pending sale data.');

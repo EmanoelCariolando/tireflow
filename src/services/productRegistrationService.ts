@@ -7,6 +7,8 @@ import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
 import { buildReferenceCandidates } from './productService.js';
 import { calculateCreditPrice } from '../utils/productPricing.js';
+import { isSafeMonetaryValue } from '../utils/salePayment.js';
+import { isValidStockQuantity } from '../utils/stockQuantity.js';
 
 export class ProductAlreadyExistsError extends Error {
   constructor(
@@ -44,6 +46,10 @@ export async function findEquivalentProduct(reference: string, description: stri
 export async function registerNewProduct(
   input: RegisterNewProductInput
 ): Promise<RegisteredNewProduct> {
+  if (!isValidStockQuantity(input.initialStock) || !isSafeMonetaryValue(input.cashPrice) ||
+    !isSafeMonetaryValue(calculateCreditPrice(input.cashPrice))) {
+    throw new Error('Invalid initial stock or product price.');
+  }
   return withInventoryMutationLock(async () => {
     try {
       return await prisma.$transaction(async (tx) => {

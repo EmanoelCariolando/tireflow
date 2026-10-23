@@ -1,5 +1,6 @@
 import { parseBinaryResponse } from '../utils/binaryResponse.js';
 import type { PaymentMethod, SalePriceType } from '../utils/saleSessionStore.js';
+import { parseNonNegativeInteger } from '../utils/stockQuantity.js';
 
 export const TRANSFER_PAYMENT_ENABLED = false;
 export const MAX_SALE_INVOICE_NUMBER_LENGTH = 40;
@@ -101,15 +102,15 @@ export function parseAdditionalItemSelection(
     return null;
   }
 
-  const optionNumber = Number(match[1]);
-  const quantity = match[2] === undefined ? undefined : Number(match[2]);
-  if (!Number.isInteger(optionNumber) || optionNumber <= 0) {
+  const optionNumber = parseNonNegativeInteger(match[1]!);
+  const quantity = match[2] === undefined ? undefined : parseNonNegativeInteger(match[2]);
+  if (optionNumber === null || optionNumber <= 0) {
     return null;
   }
-  if (quantity !== undefined && (!Number.isInteger(quantity) || quantity <= 0)) {
+  if (quantity !== undefined && (quantity === null || quantity <= 0)) {
     return null;
   }
-  return { optionNumber, quantity };
+  return { optionNumber, quantity: quantity ?? undefined };
 }
 
 export function parsePriceType(value: string): SalePriceType | null {

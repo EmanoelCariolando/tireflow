@@ -91,16 +91,32 @@ test('accepts exactly two supported and distinct mixed payment methods', () => {
   assert.equal(parseMixedPaymentMethods('qualquer coisa'), null);
 });
 
-test('parses Brazilian currency without allowing ambiguous or malformed cents', () => {
+test('parses Brazilian and American currency with exact cents and valid grouping', () => {
   assert.equal(parseCurrencyToCents('300,00'), 30_000);
   assert.equal(parseCurrencyToCents('R$ 1.234,56'), 123_456);
   assert.equal(parseCurrencyToCents('300.50'), 30_050);
   assert.equal(parseCurrencyToCents('1.000'), 100_000);
   assert.equal(parseCurrencyToCents('100'), 10_000);
 
-  assert.equal(parseCurrencyToCents('100,999'), null);
+  assert.equal(parseCurrencyToCents('100,999'), 10_099_900);
+  assert.equal(parseCurrencyToCents('1000,999'), null);
   assert.equal(parseCurrencyToCents('-10'), null);
   assert.equal(parseCurrencyToCents('R$ cem'), null);
+});
+
+test('American payment amount preserves the exact split in the sale conversation', async () => {
+  const ids = startSale('american-amount');
+  const replies: string[] = [];
+  try {
+    saveSaleSession({ ...getSaleSession(ids.userId, ids.chatId)!, totalValue: 2000 });
+    await handleSaleConversation(createMessage(ids, replies), '5');
+    await handleSaleConversation(createMessage(ids, replies), '1 e 2');
+    await handleSaleConversation(createMessage(ids, replies), '1,299.90');
+    assert.deepEqual(getSaleSession(ids.userId, ids.chatId)?.paymentBreakdown, [
+      { method: 'PIX', amount: 1299.9 }, { method: 'Dinheiro', amount: 700.1 },
+    ]);
+    assert.equal(getSaleSession(ids.userId, ids.chatId)?.step, 'awaiting_photo');
+  } finally { clearSaleSession(ids.userId, ids.chatId); }
 });
 
 test('builds an exact two-part split and rejects zero, total or excess values', () => {

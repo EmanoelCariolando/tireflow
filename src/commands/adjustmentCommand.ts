@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { parseNonNegativeInteger, isValidStockQuantity } from '../utils/stockQuantity.js';
 import { getLastQuery } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
@@ -254,8 +255,8 @@ async function handleNewStockStep(
   session: AdjustmentSession,
   normalizedBody: string
 ): Promise<void> {
-  const newStock = Number(normalizedBody);
-  if (!Number.isInteger(newStock) || newStock < 0) {
+  const newStock = parseNonNegativeInteger(normalizedBody);
+  if (newStock === null) {
     await message.reply(
       `❌ Estoque inválido. Digite um inteiro maior ou igual a zero.\n\n${formatFinalStockQuestion(
         session
@@ -286,8 +287,8 @@ async function handleQuantityStep(
   session: AdjustmentSession,
   normalizedBody: string
 ): Promise<void> {
-  const quantity = Number(normalizedBody);
-  if (!Number.isInteger(quantity) || quantity <= 0) {
+  const quantity = parseNonNegativeInteger(normalizedBody);
+  if (quantity === null || quantity <= 0) {
     await message.reply(
       `❌ Quantidade inválida. Digite um inteiro positivo.\n\n${formatAdjustmentQuantityQuestion(
         session.kind ?? 'add',
@@ -321,6 +322,10 @@ async function handleQuantityStep(
       await message.reply('Ocorreu um erro na sessão da transferência. Inicie o ajuste novamente.');
       return;
     }
+    if (!isValidStockQuantity(targetPreviousStock + quantity)) {
+      await message.reply('❌ O saldo de destino excede o limite de estoque suportado. Digite uma quantidade menor.');
+      return;
+    }
     saveAdjustmentSession({
       ...session,
       step: 'awaiting_reason',
@@ -336,6 +341,10 @@ async function handleQuantityStep(
   const kind = session.kind ?? 'add';
   const newStock =
     kind === 'remove' ? session.previousStock - quantity : session.previousStock + quantity;
+  if (!isValidStockQuantity(newStock)) {
+    await message.reply('❌ O saldo resultante excede o limite de estoque suportado. Digite uma quantidade menor.');
+    return;
+  }
   saveAdjustmentSession({
     ...session,
     step: 'awaiting_reason',

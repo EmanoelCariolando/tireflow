@@ -1,5 +1,7 @@
 import type { QueriedProduct } from './lastQueryStore.js';
 import type { EntryItem, EntrySession } from './entrySessionStore.js';
+import { parseNonNegativeInteger } from './stockQuantity.js';
+import { parseCurrencyToCents } from './salePayment.js';
 
 export const MAX_ENTRY_INVOICE_NUMBER_LENGTH = 40;
 
@@ -20,22 +22,13 @@ export function parseAdditionalEntryItemSelection(value: string): number | null 
     return null;
   }
 
-  const optionNumber = Number(match[1]);
-  return Number.isInteger(optionNumber) && optionNumber > 0 ? optionNumber : null;
+  const optionNumber = parseNonNegativeInteger(match[1]!);
+  return optionNumber !== null && optionNumber > 0 ? optionNumber : null;
 }
 
 export function parseEntryPriceValue(value: string): number | null {
-  const trimmed = value.trim();
-  const normalized = trimmed.includes(',')
-    ? trimmed.replace(/\./g, '').replace(',', '.')
-    : trimmed;
-  const price = Number(normalized);
-
-  if (!Number.isFinite(price) || price < 0) {
-    return null;
-  }
-
-  return Math.round(price * 100) / 100;
+  const cents = parseCurrencyToCents(value, true);
+  return cents === null ? null : cents / 100;
 }
 
 export function normalizeEntryInvoiceNumber(value: string): string | null {

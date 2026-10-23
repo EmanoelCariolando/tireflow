@@ -1,4 +1,5 @@
 import type { ProductCategory } from '@prisma/client';
+import { isValidStockQuantity } from '../utils/stockQuantity.js';
 import type { Message } from 'whatsapp-web.js';
 import env from '../config/env.js';
 import { getLastQuery } from '../utils/lastQueryStore.js';
@@ -230,7 +231,7 @@ export async function handleProductActionConversation(
   }
 
   if (session.step === 'awaiting_sale_quantity') {
-    if (!Number.isSafeInteger(selection) || selection <= 0) {
+    if (!isValidStockQuantity(selection) || selection <= 0) {
       await message.reply(`❌ Quantidade inválida.\n\n${formatSaleQuantityQuestion(lastQuery.products[optionNumber - 1]?.category)}`);
       return true;
     }

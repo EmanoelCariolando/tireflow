@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { parseNonNegativeInteger } from '../utils/stockQuantity.js';
 import { getLastQuery } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
@@ -133,9 +134,9 @@ export async function handleSaleCommand(message: Message, body: string): Promise
   }
 
   const optionNumber = Number(match[1]);
-  const quantity = Number(match[2]);
+  const quantity = parseNonNegativeInteger(match[2]!);
 
-  if (!Number.isInteger(optionNumber) || optionNumber <= 0 || !Number.isInteger(quantity) || quantity <= 0) {
+  if (!Number.isSafeInteger(optionNumber) || optionNumber <= 0 || quantity === null || quantity <= 0) {
     await message.reply('❌ Comando inválido. Use: *venda 1 5*');
     return;
   }
@@ -477,7 +478,7 @@ async function handlePendingPriceStep(
     return;
   }
 
-  const amountInCents = parseCurrencyToCents(body);
+  const amountInCents = parseCurrencyToCents(body, true);
   if (amountInCents === null || amountInCents <= 0) {
     await message.reply(`❌ *VALOR INVÁLIDO*\n\n${formatPendingPriceQuestion(session)}`);
     return;
@@ -702,8 +703,8 @@ async function handleAdditionalQuantityStep(
   session: SaleSession,
   body: string
 ): Promise<void> {
-  const quantity = Number(body.trim());
-  if (!Number.isSafeInteger(quantity) || quantity <= 0) {
+  const quantity = parseNonNegativeInteger(body);
+  if (quantity === null || quantity <= 0) {
     await message.reply(
       `❌ Quantidade inválida.\n\n${formatQuantityQuestion(session.additionalProduct?.category)}`
     );

@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { parseEntryPriceValue as parsePriceValue } from '../utils/entrySessionHelpers.js';
 import { getLastQuery } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
@@ -242,20 +243,6 @@ async function handleConfirmationStep(
   );
 
   clearPriceSession(session.userId, session.chatId);
-}
-
-function parsePriceValue(value: string): number | null {
-  const trimmed = value.trim();
-  const normalized = trimmed.includes(',')
-    ? trimmed.replace(/\./g, '').replace(',', '.')
-    : trimmed;
-  const price = Number(normalized);
-
-  if (!Number.isFinite(price) || price < 0) {
-    return null;
-  }
-
-  return Math.round(price * 100) / 100;
 }
 
 function formatPriceConfirmation(session: PriceSession): string {

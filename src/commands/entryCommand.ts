@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { parseNonNegativeInteger } from '../utils/stockQuantity.js';
 import { getLastQuery, updateLastQueryProductLocation } from '../utils/lastQueryStore.js';
 import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
 import {
@@ -268,9 +269,9 @@ async function handleQuantityStep(
   session: EntrySession,
   normalizedBody: string
 ): Promise<void> {
-  const quantity = Number(normalizedBody);
+  const quantity = parseNonNegativeInteger(normalizedBody);
 
-  if (!Number.isInteger(quantity) || quantity <= 0) {
+  if (quantity === null || quantity <= 0) {
     await message.reply(
       `❌ Quantidade inválida. Digite um inteiro positivo.\n\n${formatQuantityQuestion(session.category)}`
     );

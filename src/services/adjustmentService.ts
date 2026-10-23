@@ -5,6 +5,7 @@ import { productRepository } from '../repositories/productRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
+import { isValidStockQuantity } from '../utils/stockQuantity.js';
 
 export class AdjustmentProductNotFoundError extends Error {
   constructor() {
@@ -68,6 +69,7 @@ interface RegisteredStockTransfer {
 export async function registerAdjustment(
   input: RegisterAdjustmentInput
 ): Promise<RegisteredAdjustment> {
+  if (!isValidStockQuantity(input.newStock)) throw new Error('Invalid stock balance.');
   return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
     const product = await productRepository.findById(input.productId, tx);
 
@@ -131,7 +133,7 @@ export async function registerStockTransfer(
     throw new AdjustmentSameProductError();
   }
 
-  if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
+  if (!isValidStockQuantity(input.quantity) || input.quantity <= 0) {
     throw new AdjustmentInsufficientStockError();
   }
 
@@ -153,6 +155,7 @@ export async function registerStockTransfer(
     if (source.stock < input.quantity) {
       throw new AdjustmentInsufficientStockError();
     }
+    if (!isValidStockQuantity(target.stock + input.quantity)) throw new Error('Invalid destination stock balance.');
 
     const sourceUpdate = await productRepository.decreaseStockIfAvailable(
       source.id,

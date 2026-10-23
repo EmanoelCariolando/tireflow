@@ -2,6 +2,7 @@ import type {
   MixedPaymentMethod,
   PaymentBreakdownPart,
 } from './saleSessionStore.js';
+import { Prisma } from '@prisma/client';
 
 const MIXED_METHOD_BY_VALUE: Record<string, MixedPaymentMethod> = {
   '1': 'Dinheiro',
@@ -13,6 +14,15 @@ const MIXED_METHOD_BY_VALUE: Record<string, MixedPaymentMethod> = {
 };
 
 const IGNORED_MIXED_SELECTION_TOKENS = new Set(['e']);
+
+export function isSafeMonetaryValue(value: number, decimalInput?: string): boolean {
+  const cents = Math.round(value * 100);
+  if (!Number.isFinite(value) || value < 0 || !Number.isSafeInteger(cents)) return false;
+  if (decimalInput === undefined) return true;
+  // Compare with the original decimal before trusting a binary float's rounded cents.
+  const exactCents = new Prisma.Decimal(decimalInput).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP).mul(100);
+  return exactCents.eq(cents) && exactCents.eq(new Prisma.Decimal(cents / 100).mul(100));
+}
 
 export function parseMixedPaymentMethods(value: string): MixedPaymentMethod[] | null {
   const tokens = normalizeText(value)
@@ -35,7 +45,7 @@ export function parseMixedPaymentMethods(value: string): MixedPaymentMethod[] | 
   return uniqueMethods.length === 2 ? uniqueMethods : null;
 }
 
-export function parseCurrencyToCents(value: string): number | null {
+export function parseCurrencyToCents(value: string, roundFractionalCents = false): number | null {
   let normalized = value
     .trim()
     .replace(/\s|\u00a0/g, '')
@@ -49,25 +59,27 @@ export function parseCurrencyToCents(value: string): number | null {
   const hasDot = normalized.includes('.');
 
   if (hasComma && hasDot) {
-    if (!/^\d{1,3}(?:\.\d{3})*,\d{1,2}$/.test(normalized)) {
+    if (/^\d{1,3}(?:\.\d{3})+,\d+$/.test(normalized)) {
+      normalized = normalized.replace(/\./g, '').replace(',', '.');
+    } else if (/^\d{1,3}(?:,\d{3})+\.\d+$/.test(normalized)) {
+      normalized = normalized.replace(/,/g, '');
+    } else {
       return null;
     }
-    normalized = normalized.replace(/\./g, '').replace(',', '.');
-  } else if (hasComma) {
-    if (!/^\d+(?:,\d{1,2})?$/.test(normalized)) {
-      return null;
-    }
-    normalized = normalized.replace(',', '.');
-  } else if (hasDot) {
-    if (/^\d{1,3}(?:\.\d{3})+$/.test(normalized)) {
-      normalized = normalized.replace(/\./g, '');
-    } else if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
-      return null;
+  } else if (hasComma || hasDot) {
+    // Approved convention: a valid three-digit grouping takes precedence over decimals.
+    if (/^\d{1,3}(?:\.\d{3})+$/.test(normalized) || /^\d{1,3}(?:,\d{3})+$/.test(normalized)) {
+      normalized = normalized.replace(/[.,]/g, '');
+    } else {
+      if (!/^\d+[.,]\d+$/.test(normalized)) return null;
+      normalized = normalized.replace(',', '.');
     }
   }
 
-  const amount = Number(normalized);
-  return Number.isSafeInteger(Math.round(amount * 100))
+  if (!roundFractionalCents && /\.\d{3,}$/.test(normalized)) return null;
+  const rounded = new Prisma.Decimal(normalized).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  const amount = rounded.toNumber();
+  return isSafeMonetaryValue(amount, rounded.toString())
     ? Math.round(amount * 100)
     : null;
 }
