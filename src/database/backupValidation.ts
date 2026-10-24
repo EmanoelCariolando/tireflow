@@ -87,7 +87,12 @@ export async function inspectBackup(backupPath: string, branchName: string): Pro
     if (!['database.sqlite', 'backup-manifest.json', 'uploads', '.env.example'].includes(entry)) {
       throw new Error('Arquivo inesperado no backup (inclusive WAL/journal). Gere uma cópia SQLite consistente separada.');
     }
-    await assertSafePath(path.join(backupPath, entry));
+    const filename = path.join(backupPath, entry);
+    await assertSafePath(filename);
+    const info = await lstat(filename);
+    if (entry === 'uploads' ? !info.isDirectory() : !info.isFile()) {
+      throw new Error('Tipo de arquivo ou diretório inesperado no backup.');
+    }
   }
   const uploads = path.join(backupPath, 'uploads');
   if ((await readdir(uploads)).some(name => name !== 'products')) throw new Error('Diretório inesperado no backup.');

@@ -13,8 +13,11 @@ tarefa:
 - impede duas execuções simultâneas da mesma tarefa;
 - registra o resultado em `logs\scheduled-backup.log`.
 
-O backup continua criando pastas datadas. `BACKUP_RETENTION=7` mantém as 7 cópias mais recentes
-de cada filial e remove apenas as mais antigas.
+O backup continua criando pastas datadas. `BACKUP_RETENTION=7` mantém a cópia recém-verificada
+e até seis outras cópias verificáveis da mesma filial, ordenadas pelo nome de data. Pastas
+incompletas, incompatíveis, não reconhecidas ou de outra filial ficam preservadas fora dessa
+contagem. Erros na retenção são informados com o caminho do backup novo preservado; a falha
+na limpeza não significa que esse backup foi apagado. Veja o [relatório do Lote 5](AUDITORIA_LOTE_5.md).
 
 ## 1. Pré-requisitos
 

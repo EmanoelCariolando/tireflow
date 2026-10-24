@@ -1,12 +1,13 @@
-import { cp, mkdir, open, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, open, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import env from '../config/env.js';
 import { BACKUP_DIRECTORY, PRODUCT_UPLOAD_DIRECTORY, PROJECT_ROOT } from '../config/appPaths.js';
 import { prisma, disconnectPrisma } from './prisma.js';
 import { resolveSqliteDatabasePath } from './databasePath.js';
 import { acquireBackupLock } from './maintenanceLock.js';
-import { validateStagedDatabase, validatePhotoTree } from './backupValidation.js';
+import { assertSafePath, inspectBackup, validateStagedDatabase, validatePhotoTree } from './backupValidation.js';
 
 export interface BackupManifest {
   version: 1;
@@ -37,18 +38,38 @@ function escapeSqliteLiteral(value: string): string {
   return value.replace(/\\/g, '/').replace(/'/g, "''");
 }
 
-async function pruneBackups(backupRoot: string, retention: number): Promise<void> {
+async function pruneBackups(backupRoot: string, retention: number, newestBackup: string): Promise<void> {
   const directories = (await readdir(backupRoot, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory() && /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/.test(entry.name))
     .map((entry) => entry.name)
     .sort()
     .reverse();
 
-  for (const expiredDirectory of directories.slice(retention)) {
-    const target = path.resolve(backupRoot, expiredDirectory);
+  let retained = 1; // The newly verified backup is kept even if the clock moved backwards.
+  for (const directory of directories) {
+    const target = path.resolve(backupRoot, directory);
+    if (target === newestBackup) continue;
     if (path.dirname(target) !== path.resolve(backupRoot)) {
       throw new Error('Caminho de retenção de backup inválido.');
     }
+    let validationRoot: string | undefined;
+    try {
+      await inspectBackup(target, env.branchName);
+      validationRoot = await mkdtemp(path.join(os.tmpdir(), 'tireflow-retention-'));
+      const validationDatabase = path.join(validationRoot, 'database.sqlite');
+      await cp(path.join(target, 'database.sqlite'), validationDatabase, { force: false, errorOnExist: true });
+      await validateStagedDatabase(validationDatabase, path.join(target, 'uploads', 'products'));
+    } catch (error) {
+      console.warn('[BACKUP] Retenção preservou pasta não reconhecida, incompatível ou não verificável.', { path: target, error });
+      continue;
+    } finally {
+      if (validationRoot) {
+        if (path.dirname(validationRoot) !== path.resolve(os.tmpdir())) throw new Error('Diretório temporário de retenção inválido.');
+        await rm(validationRoot, { recursive: true, force: true });
+      }
+    }
+    if (retained < retention) { retained += 1; continue; }
+    await assertSafePath(target);
     await rm(target, { recursive: true, force: false });
   }
 }
@@ -101,12 +122,13 @@ async function createBackupWithLock(options: CreateBackupOptions): Promise<strin
       productPhotoFiles: await validatePhotoTree(uploadsBackupPath),
     };
     await writeFile(path.join(backupPath, 'backup-manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
-    await pruneBackups(backupRoot, retention);
-    return backupPath;
   } catch (error) {
     await rm(backupPath, { recursive: true, force: true });
     throw error;
   }
+  try { await pruneBackups(backupRoot, retention, backupPath); }
+  catch (cause) { throw new Error(`Backup válido preservado em ${backupPath}; falha na retenção.`, { cause }); }
+  return backupPath;
 }
 
 async function main(): Promise<void> {
