@@ -7,6 +7,8 @@ import env from './config/env.js';
 import { disconnectPrisma } from './database/prisma.js';
 import { installStructuredLogging } from './services/logger.js';
 import { runStartupChecks } from './services/startupService.js';
+import { acquireDatabaseMaintenanceLock } from './database/maintenanceLock.js';
+import { resolveSqliteDatabasePath } from './database/databasePath.js';
 import { startHealthMonitor, stopHealthMonitor } from './services/healthService.js';
 import {
   cancelStartupRecoveryReset,
@@ -21,6 +23,7 @@ import {
 } from './services/pendingSaleReminderScheduler.js';
 
 let isShuttingDown = false;
+let releaseDatabaseLock: (() => Promise<void>) | undefined;
 
 /**
  * whatsapp-web.js may evaluate the page while WhatsApp Web is replacing its
@@ -62,6 +65,7 @@ async function main(): Promise<void> {
   console.log('========================================\n');
 
   try {
+    releaseDatabaseLock = await acquireDatabaseMaintenanceLock(resolveSqliteDatabasePath());
     // 1. Refuse to start with an incomplete installation.
     await runStartupChecks();
 
@@ -128,7 +132,9 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
         console.error('[STARTUP_RECOVERY] Could not record the startup failure.', error);
       });
     }
-    await disconnectPrisma().catch((error: unknown) => {
+    await disconnectPrisma().then(async () => {
+      if (releaseDatabaseLock) await releaseDatabaseLock();
+    }).catch((error: unknown) => {
       console.error('[DATABASE] Error disconnecting Prisma.', error);
     });
     process.exit(exitCode);

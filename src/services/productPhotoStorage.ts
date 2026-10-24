@@ -34,7 +34,7 @@ function sanitizeProductId(productId: string): string {
   return safeId || 'unknown';
 }
 
-function hasExpectedImageSignature(imageBuffer: Buffer, mimeType: string): boolean {
+export function hasExpectedImageSignature(imageBuffer: Buffer, mimeType: string): boolean {
   if (mimeType === 'image/jpeg') {
     return imageBuffer.length >= 3 && imageBuffer[0] === 0xff && imageBuffer[1] === 0xd8 && imageBuffer[2] === 0xff;
   }

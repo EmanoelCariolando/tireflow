@@ -25,6 +25,12 @@ yarn-error.log*
 prisma/*.db
 prisma/*.db-journal
 prisma/*.db-*
+
+# Restore staging, preserved data and process locks
+*.tireflow-lock
+*.restore/
+*.restore.history-*/
+*.restore-*/
 data/*.db
 data/*.db-*
 data/daily-report-state.json

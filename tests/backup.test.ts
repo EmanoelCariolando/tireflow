@@ -3,11 +3,15 @@ import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { execFileSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
 import { createBackup } from '../src/database/backup.js';
 import { restoreBackupToTargets } from '../src/database/restoreBackup.js';
 
 test('creates a verified backup and restores database and uploads together', async () => {
+  assert.equal(process.env.NODE_ENV, 'test');
+  assert.equal(path.dirname(process.cwd()), path.resolve(os.tmpdir()));
+  execFileSync(process.execPath, ['node_modules/prisma/build/index.js', 'migrate', 'deploy'], { env: process.env, stdio: 'pipe' });
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), 'tireflow-backup-test-'));
   try {
     const backupPath = await createBackup({
@@ -44,6 +48,14 @@ test('creates a verified backup and restores database and uploads together', asy
     } finally {
       await restoredClient.$disconnect();
     }
+    const { prisma } = await import('../src/database/prisma.js');
+    const product = await prisma.product.create({ data: { reference: '175/70 R14', description: 'MISSING PHOTO',
+      stock: 1, cashPrice: 100, creditPrice: 105.8, imagePath: 'uploads/products/missing.png' } });
+    try {
+      await assert.rejects(createBackup({ backupRoot: path.join(temporaryRoot, 'backups'), retention: 1,
+        now: new Date('2026-07-20T08:00:00.000Z') }));
+      assert.ok((await stat(path.join(backupPath, 'backup-manifest.json'))).isFile());
+    } finally { await prisma.product.delete({ where: { id: product.id } }); await prisma.$disconnect(); }
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true });
   }

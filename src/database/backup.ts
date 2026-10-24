@@ -1,9 +1,12 @@
-import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, open, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import env from '../config/env.js';
 import { BACKUP_DIRECTORY, PRODUCT_UPLOAD_DIRECTORY, PROJECT_ROOT } from '../config/appPaths.js';
 import { prisma, disconnectPrisma } from './prisma.js';
+import { resolveSqliteDatabasePath } from './databasePath.js';
+import { acquireBackupLock } from './maintenanceLock.js';
+import { validateStagedDatabase, validatePhotoTree } from './backupValidation.js';
 
 export interface BackupManifest {
   version: 1;
@@ -30,15 +33,6 @@ function formatBackupDirectoryName(date: Date): string {
   return `${year}-${month}-${day}_${hour}-${minute}-${second}`;
 }
 
-async function countFiles(directory: string): Promise<number> {
-  let count = 0;
-  for (const entry of await readdir(directory, { withFileTypes: true }).catch(() => [])) {
-    if (entry.isDirectory()) count += await countFiles(path.join(directory, entry.name));
-    else if (entry.isFile() && entry.name !== '.gitkeep') count += 1;
-  }
-  return count;
-}
-
 function escapeSqliteLiteral(value: string): string {
   return value.replace(/\\/g, '/').replace(/'/g, "''");
 }
@@ -60,6 +54,12 @@ async function pruneBackups(backupRoot: string, retention: number): Promise<void
 }
 
 export async function createBackup(options: CreateBackupOptions = {}): Promise<string> {
+  const release = await acquireBackupLock(resolveSqliteDatabasePath());
+  try { return await createBackupWithLock(options); }
+  finally { await release(); }
+}
+
+async function createBackupWithLock(options: CreateBackupOptions): Promise<string> {
   const backupRoot = path.resolve(options.backupRoot || env.backupRoot || BACKUP_DIRECTORY);
   const retention = options.retention || env.backupRetention;
   const now = options.now || new Date();
@@ -83,18 +83,22 @@ export async function createBackup(options: CreateBackupOptions = {}): Promise<s
       throw new Error('A cópia consistente do banco ficou vazia.');
     }
 
-    const header = (await readFile(databaseBackupPath)).subarray(0, 16).toString('utf8');
+    const databaseFile = await open(databaseBackupPath, 'r');
+    const headerBytes = Buffer.alloc(16);
+    try { await databaseFile.read(headerBytes, 0, 16, 0); } finally { await databaseFile.close(); }
+    const header = headerBytes.toString('utf8');
     if (header !== 'SQLite format 3\u0000') {
       throw new Error('O arquivo gerado não possui um cabeçalho SQLite válido.');
     }
 
+    await validateStagedDatabase(databaseBackupPath, uploadsBackupPath);
     const manifest: BackupManifest = {
       version: 1,
       createdAt: now.toISOString(),
       branchName: env.branchName,
       databaseFile: 'database.sqlite',
       uploadsDirectory: 'uploads/products',
-      productPhotoFiles: await countFiles(uploadsBackupPath),
+      productPhotoFiles: await validatePhotoTree(uploadsBackupPath),
     };
     await writeFile(path.join(backupPath, 'backup-manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
     await pruneBackups(backupRoot, retention);
@@ -106,11 +110,17 @@ export async function createBackup(options: CreateBackupOptions = {}): Promise<s
 }
 
 async function main(): Promise<void> {
-  const backupPath = await createBackup();
-  // Stable ASCII marker consumed by Windows PowerShell 5.1. Accented console
-  // output can be decoded with the legacy code page when the task runs as SYSTEM.
-  console.log(`[BACKUP_PATH] ${backupPath}`);
-  console.log(`[BACKUP] Backup concluído e verificado: ${backupPath}`);
+  const release = await acquireBackupLock(resolveSqliteDatabasePath());
+  try {
+    const backupPath = await createBackupWithLock({});
+    // Stable ASCII marker consumed by Windows PowerShell 5.1. Accented console
+    // output can be decoded with the legacy code page when the task runs as SYSTEM.
+    console.log(`[BACKUP_PATH] ${backupPath}`);
+    console.log(`[BACKUP] Backup concluído e verificado: ${backupPath}`);
+  } finally {
+    await disconnectPrisma();
+    await release();
+  }
 }
 
 const directExecutionPath = process.argv[1] ? path.resolve(process.argv[1]) : '';

@@ -179,14 +179,28 @@ interromper o serviço, siga [DAILY_BACKUPS.md](DAILY_BACKUPS.md).
 
 ## 5. Restauração
 
+Siga o [procedimento completo de restauração e recuperação](AUDITORIA_LOTE_4.md#procedimento-operacional).
+Suspenda a tarefa de backup e todos os scripts/clientes da filial durante a
+manutenção. A origem deve ser uma pasta v1 completa da filial exata, com schema
+compatível e sem WAL/journal; incompatibilidades são bloqueadas antes da troca.
+
 Pare apenas o serviço da filial afetada:
 
 ```powershell
 & 'C:\Tools\nssm\win64\nssm.exe' stop TireFlow-Congo
+if ($LASTEXITCODE -ne 0) { throw 'Falha ao parar o serviço; não restaure.' }
 npm run restore -- 'C:\caminho\do\backup' --confirm
+if ($LASTEXITCODE -ne 0) { throw 'Restauração falhou; mantenha parado e siga o procedimento de recuperação.' }
 npm run check:runtime
+if ($LASTEXITCODE -ne 0) { throw 'Conferência falhou; mantenha o serviço parado.' }
 & 'C:\Tools\nssm\win64\nssm.exe' start TireFlow-Congo
 ```
+
+Se a restauração for interrompida, mantenha serviço e tarefas parados e execute
+`npm run restore -- --recover --confirm` antes do health check. O aplicativo
+atualizado bloqueia startup enquanto a restauração estiver incompleta. Não apague
+os diretórios `.restore*`: eles preservam banco, sidecars e fotos anteriores.
+Após a conferência e o reinício do serviço, reative a tarefa de backup da filial.
 
 Banco e uploads são restaurados juntos. Troque o nome do serviço para Monteiro quando necessário.
 
