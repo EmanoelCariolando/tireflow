@@ -31,10 +31,11 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
   const { EMPLOYEE_SESSION_TTL_MS } = await import('../src/utils/employeeSessionDuration.js');
   const chatId = env.whatsappOfficialGroupId;
   let nextId = 0;
-  function message(userId: string, body: string, replies: string[], overrides = {}): Message {
+  function message(userId: string, body: string, replies: string[], overrides: Record<string, unknown> = {}): Message {
+    const from = typeof overrides.from === 'string' ? overrides.from : chatId;
     return {
-      author: userId, from: chatId, body, type: 'chat', hasMedia: false,
-      id: { _serialized: `concurrency-${++nextId}` },
+      author: from.endsWith('@g.us') ? userId : undefined, from, fromMe: false, body, type: 'chat', hasMedia: false,
+      id: { id: String(++nextId), _serialized: `concurrency-${nextId}`, remote: from, fromMe: false },
       reply: async (text: string) => { replies.push(text); },
       getContact: async () => ({ pushname: 'Vendedor teste' }), ...overrides,
     } as unknown as Message;
@@ -43,7 +44,7 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
   try {
     for (const paymentMethod of ['Dinheiro', 'Nota', 'Misto'] as const) {
       await t.test(`rejects cancellation and duplicate confirmation while a ${paymentMethod} sale is running`, async () => {
-        const userId = `seller-${paymentMethod}`;
+        const userId = { Dinheiro: '5583000000051@c.us', Nota: '5583000000052@c.us', Misto: '5583000000053@lid' }[paymentMethod];
         const product = await prisma.product.create({ data: {
           reference: '175/70/14', description: `PNEU ${paymentMethod}`, stock: 3,
           cashPrice: 100, creditPrice: 110,
@@ -85,7 +86,7 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
           assert.equal(await prisma.movement.count({ where: { productId: product.id } }), 0);
           // Another employee must remain free to use the same group.
           const otherReplies: string[] = [];
-          await handleIncomingMessage(message('independent-seller', 'menu', otherReplies));
+          await handleIncomingMessage(message('5583000000054@c.us', 'menu', otherReplies));
           assert.match(otherReplies[0]!, /TIREFLOW — MENU/);
           release.resolve();
           await committed.promise;
@@ -119,7 +120,7 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
     }
 
     await t.test('does not accept cancellation or session replacement while a photo is downloading, even after TTL', async () => {
-      const userId = 'photo-user';
+      const userId = '5583000000055@c.us';
       const product = await prisma.product.create({ data: {
         reference: '175/70/14', description: 'PNEU FOTO', stock: 1, cashPrice: 100, creditPrice: 110,
       } });
@@ -158,7 +159,7 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
     });
 
     await t.test('keeps cancellation available before confirmation without changing stock', async () => {
-      const userId = 'idle-cancellation';
+      const userId = '5583000000056@c.us';
       const before = await prisma.movement.count();
       saveSaleSession({ userId, chatId, productId: 'unused-product', reference: '175/70/14',
         description: 'PNEU', quantity: 1, cashPrice: 100, creditPrice: 110,
@@ -171,7 +172,7 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
     });
 
     await t.test('releases ownership after a handler fails and isolates the same user across chats', async () => {
-      const userId = 'failing-user';
+      const userId = '5583000000057@c.us';
       await assert.rejects(handleIncomingMessage(message(userId, 'menu', [], {
         reply: async () => { throw new Error('controlled reply failure'); },
       })), /controlled reply failure/);
@@ -185,7 +186,7 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
         await entered.promise;
         env.allowPrivateTestMode = true;
         const replies: string[] = [];
-        await handleIncomingMessage(message(userId, 'menu', replies, { from: 'independent-chat@c.us' }));
+        await handleIncomingMessage(message(userId, 'menu', replies, { from: userId }));
         assert.match(replies[0]!, /TIREFLOW — MENU/);
       } finally {
         env.allowPrivateTestMode = previousPrivateMode;
@@ -193,7 +194,7 @@ test('routes overlapping operation messages safely on isolated SQLite', { timeou
         await running;
         clearAllOperationSessions(userId, chatId);
         clearMenuSession(userId, chatId);
-        clearMenuSession(userId, 'independent-chat@c.us');
+        clearMenuSession(userId, userId);
       }
     });
   } finally {

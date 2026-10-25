@@ -21,7 +21,24 @@ WHATSAPP_AUTH_DATA_PATH="C:\TireFlow\Congo\data\wwebjs_auth"
 ALLOW_PRIVATE_TEST_MODE=false
 ```
 
-`ALLOW_PRIVATE_TEST_MODE` aceita `true` ou `false` também em produção. Use `true` quando quiser testar os comandos em conversa privada; isso não impede a inicialização.
+`ALLOW_PRIVATE_TEST_MODE=true` permite os comandos operacionais em qualquer conversa privada
+com identidade técnica válida. Não exige lista de usuários, cadastro individual, role,
+`isActive`, `OWNER_PHONE` ou `BOSS_PRIVATE_NUMBER` para autorizar comandos. Os dois últimos
+continuam sendo configurações de notificações, sem participação na autorização de acesso.
+
+`false`, ausência, valor vazio ou inválido bloqueiam os comandos privados, sem impedir o grupo
+oficial válido de funcionar. Alterações entram em vigor depois de reiniciar o serviço; não há
+recarga automática. O reinício descarta sessões em memória. Habilitar o privado para qualquer
+remetente é a política explícita de testes; não há concessão automática quando a flag está ausente.
+
+No grupo oficial, todos os remetentes identificados podem usar todos os comandos, inclusive
+usuários desconhecidos, inativos e de qualquer role. Executar operações não reativa usuários
+existentes. Outros grupos continuam bloqueados, preservando apenas `grupo id`, que identifica
+a própria conversa. Mensagens sem identidade consistente, do próprio bot, de status, broadcast
+ou de origem não suportada são ignoradas antes das operações. IDs `@lid` e `@c.us` identificam
+sessões separadas; não se infere equivalência entre eles nem se aceita trocar de conversa para
+continuar, confirmar ou cancelar uma operação.
+Veja as evidências e limitações em [AUDITORIA_A13.md](AUDITORIA_A13.md).
 
 Para enviar relatórios exclusivamente ao `BOSS_PRIVATE_NUMBER`, configure em cada instalação
 o horário e a comissão aplicada ao valor final vendido:

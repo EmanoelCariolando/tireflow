@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'node:path';
+import { isGroupChatId } from '../utils/messageContext.js';
 
 // Tests supply their own environment and must never load an installation's .env.
 if (process.env.NODE_ENV !== 'test') dotenv.config({ quiet: true });
@@ -78,7 +79,7 @@ export function validateEnvironment(source: NodeJS.ProcessEnv): string[] {
   }
 
   const groupId = source.WHATSAPP_OFFICIAL_GROUP_ID?.trim() || '';
-  if (groupId && !/^\d+@g\.us$/.test(groupId)) {
+  if (groupId && !isGroupChatId(groupId)) {
     errors.push('WHATSAPP_OFFICIAL_GROUP_ID: formato inválido; esperado número@g.us');
   }
 
@@ -97,7 +98,6 @@ export function validateEnvironment(source: NodeJS.ProcessEnv): string[] {
   for (const booleanVariable of [
     'WHATSAPP_DEBUG',
     'WHATSAPP_HEADLESS',
-    'ALLOW_PRIVATE_TEST_MODE',
     'INVENTORY_LOCATIONS_ENABLED',
     'LOG_TO_CONSOLE',
   ] as const) {
@@ -179,13 +179,13 @@ export const env: EnvConfig = {
   chromeExecutablePath:
     process.env.CHROME_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   whatsappWebVersion: process.env.WHATSAPP_WEB_VERSION || '',
-  whatsappOfficialGroupId: process.env.WHATSAPP_OFFICIAL_GROUP_ID || '',
+  whatsappOfficialGroupId: process.env.WHATSAPP_OFFICIAL_GROUP_ID?.trim() || '',
   bossPrivateNumber: process.env.BOSS_PRIVATE_NUMBER || '',
   ownerPhone: process.env.OWNER_PHONE || '',
   dailyReportTime: process.env.DAILY_REPORT_TIME || '',
   monthlyReportTime: process.env.MONTHLY_REPORT_TIME || '',
   monthlyCommissionPercent: Number(process.env.MONTHLY_COMMISSION_PERCENT || 0),
-  allowPrivateTestMode: process.env.ALLOW_PRIVATE_TEST_MODE === 'true',
+  allowPrivateTestMode: process.env.ALLOW_PRIVATE_TEST_MODE?.trim().toLowerCase() === 'true',
   inventoryLocationsEnabled: process.env.INVENTORY_LOCATIONS_ENABLED === 'true',
   backupRoot: process.env.BACKUP_ROOT?.trim() || '',
   backupRetention: parsePositiveInteger(process.env.BACKUP_RETENTION, 7),

@@ -54,7 +54,7 @@ function runTests(projectRoot = path.resolve(__dirname, '..'), requestedFiles = 
     Object.assign(environment, {
       NODE_ENV: 'test', DATABASE_URL: `file:${path.join(workspace, 'prisma/test.db').replaceAll('\\', '/')}`,
       BRANCH_NAME: 'ATC PNEUS TESTE', WHATSAPP_AUTH_DATA_PATH: path.join(workspace, 'data/test-auth'),
-      WHATSAPP_SESSION_NAME: 'tireflow-test', WHATSAPP_OFFICIAL_GROUP_ID: 'test@g.us',
+      WHATSAPP_SESSION_NAME: 'tireflow-test', WHATSAPP_OFFICIAL_GROUP_ID: '120363000000000@g.us',
       BOSS_PRIVATE_NUMBER: '', OWNER_PHONE: '', ALLOW_PRIVATE_TEST_MODE: 'false',
       LOG_TO_CONSOLE: 'false', TZ: 'America/Sao_Paulo',
       NODE_OPTIONS: `--require=${JSON.stringify(path.join(workspace, 'tests/offline.cjs').replaceAll('\\', '/'))}`,

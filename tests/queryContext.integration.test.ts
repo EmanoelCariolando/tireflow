@@ -24,13 +24,13 @@ test('invalidates replaced query selections while preserving independent convers
   const { getSaleSession, saveSaleSession } = await import('../src/utils/saleSessionStore.js');
   const { getEntrySession, saveEntrySession } = await import('../src/utils/entrySessionStore.js');
   const chatId = env.whatsappOfficialGroupId;
-  const userId = 'query-user';
+  const userId = '5583000000040@c.us';
   let nextId = 0;
   const send = async (body: string, author = userId, from = chatId, reply?: (text: string) => Promise<void>) => {
     const replies: string[] = [];
     await handleIncomingMessage({
-      author, from, body, type: 'chat', hasMedia: false,
-      id: { _serialized: `query-context-${++nextId}` },
+      author, from, fromMe: false, body, type: 'chat', hasMedia: false,
+      id: { id: String(++nextId), _serialized: `query-context-${nextId}`, remote: from, fromMe: false },
       getContact: async () => ({ pushname: 'Teste' }),
       reply: reply ?? (async (text: string) => { replies.push(text); }),
     } as unknown as Message);
@@ -143,11 +143,11 @@ test('invalidates replaced query selections while preserving independent convers
       const previousPrivateMode = env.allowPrivateTestMode;
       env.allowPrivateTestMode = true;
       try {
-        await Promise.all([send('175 70 14'), send('185 65 15', 'other-user'), send('185 65 15', userId, 'other-chat@c.us')]);
+        await Promise.all([send('175 70 14'), send('185 65 15', '5583000000041@lid'), send('185 65 15', userId, userId)]);
         await send('205 55 16');
         assert.equal(getLastQuery(userId, chatId), null);
-        assert.equal(getLastQuery('other-user', chatId)?.products[0]?.id, second.id);
-        assert.equal(getLastQuery(userId, 'other-chat@c.us')?.products[0]?.id, second.id);
+        assert.equal(getLastQuery('5583000000041@lid', chatId)?.products[0]?.id, second.id);
+        assert.equal(getLastQuery(userId, userId)?.products[0]?.id, second.id);
       } finally { env.allowPrivateTestMode = previousPrivateMode; }
     });
 

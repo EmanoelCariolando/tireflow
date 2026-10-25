@@ -34,7 +34,6 @@ export const userRepository = {
       where: { phone },
       update: {
         name,
-        isActive: true,
       },
       create: {
         phone,

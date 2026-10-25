@@ -26,11 +26,13 @@ test('corrects product names through the menu with confirmation, duplicate and c
   const { productRepository } = await import('../src/repositories/productRepository.js');
   const previousGroup = env.whatsappOfficialGroupId;
   const previousLocations = env.inventoryLocationsEnabled;
-  const userId = 'rename-user';
-  const chatId = 'rename-group@g.us';
+  const userId = '5583000000030@c.us';
+  const chatId = '120363000000030@g.us';
+  let nextMessageId = 0;
   const replies: string[] = [];
   const send = (body: string) => handleIncomingMessage({
-    author: userId, from: chatId, body, hasMedia: false,
+    author: userId, from: chatId, fromMe: false, body, hasMedia: false,
+    id: { id: String(++nextMessageId), _serialized: `name-${nextMessageId}`, remote: chatId, fromMe: false },
     reply: async (text: string) => { replies.push(text); return undefined; },
   } as unknown as Message);
 

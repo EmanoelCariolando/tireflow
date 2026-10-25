@@ -25,7 +25,7 @@ test('invalid numeric input never changes isolated stock, prices or movements', 
   const { registerEntry } = await import('../src/services/entryService.js');
   const { registerSale } = await import('../src/services/saleService.js');
   const { registerPendingSale } = await import('../src/services/pendingSaleService.js');
-  const userId = 'numeric-user';
+  const userId = '5583000000020@c.us';
   const chatId = env.whatsappOfficialGroupId;
   const responsible = { responsiblePhone: userId, responsibleName: 'Teste' };
   let nextId = 0;
@@ -33,8 +33,8 @@ test('invalid numeric input never changes isolated stock, prices or movements', 
     reference: '175/70 R14', description: `NUMERICO ${++nextId}`, stock: 5, minStock: 0, cashPrice: 100, creditPrice: 105.8,
   } });
   const send = (body: string, replies: string[], media = false) => handleIncomingMessage({
-    author: userId, from: chatId, body, hasMedia: media, type: media ? 'image' : 'chat',
-    id: { _serialized: `numeric-${++nextId}` }, getContact: async () => ({ pushname: 'Teste' }),
+    author: userId, from: chatId, fromMe: false, body, hasMedia: media, type: media ? 'image' : 'chat',
+    id: { id: String(++nextId), _serialized: `numeric-${nextId}`, remote: chatId, fromMe: false }, getContact: async () => ({ pushname: 'Teste' }),
     reply: async (text: string) => { replies.push(text); },
   } as unknown as Message);
   try {

@@ -41,7 +41,7 @@ import {
   isPhotoCommand,
 } from '../commands/productPhotoCommand.js';
 import env from '../config/env.js';
-import { isGroupMessage } from '../utils/messageContext.js';
+import { getSerializedMessageId, hasValidMessageIdentity, isGroupMessage } from '../utils/messageContext.js';
 import { markMessageForProcessing } from '../utils/messageDeduplication.js';
 import { anonymizeIdentifier } from '../services/logger.js';
 import { handleStatusCommand, isStatusCommand } from '../commands/statusCommand.js';
@@ -108,6 +108,11 @@ import {
 export async function handleIncomingMessage(message: Message): Promise<void> {
   const messageId = message.id as { fromMe?: boolean } | undefined;
   if (message.fromMe || messageId?.fromMe) {
+    return;
+  }
+
+  getSerializedMessageId(message);
+  if (!hasValidMessageIdentity(message)) {
     return;
   }
 
@@ -387,6 +392,7 @@ function identifyCommand(body: string, hasMedia: boolean): string {
 }
 
 export function isAuthorizedChat(message: Message): boolean {
+  if (!hasValidMessageIdentity(message)) return false;
   if (isGroupMessage(message)) {
     return Boolean(env.whatsappOfficialGroupId) && message.from === env.whatsappOfficialGroupId;
   }

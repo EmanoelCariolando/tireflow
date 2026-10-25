@@ -9,13 +9,16 @@ import { pathToFileURL } from 'node:url';
 test('test configuration does not load even a fictitious .env', () => {
   const fixture = mkdtempSync(path.join(os.tmpdir(), 'tireflow-env-test-'));
   try {
-    cpSync('src/config/env.ts', path.join(fixture, 'env.ts'));
+    mkdirSync(path.join(fixture, 'src/config'), { recursive: true });
+    mkdirSync(path.join(fixture, 'src/utils'), { recursive: true });
+    cpSync('src/config/env.ts', path.join(fixture, 'src/config/env.ts'));
+    cpSync('src/utils/messageContext.ts', path.join(fixture, 'src/utils/messageContext.ts'));
     writeFileSync(path.join(fixture, 'package.json'), '{"type":"module"}');
     writeFileSync(path.join(fixture, '.env'), 'TIREFLOW_ENV_SENTINEL=must-not-load\n');
     symlinkSync(path.resolve('node_modules'), path.join(fixture, 'node_modules'), 'junction');
     const result = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', `
       import assert from 'node:assert/strict';
-      await import(${JSON.stringify(pathToFileURL(path.join(fixture, 'env.ts')).href)});
+      await import(${JSON.stringify(pathToFileURL(path.join(fixture, 'src/config/env.ts')).href)});
       assert.equal(process.env.TIREFLOW_ENV_SENTINEL, undefined);
     `], { cwd: fixture, env: { ...process.env, NODE_ENV: 'test' }, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
@@ -28,12 +31,13 @@ test('test configuration does not load even a fictitious .env', () => {
 test('runner excludes installation data, resets inherited configuration and blocks WhatsApp and network', () => {
   const fixture = mkdtempSync(path.join(os.tmpdir(), 'tireflow-runner-test-'));
   try {
-    for (const directory of ['src/config', 'tests', 'prisma/migrations', 'uploads/products', 'data/wwebjs_auth']) {
+    for (const directory of ['src/config', 'src/utils', 'tests', 'prisma/migrations', 'uploads/products', 'data/wwebjs_auth']) {
       mkdirSync(path.join(fixture, directory), { recursive: true });
     }
     for (const name of ['env.ts', 'appPaths.ts']) {
       cpSync(`src/config/${name}`, path.join(fixture, 'src/config', name));
     }
+    cpSync('src/utils/messageContext.ts', path.join(fixture, 'src/utils/messageContext.ts'));
     if (existsSync('tests/offline.cjs')) cpSync('tests/offline.cjs', path.join(fixture, 'tests/offline.cjs'));
     writeFileSync(path.join(fixture, 'package.json'), '{"name":"isolation-fixture","type":"module"}');
     writeFileSync(path.join(fixture, 'prisma/schema.prisma'), '');

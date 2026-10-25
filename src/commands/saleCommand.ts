@@ -2,7 +2,7 @@ import { Message } from 'whatsapp-web.js';
 import { parseNonNegativeInteger } from '../utils/stockQuantity.js';
 import { getLastQuery } from '../utils/lastQueryStore.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
-import { getMessageChatId, getMessageUserId } from '../utils/messageContext.js';
+import { getMessageChatId, getMessageUserId, getSerializedMessageId } from '../utils/messageContext.js';
 import {
   getCurrentProductStock,
   InsufficientStockError,
@@ -1117,7 +1117,7 @@ async function handlePhotoStep(message: Message, session: SaleSession): Promise<
     return;
   }
 
-  const receiptMessageId = getReceiptMessageId(message);
+  const receiptMessageId = getSerializedMessageId(message);
 
   if (!receiptMessageId) {
     logReceiptMessageIdDiagnostics(message);
@@ -1539,51 +1539,10 @@ function isReceiptImageMessage(message: Message): boolean {
 }
 
 function isDuplicateReceiptMessage(message: Message, session: SaleSession): boolean {
-  const messageId = getReceiptMessageId(message);
+  const messageId = getSerializedMessageId(message);
   return Boolean(
     messageId && session.receipts?.some((receipt) => receipt.messageId === messageId)
   );
-}
-
-interface MessageIdLike {
-  fromMe?: boolean;
-  remote?: string;
-  id?: string;
-  _serialized?: string;
-  participant?: string | { _serialized?: string; user?: string };
-}
-
-function getReceiptMessageId(message: Message): string | null {
-  const id = message.id as MessageIdLike | undefined;
-
-  if (id?._serialized) {
-    return id._serialized;
-  }
-
-  if (id?.fromMe === undefined || !id.remote || !id.id) {
-    return null;
-  }
-
-  const participant = getParticipantId(id.participant) || message.author;
-  const serialized =
-    participant && id.remote.includes('@g.us')
-      ? `${id.fromMe}_${id.remote}_${id.id}_${participant}`
-      : `${id.fromMe}_${id.remote}_${id.id}`;
-
-  id._serialized = serialized;
-  return serialized;
-}
-
-function getParticipantId(participant: MessageIdLike['participant']): string | null {
-  if (!participant) {
-    return null;
-  }
-
-  if (typeof participant === 'string') {
-    return participant;
-  }
-
-  return participant._serialized || participant.user || null;
 }
 
 function logReceiptMessageIdDiagnostics(message: Message): void {

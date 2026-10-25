@@ -19,11 +19,13 @@ function createGroupMessage(
 ): Message {
   return {
     author: userId,
-    from: 'authorization-group@g.us',
+    from: '120363000000010@g.us',
+    fromMe: false,
     body,
     hasMedia: false,
     type: 'chat',
-    id: { _serialized: `${userId}-${body}-${Date.now()}-${Math.random()}` },
+    id: { id: body, _serialized: `${userId}-${body}-${Date.now()}-${Math.random()}`,
+      remote: '120363000000010@g.us', fromMe: false },
     reply: async (text: string) => {
       replies.push(text);
       return undefined;
@@ -38,7 +40,7 @@ test('opens the full menu and product registration without querying participant 
   const previousGroupId = env.whatsappOfficialGroupId;
   const previousPrivateMode = env.allowPrivateTestMode;
   const userId = '551177777777@c.us';
-  const chatId = 'authorization-group@g.us';
+  const chatId = '120363000000010@g.us';
   const replies: string[] = [];
 
   try {
@@ -71,7 +73,7 @@ test('continues an entry conversation without querying participant roles', async
   const previousGroupId = env.whatsappOfficialGroupId;
   const previousPrivateMode = env.allowPrivateTestMode;
   const userId = '551166666666@c.us';
-  const chatId = 'authorization-group@g.us';
+  const chatId = '120363000000010@g.us';
   const replies: string[] = [];
 
   try {
@@ -107,11 +109,11 @@ test('keeps other groups blocked and allows the group ID discovery command', asy
   const previousGroupId = env.whatsappOfficialGroupId;
   const replies: string[] = [];
   try {
-    env.whatsappOfficialGroupId = 'another-group@g.us';
-    await handleIncomingMessage(createGroupMessage('member@lid', 'menu', replies));
+    env.whatsappOfficialGroupId = '120363000000011@g.us';
+    await handleIncomingMessage(createGroupMessage('5583000000010@lid', 'menu', replies));
     assert.deepEqual(replies, []);
-    await handleIncomingMessage(createGroupMessage('member@lid', 'grupo id', replies));
-    assert.deepEqual(replies, ['ID deste grupo:\nauthorization-group@g.us']);
+    await handleIncomingMessage(createGroupMessage('5583000000010@lid', 'grupo id', replies));
+    assert.deepEqual(replies, ['ID deste grupo:\n120363000000010@g.us']);
   } finally {
     env.whatsappOfficialGroupId = previousGroupId;
     clearProcessedMessages();

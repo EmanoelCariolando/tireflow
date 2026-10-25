@@ -10,13 +10,15 @@ test('allows only the configured group when private test mode is disabled', () =
   const previousPrivateMode = env.allowPrivateTestMode;
   env.whatsappOfficialGroupId = '120363111111111111@g.us';
   env.allowPrivateTestMode = false;
+  const message = (from: string) => ({ from, author: '5583000000001@c.us', fromMe: false,
+    id: { id: 'test', _serialized: 'test', remote: from, fromMe: false } } as Message);
   try {
     assert.equal(
-      isAuthorizedChat({ from: '120363111111111111@g.us' } as Message),
+      isAuthorizedChat(message('120363111111111111@g.us')),
       true
     );
     assert.equal(
-      isAuthorizedChat({ from: '120363222222222222@g.us' } as Message),
+      isAuthorizedChat(message('120363222222222222@g.us')),
       false
     );
     assert.equal(isAuthorizedChat({ from: '5583999999999@c.us' } as Message), false);
