@@ -26,6 +26,8 @@ interface RegisterPriceChangeInput {
 interface RegisteredPriceChange {
   movementCode: string;
   currentStock: number;
+  oldCashPrice: number;
+  oldCreditPrice: number;
 }
 
 function buildPriceChangeObservation(
@@ -54,6 +56,7 @@ export async function registerPriceChange(
     }
 
     const newCreditPrice = calculateCreditPrice(input.newCashPrice);
+    const previousPrices = { oldCashPrice: Number(product.cashPrice), oldCreditPrice: Number(product.creditPrice) };
 
     const priceUpdate = await productRepository.updatePricesIfActive(
       input.productId,
@@ -86,7 +89,7 @@ export async function registerPriceChange(
         },
         unitPrice: input.newCashPrice,
         totalValue: newCreditPrice,
-        observation: buildPriceChangeObservation(input, newCreditPrice),
+        observation: buildPriceChangeObservation({ ...input, ...previousPrices }, newCreditPrice),
         reason: 'Alteração de preço',
       },
       tx
@@ -95,6 +98,7 @@ export async function registerPriceChange(
     return {
       movementCode,
       currentStock: product.stock,
+      ...previousPrices,
     };
   }));
 }

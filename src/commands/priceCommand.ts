@@ -225,10 +225,12 @@ async function handleConfirmationStep(
     return;
   }
 
+  const effectiveSession = { ...session, oldCashPrice: registeredPriceChange.oldCashPrice,
+    oldCreditPrice: registeredPriceChange.oldCreditPrice };
   await runPostCommitTask('price group confirmation', () =>
     message.reply(
       formatRegisteredPriceChange(
-        session,
+        effectiveSession,
         registeredPriceChange.movementCode,
         responsibleName,
         registeredPriceChange.currentStock
@@ -238,7 +240,7 @@ async function handleConfirmationStep(
 
   await runPostCommitTask('price private owner notification', () =>
     sendBossNotification(
-      formatBossPriceNotification(session, registeredPriceChange.movementCode, responsibleName)
+      formatBossPriceNotification(effectiveSession, registeredPriceChange.movementCode, responsibleName)
     )
   );
 

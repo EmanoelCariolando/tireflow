@@ -540,6 +540,31 @@ test('keeps sale, stock movements and prices atomic on a migrated SQLite databas
         }
       }
     }
+    const priceProduct = await prisma.product.create({ data: {
+      reference: 'PRICE-HISTORY', description: 'Concurrent prices', stock: 1, cashPrice: 100, creditPrice: 105.8,
+    } });
+    const stalePriceInput = { productId: priceProduct.id, responsiblePhone: 'price-history-user',
+      responsibleName: 'Teste', oldCashPrice: 100, oldCreditPrice: 105.8 };
+    const changes = await Promise.all([120, 130].map(newCashPrice =>
+      registerPriceChange({ ...stalePriceInput, newCashPrice })));
+    const observations = await Promise.all(changes.map(async change => JSON.parse(
+      (await prisma.movement.findUniqueOrThrow({ where: { code: change.movementCode } })).observation!
+    )));
+    assert.deepEqual(observations.map(change => [change.oldCashPrice, change.newCashPrice]), [[100, 120], [120, 130]]);
+    assert.deepEqual(observations.map(change => change.oldCreditPrice), [105.8, 126.96]);
+
+    const { savePriceSession } = await import('../src/utils/priceSessionStore.js');
+    const { handlePriceConversation } = await import('../src/commands/priceCommand.js');
+    const priceReplies: string[] = [];
+    savePriceSession({ userId: 'price-history-user', chatId: 'price-history-chat', productId: priceProduct.id,
+      reference: priceProduct.reference, description: priceProduct.description, stock: 1,
+      oldCashPrice: 100, oldCreditPrice: 105.8, newCashPrice: 140, newCreditPrice: 148.12,
+      step: 'awaiting_confirmation', updatedAt: Date.now() });
+    await handlePriceConversation({ author: 'price-history-user', from: 'price-history-chat',
+      getContact: async () => ({ pushname: 'Teste' }), reply: async (text: string) => { priceReplies.push(text); },
+    } as unknown as Message, 'confirmar');
+    assert.match(priceReplies.at(-1)!, /R\$130,00 → \*R\$140,00\*/);
+    assert.match(priceReplies.at(-1)!, /R\$137,54 → \*R\$148,12\*/);
   } finally {
     await prisma.$disconnect();
     await rm(temporaryRoot, { recursive: true, force: true });
