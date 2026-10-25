@@ -118,8 +118,10 @@ npm run restore:location-stock -- "C:\backups\tireflowmtr_snapshots\AAAA-MM-DD_H
 ```
 
 O resumo deve mostrar somente os produtos que estavam com estoque positivo e local exclusivo `CG`
-no backup. A restauração é bloqueada se algum desses produtos tiver estoque atual diferente de zero
-e diferente do backup. Depois de revisar a lista, aplique:
+no backup. A restauração recusa produtos cujo histórico de vendas, entradas, ajustes ou reservas
+difere do snapshot, mesmo quando o saldo atual é zero ou voltou ao valor anterior. Continua
+recusando saldos diferentes de zero e do backup. Mudanças somente de preço são preservadas.
+Depois de revisar a lista, aplique:
 
 ```powershell
 npm run restore:location-stock -- "C:\backups\tireflowmtr_snapshots\AAAA-MM-DD_HH-MM-SS" CG --apply
@@ -130,6 +132,11 @@ e preserva vendas, entradas, preços, fotos e os demais produtos.
 
 Quando a conferência encontrar produtos movimentados depois do backup, `--apply-safe` pode ser usado
 para restaurar somente os produtos sem conflito e manter os conflitantes exatamente como estão.
+
+A limpeza e a restauração com `--apply`/`--apply-safe` usam o mesmo bloqueio de manutenção do
+aplicativo. Serviço ativo ou outra carga em execução impedem a aplicação antes da leitura dos
+saldos; a conferência sem essas opções permanece disponível. Mantenha também ferramentas externas
+que não respeitem esse bloqueio paradas. Não use o comando para desfazer movimentos comerciais.
 
 ## 8. Iniciar e testar
 

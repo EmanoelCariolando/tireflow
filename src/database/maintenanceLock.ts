@@ -62,6 +62,12 @@ export async function acquireDatabaseMaintenanceLock(databasePath: string, recov
   return release;
 }
 
+export async function withDatabaseMaintenanceLock<T>(databasePath: string, operation: () => Promise<T>): Promise<T> {
+  const release = await acquireDatabaseMaintenanceLock(databasePath);
+  try { return await operation(); }
+  finally { await release(); }
+}
+
 export async function acquireBackupLock(databasePath: string): Promise<() => Promise<void>> {
   const release = await acquireDatabaseMaintenanceLock(`${databasePath}.backup`, false, 'backup');
   try {

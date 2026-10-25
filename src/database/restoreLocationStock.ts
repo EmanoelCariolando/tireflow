@@ -1,11 +1,15 @@
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PrismaClient } from '@prisma/client';
+import { MovementType, PrismaClient } from '@prisma/client';
 import env from '../config/env.js';
 import { normalizeSingleStockLocation, normalizeStockLocation } from '../utils/stockLocation.js';
 import { createBackup } from './backup.js';
 import { disconnectPrisma, prisma } from './prisma.js';
+import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
+import { resolveSqliteDatabasePath } from './databasePath.js';
+
+const stockMovementTypes = [MovementType.SALE, MovementType.ENTRY, MovementType.ADJUSTMENT];
 
 export interface ProductStockSnapshot {
   id: string;
@@ -13,6 +17,7 @@ export interface ProductStockSnapshot {
   description: string;
   stock: number;
   stockLocation: string | null;
+  _count: { movements: number; pendingSaleItems: number };
 }
 
 export interface LocationStockRestoration {
@@ -80,6 +85,14 @@ export function buildLocationStockRestorationPlan(
         backupStock: backupProduct.stock,
         reason: 'o produto com o mesmo ID possui identificação diferente',
       });
+      continue;
+    }
+
+    if (currentProduct._count.movements !== backupProduct._count.movements ||
+        currentProduct._count.pendingSaleItems !== backupProduct._count.pendingSaleItems) {
+      conflicts.push({ reference: backupProduct.reference, description: backupProduct.description,
+        currentStock: currentProduct.stock, backupStock: backupProduct.stock,
+        reason: 'o histórico de estoque ou reservas difere do snapshot' });
       continue;
     }
 
@@ -270,12 +283,14 @@ async function main(): Promise<void> {
       throw new Error('O banco do backup falhou na verificação de integridade.');
     }
     backupProducts = await backupClient.product.findMany({
+      where: { stock: { gt: 0 } },
       select: {
         id: true,
         reference: true,
         description: true,
         stock: true,
         stockLocation: true,
+        _count: { select: { movements: { where: { type: { in: stockMovementTypes } } }, pendingSaleItems: true } },
       },
     });
   } finally {
@@ -295,6 +310,7 @@ async function main(): Promise<void> {
       description: true,
       stock: true,
       stockLocation: true,
+      _count: { select: { movements: { where: { type: { in: stockMovementTypes } } }, pendingSaleItems: true } },
     },
   });
   const plan = buildLocationStockRestorationPlan(backupProducts, currentProducts, location);
@@ -401,10 +417,11 @@ async function main(): Promise<void> {
 
 const directExecutionPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (directExecutionPath === fileURLToPath(import.meta.url)) {
-  main()
+  const execute = () => main().finally(disconnectPrisma);
+  const apply = process.argv.includes('--apply') || process.argv.includes('--apply-safe');
+  (apply ? withDatabaseMaintenanceLock(resolveSqliteDatabasePath(), execute) : execute())
     .catch((error: unknown) => {
       console.error('Erro ao restaurar estoque por local:', error);
       process.exitCode = 1;
-    })
-    .finally(disconnectPrisma);
+    });
 }

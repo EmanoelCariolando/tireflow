@@ -16,6 +16,7 @@ function product(
     description: `PNEU ${id}`,
     stock,
     stockLocation,
+    _count: { movements: 0, pendingSaleItems: 0 },
   };
 }
 
@@ -71,3 +72,13 @@ test('restores only the location when backup stock is already present', () => {
   assert.equal(plan.updates[0]?.stock, 4);
   assert.equal(plan.updates[0]?.stockLocation, 'CG');
 });
+
+for (const field of ['movements', 'pendingSaleItems'] as const) {
+  for (const stock of [0, 7]) test(`blocks ${field} changes even when the balance is ${stock}`, () => {
+    const before = product('changed', 7, 'CG');
+    const after = { ...product('changed', stock, null), _count: { movements: 0, pendingSaleItems: 0, [field]: 1 } };
+    const plan = buildLocationStockRestorationPlan([before], [after], 'CG');
+    assert.equal(plan.updates.length, 0);
+    assert.equal(plan.conflicts.length, 1);
+  });
+}

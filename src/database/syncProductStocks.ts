@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import env from '../config/env.js';
 import { disconnectPrisma, prisma } from './prisma.js';
+import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
+import { resolveSqliteDatabasePath } from './databasePath.js';
 
 interface CsvStockRow {
   line: number;
@@ -235,11 +237,9 @@ async function main(): Promise<void> {
   );
 }
 
-main()
+const execute = () => main().finally(disconnectPrisma);
+(process.argv.includes('--apply') ? withDatabaseMaintenanceLock(resolveSqliteDatabasePath(), execute) : execute())
   .catch((error: unknown) => {
     console.error('Erro ao sincronizar estoques:', error);
     process.exitCode = 1;
-  })
-  .finally(async () => {
-    await disconnectPrisma();
   });

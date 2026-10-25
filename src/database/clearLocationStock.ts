@@ -2,6 +2,8 @@ import env from '../config/env.js';
 import { normalizeSingleStockLocation, normalizeStockLocation } from '../utils/stockLocation.js';
 import { createBackup } from './backup.js';
 import { disconnectPrisma, prisma } from './prisma.js';
+import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
+import { resolveSqliteDatabasePath } from './databasePath.js';
 
 interface ProductToClear {
   id: string;
@@ -104,9 +106,9 @@ async function main(): Promise<void> {
   console.log('Produtos de outros locais e todos os demais dados foram preservados.');
 }
 
-main()
+const execute = () => main().finally(disconnectPrisma);
+(process.argv.includes('--apply') ? withDatabaseMaintenanceLock(resolveSqliteDatabasePath(), execute) : execute())
   .catch((error: unknown) => {
     console.error('Erro ao zerar estoque por local:', error);
     process.exitCode = 1;
-  })
-  .finally(disconnectPrisma);
+  });

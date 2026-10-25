@@ -110,6 +110,12 @@ Produtos não encontrados: 0
 Revise a lista `estoque anterior -> estoque novo`. Se o banco já tiver vendas posteriores ao CSV,
 não aplique até reconciliar essas movimentações.
 
+Os comandos de carga de estoque, catálogo e importação de pneus adquirem o bloqueio de manutenção
+existente antes de planejar uma aplicação (`--apply`) e o mantêm até desconectar do banco.
+Serviço ativo ou outra carga impedem a aplicação; a conferência sem `--apply` permanece disponível.
+O bloqueio evita alterações simultâneas, mas não torna um CSV antigo atual: reconcilie também as
+reservas pendentes e mantenha ferramentas externas que não respeitem o bloqueio paradas.
+
 Com o serviço Congo parado, backup concluído e conferência aprovada:
 
 ```powershell

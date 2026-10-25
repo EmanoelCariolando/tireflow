@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import { ProductCategory, Prisma } from '@prisma/client';
 import env from '../config/env.js';
 import { disconnectPrisma, prisma } from './prisma.js';
+import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
+import { resolveSqliteDatabasePath } from './databasePath.js';
 
 const CATALOG_PATH = 'data/seed/congo_motorcycle_products_2026-10-15.csv';
 const LEGACY_CATALOG_PATH = 'data/seed/congo_motorcycle_products_2026-06-09.csv';
@@ -179,9 +181,9 @@ async function main(): Promise<void> {
   console.log('Importação de pneus de moto concluída com sucesso.');
 }
 
-main()
+const execute = () => main().finally(disconnectPrisma);
+(process.argv.includes('--apply') ? withDatabaseMaintenanceLock(resolveSqliteDatabasePath(), execute) : execute())
   .catch((error: unknown) => {
     console.error(error);
     process.exitCode = 1;
-  })
-  .finally(disconnectPrisma);
+  });

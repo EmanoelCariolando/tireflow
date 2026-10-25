@@ -3,6 +3,8 @@ import path from 'node:path';
 import { BatteryBrand, Prisma, ProductCategory } from '@prisma/client';
 import env from '../config/env.js';
 import { disconnectPrisma, prisma } from './prisma.js';
+import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
+import { resolveSqliteDatabasePath } from './databasePath.js';
 
 interface CsvCatalogRow {
   line: number;
@@ -614,11 +616,9 @@ async function main(): Promise<void> {
   console.log('Produtos antigos ausentes do CSV não foram removidos nem desativados.');
 }
 
-main()
+const execute = () => main().finally(disconnectPrisma);
+(process.argv.includes('--apply') ? withDatabaseMaintenanceLock(resolveSqliteDatabasePath(), execute) : execute())
   .catch((error: unknown) => {
     console.error('Erro ao sincronizar catálogo:', error);
     process.exitCode = 1;
-  })
-  .finally(async () => {
-    await disconnectPrisma();
   });
