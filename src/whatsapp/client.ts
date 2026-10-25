@@ -455,6 +455,11 @@ export const whatsappClient = new Client({
 export function initializeWhatsAppClient(): void {
   // Show QR code in terminal when authentication is needed
   whatsappClient.on('qr', (qr: string) => {
+    if (!process.stdout.isTTY) {
+      if (!qrPromptShown) console.warn('[WHATSAPP] Authentication required. Stop the service and pair in an interactive terminal.');
+      qrPromptShown = true;
+      return;
+    }
     if (!qrPromptShown) {
       qrPromptShown = true;
       console.log('\n📱 Scan the most recent QR code with your WhatsApp to authenticate:\n');

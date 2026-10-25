@@ -13,6 +13,7 @@ const originalConsole = {
 };
 
 let installed = false;
+let lastCleanupDateKey: string | null = null;
 
 function dateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -23,7 +24,7 @@ function sanitize(value: unknown, key = ''): unknown {
     return '[REDACTED]';
   }
   if (value instanceof Error) {
-    return { name: value.name, message: value.message };
+    return { name: value.name, message: value.message.replace(/\d+(?:-\d+)?@(?:c\.us|g\.us|lid)/g, '[REDACTED]') };
   }
   if (typeof value === 'string') {
     if (value.length > 2000) return `${value.slice(0, 2000)}…`;
@@ -78,6 +79,11 @@ function write(level: LogLevel, args: unknown[]): void {
   const line = `[${now.toISOString()}] [${level}] [${safeBranchName}] ${message}`;
   const consoleMethod = level === 'ERROR' ? originalConsole.error : level === 'WARN' ? originalConsole.warn : originalConsole.log;
   if (env.logToConsole) consoleMethod(line);
+  if (lastCleanupDateKey !== dateKey(now)) {
+    lastCleanupDateKey = dateKey(now);
+    try { removeExpiredLogs(now); }
+    catch (error) { originalConsole.error(`[LOGGER] Could not remove expired logs: ${stringifyArgument(error)}`); }
+  }
   try {
     appendFileSync(getLogFilePath(now), `${line}\n`, 'utf8');
   } catch (error) {
@@ -88,7 +94,6 @@ function write(level: LogLevel, args: unknown[]): void {
 export function installStructuredLogging(): void {
   if (installed) return;
   mkdirSync(LOG_DIRECTORY, { recursive: true });
-  removeExpiredLogs(new Date());
   console.log = (...args: unknown[]) => write('INFO', args);
   console.warn = (...args: unknown[]) => write('WARN', args);
   console.error = (...args: unknown[]) => write('ERROR', args);
