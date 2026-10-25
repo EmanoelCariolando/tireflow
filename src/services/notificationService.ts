@@ -206,7 +206,7 @@ export async function forwardMessageToBoss(messageId: string, fallbackMessage?: 
   }
 
   if (!message) {
-    throw new Error(`Could not recover receipt message by id: ${messageId}`);
+    throw new Error('Could not recover receipt message.');
   }
 
   await withTimeout(message.forward(bossChatId));
@@ -216,8 +216,7 @@ export async function sendOwnerNotification(text: string): Promise<void> {
   const ownerChatId = await getPrivateChatId(env.ownerPhone);
 
   if (!ownerChatId) {
-    console.warn('OWNER_PHONE is not configured. Daily report notification was skipped.');
-    return;
+    throw new Error('Daily report destination could not be resolved.');
   }
 
   await sendPrivateOwnerTextMessage(ownerChatId, text, 'owner notification');

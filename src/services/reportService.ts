@@ -7,6 +7,8 @@ import type { QueriedProduct } from '../utils/lastQueryStore.js';
 import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
 import { formatStockLocationLine } from '../utils/stockLocation.js';
 import { getProductIcon } from '../utils/productCategory.js';
+import { pendingSaleReportRepository } from '../repositories/pendingSaleReportRepository.js';
+import { buildStockHistory, type StockHistoryEvent } from './monthlyReportService.js';
 
 type MovementWithRelations = Movement & {
   product: Product;
@@ -96,6 +98,7 @@ function formatLowStockReport(lowStockProducts: Product[]): string {
         formatStockLocationLine(product.stockLocation),
         `💰 À vista: *${formatCurrency(toNumber(product.cashPrice))}*`,
         `💳 A prazo: *${formatCurrency(toNumber(product.creditPrice))}*`,
+        ...(toNumber(product.tenInstallmentPrice) > 0 ? [`💳 10x: *${formatCurrency(toNumber(product.tenInstallmentPrice))}*`] : []),
       ].filter((line): line is string => Boolean(line)).join('\n')
     ),
     '',
@@ -126,7 +129,10 @@ export async function buildBestSellersReport(limit = 10): Promise<string> {
 
 export async function buildTodayReport(referenceDate = new Date()): Promise<string> {
   const range = getDayRange(referenceDate);
-  const movements = await movementRepository.findByDateRange(range.start, range.end);
+  const [movements, pendingSales] = await Promise.all([
+    movementRepository.findByDateRange(range.start, range.end),
+    pendingSaleReportRepository.findByDateRange(range.start, range.end),
+  ]);
   const sales = movements.filter((movement) => movement.type === MovementType.SALE);
   const paymentTotals = calculatePaymentTotals(sales);
   const totalRevenue = sales.reduce(
@@ -135,11 +141,12 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
   );
   const bestSeller = summarizeSalesByProduct(sales)[0];
   const movementCounts = getMovementCounts(movements);
-  const zeroStockProducts = summarizeDailyZeroStock(movements);
+  const stockHistory = buildStockHistory(range, movements, pendingSales);
+  const zeroStockProducts = summarizeDailyZeroStock(stockHistory);
 
   return formatTodayReport({
     referenceDate,
-    hasMovements: movements.length > 0,
+    hasMovements: movements.length > 0 || stockHistory.length > 0,
     paymentTotals,
     totalRevenue,
     movementCounts,
@@ -288,9 +295,9 @@ function summarizeSalesByProduct(sales: MovementWithRelations[]): ProductSalesSu
 }
 
 export function summarizeDailyZeroStock(
-  movements: MovementWithRelations[]
+  movements: StockHistoryEvent[]
 ): DailyZeroStockSummary[] {
-  const stockMovementsByProduct = new Map<string, MovementWithRelations[]>();
+  const stockMovementsByProduct = new Map<string, StockHistoryEvent[]>();
 
   for (const movement of movements) {
     if (movement.previousStock === null || movement.newStock === null) {
@@ -371,6 +378,7 @@ function mapProductToQueriedProduct(product: Product): QueriedProduct {
     stockLocation: product.stockLocation,
     cashPrice: toNumber(product.cashPrice),
     creditPrice: toNumber(product.creditPrice),
+    tenInstallmentPrice: product.tenInstallmentPrice == null ? null : toNumber(product.tenInstallmentPrice),
   };
 }
 

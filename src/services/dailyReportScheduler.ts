@@ -42,7 +42,7 @@ export function stopDailyReportScheduler(): void {
   scheduler = null;
 }
 
-async function sendReportIfDue(now = new Date()): Promise<void> {
+export async function sendReportIfDue(now = new Date()): Promise<void> {
   if (reportSendInProgress) {
     return;
   }
@@ -55,12 +55,9 @@ async function sendReportIfDue(now = new Date()): Promise<void> {
 
   const todayKey = getDateKey(now);
 
-  if (lastSentDateKey === todayKey || (await readLastSentDateKey()) === todayKey) {
-    return;
-  }
-
   reportSendInProgress = true;
   try {
+    if (lastSentDateKey === todayKey || (await readLastSentDateKey()) === todayKey) return;
     const report = await buildTodayReport(now);
     await sendOwnerNotification(report);
     lastSentDateKey = todayKey;
@@ -95,7 +92,7 @@ function parseDailyReportTime(value: string): { hour: number; minute: number } |
 }
 
 function isReportTime(date: Date, reportTime: { hour: number; minute: number }): boolean {
-  return date.getHours() === reportTime.hour && date.getMinutes() === reportTime.minute;
+  return date.getHours() * 60 + date.getMinutes() >= reportTime.hour * 60 + reportTime.minute;
 }
 
 function getDateKey(date: Date): string {

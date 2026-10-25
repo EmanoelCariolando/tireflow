@@ -580,12 +580,12 @@ function summarizeProducts(sales: MonthlyMovementWithRelations[]): ProductSummar
   });
 }
 
-type StockHistoryEvent = Pick<MonthlyMovementWithRelations, 'productId' | 'previousStock' | 'newStock' | 'createdAt'> & {
+export type StockHistoryEvent = Pick<MonthlyMovementWithRelations, 'productId' | 'previousStock' | 'newStock' | 'createdAt'> & {
   product: Pick<Product, 'reference' | 'description' | 'stockLocation' | 'category'>;
 };
 
-function buildStockHistory(
-  period: MonthlyPeriod,
+export function buildStockHistory(
+  period: Pick<MonthlyPeriod, 'start' | 'end'>,
   movements: MonthlyMovementWithRelations[],
   pendingSales: ReportPendingSale[]
 ): StockHistoryEvent[] {

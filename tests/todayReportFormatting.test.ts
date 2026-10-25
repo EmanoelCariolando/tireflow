@@ -1,11 +1,66 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildTodayReport,
+  buildLowStockOperationalReport,
   formatTodayReport,
   summarizeDailyZeroStock,
 } from '../src/services/reportService.js';
+import { movementRepository } from '../src/repositories/movementRepository.js';
+import { pendingSaleReportRepository, type ReportPendingSale } from '../src/repositories/pendingSaleReportRepository.js';
+import { productRepository } from '../src/repositories/productRepository.js';
+import { handleLowStockCommand } from '../src/commands/lowStockCommand.js';
+import { handleSaleCommand, handleSaleConversation } from '../src/commands/saleCommand.js';
+import { clearAllOperationSessions } from '../src/utils/operationSessionCoordinator.js';
+import { clearLastQuery } from '../src/utils/lastQueryStore.js';
+import type { Message } from 'whatsapp-web.js';
 
 const referenceDate = new Date('2026-07-27T12:00:00-03:00');
+
+test('daily zero stock uses reservation day, not later settlement, and preserves financial totals', async t => {
+  const pending: ReportPendingSale = { code: 'PD-TEST', status: 'SOLD',
+    createdAt: new Date(2026, 6, 27, 10), resolvedAt: new Date(2026, 6, 28, 10), completedSaleGroupCode: 'V-TEST',
+    createdBy: { name: 'A' }, assignedTo: { name: 'B' }, items: [{ productId: 'p', reference: '175/70 R14',
+      description: 'RESERVA', quantity: 2, previousStock: 2, reservedStock: 0, product: { category: 'TIRE', stockLocation: null } }],
+  };
+  t.mock.method(pendingSaleReportRepository, 'findByDateRange', async () => [pending]);
+  type ReportMovements = Awaited<ReturnType<typeof movementRepository.findByDateRange>>;
+  let movements: ReportMovements = [];
+  t.mock.method(movementRepository, 'findByDateRange', async () => movements);
+  const opening = await buildTodayReport(referenceDate);
+  assert.match(opening, /ESTOQUE ZERADO NO DIA[\s\S]*RESERVA/);
+  assert.match(opening, /FATURAMENTO: R\$0,00/);
+  movements = [{ productId: 'p', type: 'SALE', saleGroupCode: 'V-TEST',
+    createdAt: pending.resolvedAt, previousStock: 2, newStock: 0, quantity: 2, totalValue: 200,
+    paymentMethod: 'PIX', paymentDetails: null, product: { reference: '175/70 R14', description: 'RESERVA' } }] as unknown as ReportMovements;
+  const closing = await buildTodayReport(new Date(2026, 6, 28, 12));
+  assert.doesNotMatch(closing, /🔴.*RESERVA/);
+  assert.match(closing, /FATURAMENTO: R\$200,00/);
+  pending.status = 'RETURNED'; pending.completedSaleGroupCode = null;
+  movements = [];
+  assert.doesNotMatch(await buildTodayReport(new Date(2026, 6, 28, 12)), /🔴.*RESERVA/);
+});
+
+test('low stock preserves 10x in both the listing and a legitimate indexed sale', async t => {
+  const product = { id: 'low-10x', reference: '175/70 R14', description: 'LOW STOCK', category: 'TIRE',
+    stock: 2, minStock: 3, stockLocation: null, cashPrice: 100, creditPrice: 105.8, tenInstallmentPrice: 120 as number | null };
+  t.mock.method(productRepository, 'findActiveForStockReport', async () => [product]);
+  t.mock.method(productRepository, 'findById', async () => ({ ...product, isActive: true }));
+  const result = await buildLowStockOperationalReport();
+  assert.equal(result.products[0]?.tenInstallmentPrice, 120);
+  assert.match(result.report, /10[xX].*R\$120,00/);
+  const replies: string[] = [];
+  const message = { author: 'low-user', from: 'low-chat', reply: async (text: string) => { replies.push(text); } } as unknown as Message;
+  try {
+    await handleLowStockCommand(message);
+    await handleSaleCommand(message, 'venda 1 1');
+    assert.match(replies.at(-1)!, /10[xX]/);
+    await handleSaleConversation(message, '3');
+    assert.match(replies.at(-1)!, /120,00/);
+  } finally { clearAllOperationSessions('low-user', 'low-chat'); clearLastQuery('low-user', 'low-chat'); }
+  product.tenInstallmentPrice = null;
+  assert.doesNotMatch((await buildLowStockOperationalReport()).report, /💳 10x:/);
+});
 
 test('formats an empty daily report as a reduced report', () => {
   const report = formatTodayReport({
