@@ -183,6 +183,43 @@ Inicie uma vez de modo interativo com o caminho absoluto do Node e de `dist\inde
 
 ## 4. Backup
 
+### PDF de estoque no grupo para consulta offline
+
+O agendador existente também envia o PDF de **pneus em estoque atual** ao grupo oficial,
+a cada cinco dias (mínimo de 120 horas desde o último envio bem-sucedido), após o horário
+já configurado em `DAILY_REPORT_TIME`. Não há nova variável, timer, dependência ou migration.
+No primeiro início sem estado, envia após esse horário. Se o bot ficar parado, gera somente
+um PDF atual quando voltar a estar apto, sem publicar relatórios atrasados em sequência.
+
+O PDF e a legenda mostram a data/hora da geração. O arquivo precisa ser baixado nos aparelhos
+antes da queda para abrir sem internet; os saldos podem mudar após a geração. A consulta manual
+pelo menu continua disponível. O relatório diário privado e os backups do banco/fotos continuam
+com suas funções e periodicidades próprias.
+
+Depois do envio, tenta fixar a mensagem por sete dias, uma das durações suportadas pelo
+[WhatsApp](https://faq.whatsapp.com/294619079641794/?cms_platform=web). A conta do bot precisa
+ter permissão de fixação no grupo. Se já houver três fixações ou não for possível confirmar
+a nova fixação, preserva as anteriores. Só tenta desafixar o PDF anterior que o próprio bot
+registrou, após confirmar a nova fixação e validar a mensagem recuperada como documento
+enviado pela própria conta no mesmo grupo. Não remove outros avisos nem apaga mensagens.
+
+O estado fica em `data/stock-report-state.json`, ignorado pelo Git, com data, grupo e ID do PDF
+fixado pelo bot. É salvo por arquivo temporário e renomeação. Falha na fixação não causa reenvio
+do PDF. Estado ilegível/inválido bloqueia o envio e gera log para inspeção; não apague o arquivo
+sem conferir o último envio. Mudança do grupo configurado inicia o controle do novo destino
+sem desafixar mensagens do grupo anterior.
+
+Limites: queda após aceite remoto e antes de salvar o estado, perda do arquivo ou timeout
+com resultado remoto incerto podem causar reenvio (A14). A17/fuso segue o processo existente.
+Falha ao desafixar pode deixar o PDF anterior fixado até expirar. Logs `[STOCK_PDF]` informam
+falhas de envio/fixação sem imprimir identificadores. Não há garantia de leitura pelos membros.
+
+Validação em ambiente isolado: 22 testes focados aprovados, suíte completa sequencial com
+614 aprovações e zero falhas, typecheck, build e `git diff --check` aprovados. Revisão final
+local pelo critério Ponytail. Não foram enviados PDFs nem executadas fixações em WhatsApp real.
+
+### Backup de recuperação
+
 ```powershell
 npm run backup
 ```

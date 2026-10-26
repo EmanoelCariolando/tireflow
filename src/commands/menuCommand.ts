@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { isTireFlapCommand, handleTireFlapCommand } from './tireFlapCommand.js';
 import { parseInnerTubeCommand, handleInnerTubeCommand } from './innerTubeCommand.js';
 import { parseRetreadedTireCommand, handleRetreadedTireCommand } from './retreadedTireCommand.js';
 import { handleMotorcycleTireCommand, parseMotorcycleTireCommand } from './motorcycleTireCommand.js';
@@ -80,6 +81,10 @@ export async function handleZeroStockCommand(message: Message, body: string): Pr
   }
   if (parseRetreadedTireCommand(rawMeasure)) {
     await handleRetreadedTireCommand(message, rawMeasure, true);
+    return;
+  }
+  if (isTireFlapCommand(rawMeasure)) {
+    await handleTireFlapCommand(message, true);
     return;
   }
   if (parseInnerTubeCommand(rawMeasure)) {

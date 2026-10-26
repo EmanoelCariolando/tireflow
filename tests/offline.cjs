@@ -11,7 +11,7 @@ for (const module of [require('node:http'), require('node:https')]) {
   module.get = disabled;
 }
 const { Client, Message } = require('whatsapp-web.js');
-for (const method of ['initialize', 'sendMessage', 'getNumberId', 'getMessageById']) {
+for (const method of ['initialize', 'sendMessage', 'getNumberId', 'getMessageById', 'getPinnedMessages']) {
   Client.prototype[method] = async () => disabled();
 }
-for (const method of ['reply', 'forward', 'downloadMedia']) Message.prototype[method] = async () => disabled();
+for (const method of ['reply', 'forward', 'downloadMedia', 'pin', 'unpin']) Message.prototype[method] = async () => disabled();

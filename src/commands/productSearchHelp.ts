@@ -53,6 +53,15 @@ export function formatSimilarProductSearchHelp(body: string): string | null {
     ].join('\n');
   }
 
+  if (resembles(first, 'protetor')) {
+    return [
+      '⚠️ *COMO PESQUISAR PROTETORES*',
+      '',
+      'Digite apenas: *protetor*',
+      'Para ver os zerados: *0 protetor*',
+    ].join('\n');
+  }
+
   const coveredToken = first === 'pneu' ? tokens[1] : first;
   if (resembles(coveredToken, 'coberto')) {
     return [

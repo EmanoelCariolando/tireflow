@@ -17,3 +17,12 @@ test('does not mistake unrelated messages for product searches', () => {
     assert.equal(formatSimilarProductSearchHelp(body), null);
   }
 });
+
+test('guides protector typos and extra arguments to the exact supported commands', () => {
+  for (const body of ['protetores', 'protetro', 'proteotr', 'protetor 16', '0 protetores', 'PROTETOR ARO 20']) {
+    const help = formatSimilarProductSearchHelp(body);
+    assert.match(help ?? '', /\*protetor\*/);
+    assert.match(help ?? '', /\*0 protetor\*/);
+  }
+  for (const body of ['produto', 'preço', 'professor', 'entrada 1']) assert.equal(formatSimilarProductSearchHelp(body), null);
+});

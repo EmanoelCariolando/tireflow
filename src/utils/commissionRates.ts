@@ -13,6 +13,7 @@ export function getCommissionPercentForCategory(
     case ProductCategory.BATTERY:
     case ProductCategory.INNER_TUBE:
     case ProductCategory.MOTORCYCLE_INNER_TUBE:
+    case ProductCategory.TIRE_FLAP:
       return DISCOUNTED_COMMISSION_PERCENT;
     default:
       return commissionPercent;

@@ -14,7 +14,7 @@ import env from '../config/env.js';
 import { clearMenuSession } from '../utils/menuSessionStore.js';
 import { saveProductActionSession } from '../utils/productActionSessionStore.js';
 import type { ProductCategory } from '@prisma/client';
-import { isBatteryCategory, isInnerTubeCategory } from '../utils/productCategory.js';
+import { isBatteryCategory, isInnerTubeCategory, isTireFlapCategory } from '../utils/productCategory.js';
 import { formatSimilarProductSearchHelp } from './productSearchHelp.js';
 
 /**
@@ -67,6 +67,7 @@ export function formatProductList(
 }
 
 export function formatProductChoiceQuestion(category?: ProductCategory): string {
+  if (isTireFlapCategory(category)) return '*ESCOLHA UM PROTETOR 🛡️*\n*Digite o número do protetor:*';
   if (isInnerTubeCategory(category)) {
     return '*ESCOLHA UMA CÂMARA DE AR ⭕*\n*Digite o número da câmara:*';
   }

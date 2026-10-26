@@ -1,6 +1,7 @@
 import { Message, MessageMedia } from 'whatsapp-web.js';
 import env, { DEFAULT_BRANCH_NAME } from '../config/env.js';
 import { whatsappClient } from '../whatsapp/client.js';
+import { isGroupChatId } from '../utils/messageContext.js';
 
 const privateChatIdCache = new Map<string, string>();
 let privateSendQueue: Promise<void> = Promise.resolve();
@@ -231,6 +232,39 @@ export async function sendOfficialGroupNotification(
     throw new Error('WHATSAPP_OFFICIAL_GROUP_ID não está configurado.');
   }
   await withTimeout(whatsappClient.sendMessage(groupId, text, { mentions }));
+}
+
+export async function sendOfficialGroupStockPdf(media: MessageMedia, caption: string): Promise<Message> {
+  const groupId = env.whatsappOfficialGroupId.trim();
+  if (!isGroupChatId(groupId)) throw new Error('Grupo oficial inválido para o PDF de estoque.');
+  return withTimeout(whatsappClient.sendMessage(groupId, media, { caption }));
+}
+
+function isOwnGroupDocument(message: Message | null, groupId: string): message is Message {
+  return message?.fromMe === true && message.id?.fromMe === true &&
+    message.id.remote === groupId && message.type === 'document';
+}
+
+export async function pinOfficialGroupStockPdf(message: Message, previousMessageId: string | null): Promise<boolean> {
+  const groupId = env.whatsappOfficialGroupId.trim();
+  if ((await withTimeout(whatsappClient.getPinnedMessages(groupId))).length >= 3) {
+    console.warn('[STOCK_PDF] PDF enviado sem fixação: o grupo já possui três mensagens fixadas.');
+    return false;
+  }
+  if (!isOwnGroupDocument(message, groupId) || !await withTimeout(message.pin(7 * 24 * 60 * 60))) {
+    console.warn('[STOCK_PDF] PDF enviado, mas a fixação não foi confirmada. Verifique as permissões do grupo.');
+    return false;
+  }
+  if (previousMessageId && previousMessageId !== message.id._serialized) {
+    try {
+      const previous = await withTimeout(whatsappClient.getMessageById(previousMessageId));
+      if (!isOwnGroupDocument(previous, groupId) || previous.id._serialized !== previousMessageId) {
+        throw new Error('Mensagem anterior não pôde ser validada como documento próprio do grupo oficial.');
+      }
+      if (!await withTimeout(previous.unpin())) throw new Error('Desafixação anterior não foi confirmada.');
+    } catch (error) { console.warn('[STOCK_PDF] Novo PDF fixado; a fixação anterior foi preservada.', error); }
+  }
+  return true;
 }
 
 async function sendPrivateOwnerTextMessage(

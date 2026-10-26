@@ -34,6 +34,7 @@ prisma/*.db-*
 data/*.db
 data/*.db-*
 data/daily-report-state.json
+data/stock-report-state.json*
 data/monthly-report-state.json
 data/startup-recovery-state.json
 

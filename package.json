@@ -25,6 +25,7 @@
     "seed:products": "tsx src/database/seedProducts.ts",
     "import:motorcycle-tires": "tsx src/database/importMotorcycleTires.ts",
     "import:retreaded-tires": "tsx src/database/importRetreadedTires.ts",
+    "import:protectors": "tsx src/database/importTireFlaps.ts",
     "sync:locations": "tsx src/database/syncProductLocations.ts",
     "sync:stocks": "tsx src/database/syncProductStocks.ts",
     "sync:catalog": "tsx src/database/syncProductCatalog.ts",

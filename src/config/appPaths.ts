@@ -7,6 +7,7 @@ export const LOG_DIRECTORY = path.join(PROJECT_ROOT, 'logs');
 export const BACKUP_DIRECTORY = path.join(PROJECT_ROOT, 'backups');
 export const PRODUCT_UPLOAD_DIRECTORY = path.join(PROJECT_ROOT, 'uploads', 'products');
 export const DAILY_REPORT_STATE_PATH = path.join(DATA_DIRECTORY, 'daily-report-state.json');
+export const STOCK_REPORT_STATE_PATH = path.join(DATA_DIRECTORY, 'stock-report-state.json');
 export const MONTHLY_REPORT_STATE_PATH = path.join(DATA_DIRECTORY, 'monthly-report-state.json');
 export const COMMISSION_REPORT_STATE_PATH = path.join(DATA_DIRECTORY, 'commission-report-state.json');
 export const STARTUP_RECOVERY_STATE_PATH = path.join(DATA_DIRECTORY, 'startup-recovery-state.json');

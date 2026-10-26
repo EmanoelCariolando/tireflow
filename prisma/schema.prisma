@@ -28,6 +28,7 @@ enum ProductCategory {
   MOTORCYCLE_INNER_TUBE
   RETREADED_TIRE
   MOTORCYCLE_RETREADED_TIRE
+  TIRE_FLAP
 }
 
 enum BatteryBrand {

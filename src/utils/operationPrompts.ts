@@ -1,5 +1,5 @@
 import type { ProductCategory } from '@prisma/client';
-import { isBatteryCategory, isInnerTubeCategory } from './productCategory.js';
+import { isBatteryCategory, isInnerTubeCategory, isTireFlapCategory } from './productCategory.js';
 
 export function formatSupplierQuestion(): string {
   return [
@@ -11,7 +11,7 @@ export function formatSupplierQuestion(): string {
 export function formatQuantityQuestion(category?: ProductCategory): string {
   return [
     '📦 *QUANTIDADE*',
-    isInnerTubeCategory(category) ? 'Quantas câmaras de ar?' : isBatteryCategory(category) ? 'Quantas baterias?' : 'Quantos pneus?',
+    isTireFlapCategory(category) ? 'Quantos protetores?' : isInnerTubeCategory(category) ? 'Quantas câmaras de ar?' : isBatteryCategory(category) ? 'Quantas baterias?' : 'Quantos pneus?',
   ].join('\n');
 }
 

@@ -7,6 +7,7 @@ export function isBatteryCategory(category: ProductCategoryLike): boolean {
 }
 
 export function getProductIcon(category: ProductCategoryLike): string {
+  if (isTireFlapCategory(category)) return '🛡️';
   if (isInnerTubeCategory(category)) return '⭕';
   return isBatteryCategory(category) ? '🔋' : '🛞';
 }
@@ -15,6 +16,7 @@ export function getProductNoun(
   category: ProductCategoryLike,
   plural = false
 ): string {
+  if (isTireFlapCategory(category)) return plural ? 'protetores' : 'protetor';
   if (isInnerTubeCategory(category)) return plural ? 'câmaras de ar' : 'câmara de ar';
   if (isBatteryCategory(category)) {
     return plural ? 'baterias' : 'bateria';
@@ -29,4 +31,8 @@ export function isInnerTubeCategory(category: ProductCategoryLike): boolean {
 
 export function isRetreadedTireCategory(category: ProductCategoryLike): boolean {
   return category === ProductCategory.RETREADED_TIRE || category === ProductCategory.MOTORCYCLE_RETREADED_TIRE;
+}
+
+export function isTireFlapCategory(category: ProductCategoryLike): boolean {
+  return category === ProductCategory.TIRE_FLAP;
 }

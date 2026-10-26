@@ -23,7 +23,8 @@ import { downloadMessageMediaResilient } from '../services/whatsappMediaDownload
 import { clearAllOperationSessions, hasActiveOperationSession } from '../utils/operationSessionCoordinator.js';
 import { isCancellationResponse } from '../utils/operationResponse.js';
 import type { ProductCategory } from '@prisma/client';
-import { getProductIcon, isBatteryCategory, isInnerTubeCategory } from '../utils/productCategory.js';
+import { getProductIcon, isBatteryCategory, isInnerTubeCategory, isTireFlapCategory } from '../utils/productCategory.js';
+import { isTireFlapCommand } from './tireFlapCommand.js';
 import { isBatterySearchCommand } from '../services/batteryService.js';
 import { parseRetreadedTireCommand } from './retreadedTireCommand.js';
 
@@ -190,7 +191,7 @@ export async function handleAddPhotoCommand(
   });
 
   await message.reply(
-    `📷 *FOTO ${isInnerTubeCategory(queriedProduct.category) ? 'DA CÂMARA' : isBatteryCategory(queriedProduct.category) ? 'DA BATERIA' : 'DO PNEU'}*\n` +
+    `📷 *FOTO ${isTireFlapCategory(queriedProduct.category) ? 'DO PROTETOR' : isInnerTubeCategory(queriedProduct.category) ? 'DA CÂMARA' : isBatteryCategory(queriedProduct.category) ? 'DA BATERIA' : 'DO PNEU'}*\n` +
       `*${queriedProduct.description}*\nEnvie a imagem.`
   );
 }
@@ -224,6 +225,7 @@ export async function handleAddPhotoConversation(
     normalizedBody === 'pneu' ||
     normalizedBody.startsWith('pneu ') ||
     isBatterySearchCommand(normalizedBody) ||
+    isTireFlapCommand(normalizedBody) ||
     parseRetreadedTireCommand(normalizedBody) ||
     /^c[âa]mara(?:\s+mt)?$/.test(normalizedBody)
   ) {
@@ -233,7 +235,7 @@ export async function handleAddPhotoConversation(
 
   if (!message.hasMedia || (message.type !== 'image' && message.type !== 'document')) {
     await message.reply(
-      `❌ Envie uma imagem válida ${isInnerTubeCategory(session.category) ? 'da câmara' : isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
+      `❌ Envie uma imagem válida ${isTireFlapCategory(session.category) ? 'do protetor' : isInnerTubeCategory(session.category) ? 'da câmara' : isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
     );
     return true;
   }
@@ -278,7 +280,7 @@ export async function handleAddPhotoConversation(
 
     if (error instanceof UnsupportedProductImageError) {
       await message.reply(
-        `❌ Envie uma imagem válida ${isInnerTubeCategory(session.category) ? 'da câmara' : isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
+        `❌ Envie uma imagem válida ${isTireFlapCategory(session.category) ? 'do protetor' : isInnerTubeCategory(session.category) ? 'da câmara' : isBatteryCategory(session.category) ? 'da bateria' : 'do pneu'}.`
       );
       return true;
     }

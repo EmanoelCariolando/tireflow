@@ -53,6 +53,8 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 | `0 <medida>` | Consultar somente pneus zerados |
 | `bateria 60` | Consultar baterias Moura e Zetta com estoque |
 | `0 bateria 60` | Consultar somente baterias zeradas |
+| `protetor` | Consultar protetores com estoque |
+| `0 protetor` | Consultar somente protetores zerados |
 | `venda <item> <quantidade>` | Registrar uma venda |
 | `entrada <item>` | Adicionar estoque |
 | `ajuste <item>` | Contar, adicionar, retirar ou transferir estoque |
@@ -71,6 +73,9 @@ Depois, basta seguir as instruções enviadas pelo próprio bot para escolher o 
 
 O preparo e a importação segura do catálogo de baterias estão descritos em
 [docs/BATTERIES.md](docs/BATTERIES.md).
+
+O catálogo e a importação dos protetores estão em [docs/PROTECTORS.md](docs/PROTECTORS.md).
+Variações como `protetores`, `protetro` ou `protetor 16` recebem orientação para usar `protetor`.
 
 ## Tecnologias
 

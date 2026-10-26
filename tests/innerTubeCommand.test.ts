@@ -6,6 +6,18 @@ import { parseInnerTubeCommand, formatInnerTubeList } from '../src/commands/inne
 import { formatQuantityQuestion } from '../src/utils/operationPrompts.js';
 import { formatProductChoiceQuestion } from '../src/commands/pneuCommand.js';
 import { getProductNoun } from '../src/utils/productCategory.js';
+import { getCommissionPercentForCategory } from '../src/utils/commissionRates.js';
+import { formatAdjustmentTypeQuestion } from '../src/commands/adjustmentCommand.js';
+
+test('protectors use their own name and the approved accessory commission without tire transfers', () => {
+  assert.equal(getProductNoun(ProductCategory.TIRE_FLAP, true), 'protetores');
+  assert.match(formatProductChoiceQuestion(ProductCategory.TIRE_FLAP), /PROTETOR/);
+  assert.match(formatQuantityQuestion(ProductCategory.TIRE_FLAP), /Quantos protetores/);
+  assert.equal(getCommissionPercentForCategory(ProductCategory.TIRE_FLAP), 1);
+  assert.equal(getCommissionPercentForCategory(ProductCategory.TIRE_FLAP, 0), 0);
+  assert.doesNotMatch(formatAdjustmentTypeQuestion({ reference: 'PROTETOR-16', description: 'PROTETOR 16',
+    previousStock: 1, category: ProductCategory.TIRE_FLAP }), /Transferir/);
+});
 
 test('separates motorcycle tubes from other tubes with accented and unaccented commands', () => {
   assert.equal(parseInnerTubeCommand('camara'), ProductCategory.INNER_TUBE);

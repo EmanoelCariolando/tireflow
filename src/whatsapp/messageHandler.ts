@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { isTireFlapCommand, handleTireFlapCommand } from '../commands/tireFlapCommand.js';
 import { parseInnerTubeCommand, handleInnerTubeCommand } from '../commands/innerTubeCommand.js';
 import { parseRetreadedTireCommand, handleRetreadedTireCommand } from '../commands/retreadedTireCommand.js';
 import {
@@ -275,6 +276,11 @@ async function handleAuthorizedMessage(message: Message, body: string): Promise<
 
   if (isBatterySearchCommand(body)) {
     await handleBatteryCommand(message, body);
+    return;
+  }
+
+  if (isTireFlapCommand(body)) {
+    await handleTireFlapCommand(message);
     return;
   }
 
