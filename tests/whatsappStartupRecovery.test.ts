@@ -1,7 +1,71 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { setImmediate } from 'node:timers/promises';
 import test from 'node:test';
+
+const require = createRequire(import.meta.url);
+const { exposeFunctionIfAbsent } = require('whatsapp-web.js/src/util/Puppeteer.js');
+
+function bindingPage() {
+  const bindings = new Map<string, () => string>();
+  const windowFunctions = new Set<string>();
+  return {
+    bindings,
+    windowFunctions,
+    async evaluate(_callback: unknown, name: string) {
+      return windowFunctions.has(name);
+    },
+    async exposeFunction(name: string, callback: () => string) {
+      if (bindings.has(name)) {
+        throw new Error(`Failed to add page binding with name ${name}: window['${name}'] already exists!`);
+      }
+      bindings.set(name, callback);
+      // Puppeteer reserves the name before the browser has installed the function.
+      await setImmediate();
+      windowFunctions.add(name);
+    },
+  };
+}
+
+test('overlapping WhatsApp injections share a completed binding without crashing', async () => {
+  const page = bindingPage();
+  const name = 'onAuthAppStateChangedEvent';
+  await Promise.all([
+    exposeFunctionIfAbsent(page, name, () => 'first'),
+    exposeFunctionIfAbsent(page, name, () => 'second'),
+  ]);
+  assert.equal(page.bindings.get(name)?.(), 'first');
+  assert.ok(page.windowFunctions.has(name), 'Both callers must wait for the browser binding');
+});
+
+test('WhatsApp reinjection during navigation reuses the existing Puppeteer binding', async () => {
+  const page = bindingPage();
+  const name = 'onAuthAppStateChangedEvent';
+  await exposeFunctionIfAbsent(page, name, () => 'original');
+  page.windowFunctions.clear();
+  await exposeFunctionIfAbsent(page, name, () => 'replacement');
+  assert.equal(page.bindings.get(name)?.(), 'original');
+});
+
+test('failed WhatsApp binding registration propagates the error and can be retried', async (t) => {
+  const page = bindingPage();
+  const failure = new Error('Execution context was destroyed');
+  const registration = t.mock.method(page, 'exposeFunction', async () => { throw failure; });
+  await assert.rejects(exposeFunctionIfAbsent(page, 'onAuthAppStateChangedEvent', () => ''), failure);
+  registration.mock.restore();
+  await exposeFunctionIfAbsent(page, 'onAuthAppStateChangedEvent', () => 'recovered');
+  assert.equal(page.bindings.get('onAuthAppStateChangedEvent')?.(), 'recovered');
+});
+
+test('a new WhatsApp page registers its own bindings after a browser restart', async () => {
+  const first = bindingPage();
+  const second = bindingPage();
+  await exposeFunctionIfAbsent(first, 'onAuthAppStateChangedEvent', () => 'first page');
+  await exposeFunctionIfAbsent(second, 'onAuthAppStateChangedEvent', () => 'second page');
+  assert.equal(second.bindings.get('onAuthAppStateChangedEvent')?.(), 'second page');
+});
 
 const clientSource = readFileSync(
   path.join(process.cwd(), 'src', 'whatsapp', 'client.ts'),

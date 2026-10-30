@@ -286,7 +286,7 @@ mídia sobrescreve a identidade da mensagem. A correção está em
 do patch de inicialização em `patches/`. Isso permite atualizar instalações que já receberam
 a correção anterior sem apagar `node_modules`.
 
-Após atualizar `package.json` e as pastas `patches/` e `patches-media/` na instalação da filial, execute `npm run postinstall`
+Após atualizar `package.json` e as pastas `patches/`, `patches-media/` e `patches-bindings/` na instalação da filial, execute `npm run postinstall`
 na pasta do projeto e reinicie o bot pelo gerenciador usado na instalação. No NSSM de Monteiro:
 
 ```powershell
@@ -294,17 +294,32 @@ npm run postinstall
 & 'C:\Tools\nssm\win64\nssm.exe' restart TireFlow-Monteiro
 ```
 
-Confirme que as duas etapas informaram `whatsapp-web.js@1.34.7` com sucesso antes de reiniciar.
+Confirme que as três etapas informaram `whatsapp-web.js@1.34.7` com sucesso antes de reiniciar.
 Somente executar o build não aplica esse patch. Depois, teste o envio pela opção 6 do menu.
 Referência: https://github.com/wwebjs/whatsapp-web.js/issues/201922.
+
+### Erro de registro duplicado ao iniciar após reiniciar o servidor
+
+O erro `Failed to add page binding with name onAuthAppStateChangedEvent` pode ocorrer
+quando a inicialização e uma navegação interna do WhatsApp registram a mesma função
+simultaneamente. O processo encerra e as tentativas seguintes podem repetir a falha.
+O patch em `patches-bindings/` compartilha o registro por página e função, espera sua
+conclusão e o reutiliza nas navegações seguintes. Falhas de registro continuam sendo
+propagadas e permitem uma nova tentativa.
+
+Atualize `package.json`, `scripts/` e as três pastas `patches/`, `patches-media/` e
+`patches-bindings/` no servidor. Pare a instância da filial pelo gerenciador usado na
+instalação e execute `npm.cmd run postinstall` na pasta do projeto. Confirme que as
+três etapas informaram `whatsapp-web.js@1.34.7` com sucesso, execute `npm.cmd run check`
+e então inicie a instância. Somente executar o build não aplica a correção.
 
 ### Recuperar uma instalação com patches ou dependências incompletos
 
 Atualize os arquivos do projeto, incluindo `package.json`, `package-lock.json`, `scripts/`,
-`tests/`, `patches/` e `patches-media/`. Pare o serviço antes de reparar as dependências.
+`tests/`, `patches/`, `patches-media/` e `patches-bindings/`. Pare o serviço antes de reparar as dependências.
 Se apenas a biblioteca do WhatsApp foi editada, `npm run repair:whatsapp` baixa o pacote
-original 1.34.7, confere sua integridade, aplica os dois patches em uma pasta temporária e
-valida a sintaxe. Só então substitui `Client.js` e `Utils.js`, guardando cópia dos anteriores
+original 1.34.7, confere sua integridade, aplica os três patches em uma pasta temporária e
+valida a sintaxe. Só então substitui `Client.js`, `Utils.js` e `Puppeteer.js`, guardando cópia dos anteriores
 em `tmp/whatsapp-repair-*/backup`. Ele não altera banco, `.env` ou autenticação.
 
 Se o `check` apresentar arquivos ou tipos ausentes, restaure todas as dependências do lockfile:

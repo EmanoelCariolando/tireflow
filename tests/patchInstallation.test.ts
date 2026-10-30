@@ -22,7 +22,8 @@ test('patches install on fresh, previously patched and fully patched dependencie
     'node_modules/whatsapp-web.js/package.json',
     'node_modules/whatsapp-web.js/src/Client.js',
     'node_modules/whatsapp-web.js/src/util/Injected/Utils.js',
-    `patches/${patchName}`, `patches-media/${patchName}`,
+    'node_modules/whatsapp-web.js/src/util/Puppeteer.js',
+    `patches/${patchName}`, `patches-media/${patchName}`, `patches-bindings/${patchName}`,
   ];
   for (const file of files) {
     const destination = path.join(fixture, file);
@@ -40,7 +41,8 @@ test('patches install on fresh, previously patched and fully patched dependencie
     const result = run(directory, reverse);
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   }
-  // Restore the media file only to reproduce an installation with the old startup patch.
+  // Reproduce an installation with the old startup patch and no binding fix.
+  apply('patches-bindings', true);
   apply('patches-media', true);
   mkdirSync(path.join(fixture, 'combined'));
   writeFileSync(path.join(fixture, 'combined', patchName),
@@ -49,10 +51,13 @@ test('patches install on fresh, previously patched and fully patched dependencie
   assert.equal(run('combined').status, 1, 'The former combined patch must reproduce the reported failure');
   apply('patches');
   apply('patches-media');
+  apply('patches-bindings');
   // Repeated installation is safe.
   apply('patches');
   apply('patches-media');
-  // Restore both original package files, then verify a clean installation.
+  apply('patches-bindings');
+  // Restore the original package files, then verify a clean installation.
+  apply('patches-bindings', true);
   apply('patches-media', true);
   apply('patches', true);
   // These hashes come from the published npm 1.34.7 tarball, not our local dependency.
@@ -60,6 +65,7 @@ test('patches install on fresh, previously patched and fully patched dependencie
   const originals = {
     'src/Client.js': '36c70c1eb058087624e57ddea6b0c4d4a140faa2daf9c097dc670697ac321389',
     'src/util/Injected/Utils.js': '0d0f88565f481dbfeb9493b04b24033a2cb60f5fd2fd0e84e543b461d98878fe',
+    'src/util/Puppeteer.js': 'ab2bb9ad637c88243a0f08934f2d35edf65f7886140b0867fec311879b34290c',
   };
   for (const [file, expected] of Object.entries(originals)) {
     const original = readFileSync(path.join(fixture, 'node_modules/whatsapp-web.js', file), 'utf8').replaceAll('\r\n', '\n');
@@ -67,6 +73,7 @@ test('patches install on fresh, previously patched and fully patched dependencie
   }
   apply('patches');
   apply('patches-media');
+  apply('patches-bindings');
   for (const file of Object.keys(originals)) {
     const checked = spawnSync(process.execPath, ['--check', path.join(fixture, 'node_modules/whatsapp-web.js', file)], { encoding: 'utf8' });
     assert.equal(checked.status, 0, checked.stderr);

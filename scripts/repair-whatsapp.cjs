@@ -9,7 +9,7 @@ const tar = require('tar-fs');
 
 const VERSION = '1.34.7';
 const SHA512 = 'CscRtB32OnozLj+cuG9Q5f7IhnNV2EU4RGRJYeYF7wwhN6acQ0efabnFpetSEh5Y8OL4YqBj7nSQbUrTZYLDGA==';
-const FILES = ['src/Client.js', 'src/util/Injected/Utils.js'];
+const FILES = ['src/Client.js', 'src/util/Injected/Utils.js', 'src/util/Puppeteer.js'];
 
 function run(args, cwd) {
   const result = spawnSync(process.execPath, args, { cwd, encoding: 'utf8', timeout: 60_000 });
@@ -45,7 +45,7 @@ async function repair(root = path.resolve(__dirname, '..'), archivePath) {
     map(header) { header.name = header.name.replace(/^package\//, ''); return header; },
   }));
   fs.writeFileSync(path.join(staging, 'package.json'), '{"name":"whatsapp-repair","version":"1.0.0"}');
-  for (const directory of ['patches', 'patches-media']) {
+  for (const directory of ['patches', 'patches-media', 'patches-bindings']) {
     fs.cpSync(path.join(root, directory), path.join(staging, directory), { recursive: true });
     run([require.resolve('patch-package/index.js'), '--patch-dir', directory, '--error-on-fail'], staging);
   }

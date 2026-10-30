@@ -14,7 +14,7 @@ function runTests(projectRoot = path.resolve(__dirname, '..'), requestedFiles = 
   const dependencyLinks = [];
   try {
     // Copy only source and public fixtures; never installation data or authentication.
-    for (const name of ['src', 'tests', 'scripts', 'patches', 'patches-media', 'data/seed',
+    for (const name of ['src', 'tests', 'scripts', 'patches', 'patches-media', 'patches-bindings', 'data/seed',
       'prisma/schema.prisma', 'prisma/migrations', 'package.json', 'package-lock.json',
       'tsconfig.json', 'README.md', '.env.example']) {
       const source = path.join(projectRoot, name);
