@@ -10,6 +10,7 @@ dist/
 .env.*.local
 control.config.json
 data/control-health.json*
+data/control-pairing-endpoint.json*
 
 # Logs
 logs/

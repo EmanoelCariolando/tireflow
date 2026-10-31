@@ -19,6 +19,7 @@ interface PanelDependencies {
   status: () => Promise<unknown>;
   logs: () => Promise<unknown>;
   action: (action: Action) => Promise<unknown>;
+  pairing?: () => Promise<unknown>;
   asset?: (pathname: string) => Promise<{ content: string; type: string } | null>;
 }
 
@@ -58,7 +59,8 @@ export function createPanelHandler(dependencies: PanelDependencies): (request: R
         return json({ error: 'Recarregue o painel para autorizar a ação.' }, 403);
       }
       const action = url.pathname.slice('/api/'.length) as Action;
-      if (url.pathname !== `/api/${action}` || !actions.includes(action)) return json({ error: 'Ação não permitida.' }, 404);
+      const isPairing = url.pathname === '/api/pairing';
+      if (!isPairing && (url.pathname !== `/api/${action}` || !actions.includes(action))) return json({ error: 'Ação não permitida.' }, 404);
       if (request.headers.get('content-type') !== 'application/json') return json({ error: 'Formato inválido.' }, 415);
       const text = await request.text();
       if (Buffer.byteLength(text) > 1024) return json({ error: 'Requisição muito grande.' }, 413);
@@ -69,6 +71,10 @@ export function createPanelHandler(dependencies: PanelDependencies): (request: R
         ('confirmed' in body && typeof body.confirmed !== 'boolean') ||
         (['stop', 'restart'].includes(action) && !('confirmed' in body && body.confirmed === true))) {
         return json({ error: 'Confirmação ou parâmetros inválidos.' }, 400);
+      }
+      if (isPairing) {
+        if (Object.keys(body).length) return json({ error: 'Parâmetros inválidos.' }, 400);
+        return json(await dependencies.pairing?.() ?? { state: 'unavailable' });
       }
       return json(await dependencies.action(action));
     } catch (error) {

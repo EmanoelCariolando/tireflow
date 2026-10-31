@@ -73,6 +73,15 @@ p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .status-card .badge { gap: 9px; padding: 0; background: transparent; font-size: 18px; font-weight: 650; line-height: 1.4; }
 .status-card .badge::before { width: 11px; height: 11px; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr) 335px; grid-template-areas: "controls backups" "updates backups" "logs activities"; align-items: start; gap: 16px; }
+.pairing-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 16px; }
+.pairing-description { min-width: 0; }
+.pairing-description .section-heading { margin-bottom: 10px; }
+#pairing-instructions { margin-top: 12px; }
+#pairing-note { margin-top: 8px; }
+.pairing-frame { display: grid; place-items: center; flex: 0 0 300px; min-height: 90px; text-align: center; }
+#pairing-empty .icon { width: 35px; height: 35px; color: #8ca5bf; margin-bottom: 6px; }
+#pairing-empty p { font-size: 11px; }
+#pairing-qr { display: block; width: min(300px, 100%); height: auto; max-width: 100%; background: white; image-rendering: pixelated; border-radius: 4px; }
 .section-heading { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
 .section-icon { width: 25px; height: 27px; margin-top: 1px; color: #f2f6fc; }
 .section-heading p { font-size: 12px; }
@@ -196,6 +205,8 @@ dialog p { margin-bottom: 25px; }
   .backup-button { max-width: 300px; }
 }
 @media (max-width: 700px) {
+  .pairing-card { flex-direction: column; align-items: stretch; gap: 16px; }
+  .pairing-frame { flex: auto; width: 100%; }
   .sidebar { position: static; width: 100%; padding: 13px 16px 10px; border-right: 0; border-bottom: 1px solid var(--line); }
   .brand { gap: 10px; padding: 0 3px 12px; font-size: 23px; }
   .brand-tire { width: 37px; height: 48px; }

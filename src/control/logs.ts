@@ -13,6 +13,7 @@ const plainMessages = new Set([
   '[HEALTH] Database check failed.', '[HEALTH] Upload directory check failed.',
   '[WHATSAPP] Disconnected in production; exiting for service restart.',
   '[WHATSAPP] Authentication required. Stop the service and pair in an interactive terminal.',
+  '[WHATSAPP] Authentication required. Open the local control panel or pair in an interactive terminal.',
   '[STARTUP] Configuration, migrations, database integrity and uploads directory validated.',
   '[RUNTIME_CHECK] Instalação inválida.', '[RUNTIME_CHECK] Instalação pronta para iniciar o WhatsApp.',
   '[REPORT] Daily report scheduler disabled. DAILY_REPORT_TIME is not configured.',

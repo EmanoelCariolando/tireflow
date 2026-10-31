@@ -11,6 +11,7 @@ o NSSM existente. Não abre acesso pela rede e não precisa de framework web.
 - Backup pelo mecanismo existente; inspeção periódica do último backup em cópia
   temporária, sem abrir o banco operacional. Verificação de SQLite, fotos e schema.
 - Logs incrementais, somente leitura, filtros e limite de 300 eventos.
+- Espaço para o QR atual do WhatsApp, com substituição automática e limpeza ao conectar.
 - Consulta manual da branch GitHub HTTPS; nenhuma atualização automática.
 
 **A aplicação de atualizações está bloqueada nesta entrega.** Nome do serviço,
@@ -121,7 +122,38 @@ O uptime corresponde ao processo Node do bot, não ao painel.
 WhatsApp usa um heartbeat mínimo publicado a cada 15 segundos pelo monitor
 existente. Dados vencidos há mais de 45 segundos, PID diferente e serviço parado
 não são anunciados como conectados. O bot só publica depois de chegar ao monitor;
-antes disso o status é `Não disponível`. Não há QR ou sessão no painel.
+antes disso o status é `Não disponível`. O QR usa um canal separado descrito abaixo;
+arquivos da sessão não são expostos pelo painel.
+
+## QR do WhatsApp
+
+A área **Conectar WhatsApp** mostra somente o QR atual quando o bot solicita
+autenticação. No celular, abra WhatsApp → Aparelhos conectados → Conectar um
+aparelho. Cada novo evento `qr` substitui a imagem inteira; o painel consulta esse
+estado a cada dois segundos. O intervalo de renovação é definido pelo WhatsApp,
+sem garantia de ocorrer a cada 20 segundos.
+
+Ao autenticar, conectar, desconectar ou perder comunicação, a imagem é apagada.
+O limite adicional de exibição é de 60 segundos por código; também é apagada ao
+ocultar a aba. Quando necessário, o painel aguarda outro QR enviado pelo bot.
+
+O QR fica em memória, sem registro nos logs, arquivos de imagem ou armazenamento
+do navegador. O bot publica um canal de leitura em porta efêmera de `127.0.0.1`,
+protegido por credencial aleatória. O arquivo ignorado
+`data/control-pairing-endpoint.json` contém somente PID, porta e credencial; exige
+as mesmas permissões privadas do diretório da instalação. O painel confere o PID
+do serviço antes de consultar o canal. O endpoint do navegador exige Origin local
+e token CSRF, e todas as respostas usam `no-store`.
+
+Essa integração precisa do bot e do painel com o novo build. Um processo antigo
+não passa a publicar QR apenas porque o navegador foi atualizado. A ativação no
+servidor deve ocorrer em manutenção autorizada; nenhum reinício operacional foi
+executado durante o desenvolvimento.
+
+No laboratório deste PC, `http://127.0.0.1:4281`, o botão **Iniciar** aciona somente
+um processo descartável e libera um QR identificado como demonstração, trocado a
+cada 20 segundos. Esse código não autentica uma conta WhatsApp. **Parar** apaga a
+demonstração. Os auxiliares do laboratório ficam em `tmp`, fora do versionamento.
 
 A versão é o `package.json`, acompanhada pelo commit quando houver Git. A data da
 última instalação fica `Não disponível`: a instalação existente não registra essa

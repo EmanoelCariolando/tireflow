@@ -9,6 +9,8 @@ import { readHeartbeat } from './heartbeat.js';
 import { LogReader } from './logs.js';
 import { startPanel } from './server.js';
 import { checkUpdate } from './updates.js';
+import { readPairingSnapshot } from './pairingBridge.js';
+import type { ServiceStatus } from './operations.js';
 
 async function main(): Promise<void> {
   const config = await loadControlConfig(PROJECT_ROOT);
@@ -30,6 +32,8 @@ async function main(): Promise<void> {
         uptimeSeconds: state.uptimeSeconds, lastUpdate: null };
     },
   });
+  let recentService: ServiceStatus | null = null;
+  let serviceCheckedAt = 0;
   const assets = new Map([
     ['/', ['index.html', 'text/html; charset=utf-8']],
     ['/app.js', ['app.js', 'text/javascript; charset=utf-8']],
@@ -40,11 +44,14 @@ async function main(): Promise<void> {
     port: config.port,
     status: async () => {
       const snapshot = await controller.status();
+      recentService = snapshot.service;
+      serviceCheckedAt = Date.now();
       if (config.serviceName) void controller.refreshBackup().catch(() => undefined);
       return { ...snapshot, currentCommit, productionBranch: config.productionBranch, serviceName: config.serviceName,
         updateBlocked: 'Aplicação aguarda confirmação da estratégia de atualização, migrations e recuperação.' };
     },
     logs: () => logs.read(),
+    pairing: () => readPairingSnapshot(PROJECT_ROOT, recentService?.state === 'online' && Date.now() - serviceCheckedAt < 7500 ? recentService.pid : null),
     action: action => controller.action(action),
     asset: async pathname => {
       const asset = assets.get(pathname);

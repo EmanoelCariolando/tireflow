@@ -26,6 +26,39 @@ for (const interactive of [false, true]) test(`QR rendering requires an interact
   assert.equal(output.includes('QR_RENDERED_MARKER'), interactive);
 });
 
+test('WhatsApp pairing events replace the panel QR and never write its contents into logs', () => {
+  run(`
+    import assert from 'node:assert/strict';
+    import fs from 'node:fs';
+    const {whatsappPairing}=await import('./src/control/pairing.ts');
+    const {whatsappClient,initializeWhatsAppClient,isWhatsAppConnected}=await import('./src/whatsapp/client.ts');
+    const {installStructuredLogging}=await import('./src/services/logger.ts');
+    const {LOG_DIRECTORY}=await import('./src/config/appPaths.ts');
+    Object.defineProperty(process.stdout,'isTTY',{value:false,configurable:true});
+    installStructuredLogging();
+    initializeWhatsAppClient();
+    whatsappClient.emit('qr','PRIVATE_TEST_QR_FIRST');
+    const first=whatsappPairing.snapshot();
+    assert.equal(first.state,'qr');
+    whatsappClient.emit('qr','PRIVATE_TEST_QR_SECOND');
+    const second=whatsappPairing.snapshot();
+    assert.equal(second.state,'qr');
+    assert.notEqual(first.revision,second.revision);
+    whatsappClient.emit('authenticated');
+    assert.equal(whatsappPairing.snapshot().state,'authenticated');
+    whatsappClient.emit('ready');
+    assert.equal(whatsappPairing.snapshot().state,'connected');
+    whatsappClient.emit('qr','PRIVATE_TEST_QR_THIRD');
+    assert.equal(isWhatsAppConnected(),false);
+    whatsappClient.emit('ready');
+    assert.equal(whatsappPairing.snapshot().state,'connected');
+    const output=fs.readdirSync(LOG_DIRECTORY).filter(name=>name.endsWith('.log'))
+      .map(name=>fs.readFileSync(LOG_DIRECTORY+'/'+name,'utf8')).join('');
+    assert.ok(!output.includes('PRIVATE_TEST_QR_FIRST'));
+    assert.ok(!output.includes('PRIVATE_TEST_QR_SECOND'));
+  `);
+});
+
 test('receipt lookup errors and logged SDK errors do not expose WhatsApp identities', () => {
   run(`
     import assert from 'node:assert/strict';

@@ -199,3 +199,22 @@ test('overlapping HTTP status polls share one inspection and a later poll refres
   finish({ service: { state: 'online' } });
   assert.equal((await (await third).json() as { service: { state: string } }).service.state, 'online');
 });
+
+test('QR retrieval is isolated from status and requires local Origin plus CSRF token', async () => {
+  const handle = createPanelHandler({
+    port: 4280, status: async () => ({ service: { state: 'offline' } }), logs: async () => [],
+    action: async () => ({}), pairing: async () => ({ state: 'waiting' }),
+  });
+  const request = (route: string, method = 'GET', headers = {}, body?: string) => handle(new Request(`http://127.0.0.1:4280${route}`, {
+    method, headers: { host: '127.0.0.1:4280', ...headers }, body,
+  }));
+  assert.equal((await request('/api/pairing')).status, 404);
+  assert.equal((await request('/api/pairing', 'POST', { origin: 'http://127.0.0.1:4280', 'content-type': 'application/json' }, '{}')).status, 403);
+  const { token } = await (await request('/api/session')).json() as { token: string };
+  const headers = { origin: 'http://127.0.0.1:4280', 'content-type': 'application/json', 'x-control-token': token };
+  const response = await request('/api/pairing', 'POST', headers, '{}');
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { state: 'waiting' });
+  assert.equal((await request('/api/pairing', 'POST', { ...headers, origin: 'https://evil.example' }, '{}')).status, 403);
+  assert.equal((await request('/api/pairing', 'POST', headers, '{"confirmed":true}')).status, 400);
+});

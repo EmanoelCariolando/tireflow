@@ -7,6 +7,62 @@ let submitting = false;
 let snapshot = null;
 let logs = [];
 let level = 'ALL';
+let pairingRevision = null;
+let pairingExpiresAt = 0;
+let pairingRefreshing = false;
+
+function clearPairing(state = 'unavailable', demo = false) {
+  const canvas = byId('pairing-qr');
+  canvas.hidden = true; canvas.width = 0; canvas.height = 0;
+  delete canvas.dataset.revision;
+  pairingRevision = null; pairingExpiresAt = 0;
+  byId('pairing-empty').hidden = false;
+  document.querySelector('.pairing-card').dataset.state = state;
+  const labels = { unavailable: ['Não disponível', 'neutral'], waiting: ['Aguardando QR', 'neutral'], authenticated: ['Autenticado', 'success'], connected: ['Conectado', 'success'] };
+  badge('pairing-badge', ...(labels[state] || labels.unavailable));
+  byId('pairing-note').textContent = state === 'connected' ? 'WhatsApp conectado. O QR anterior foi apagado.' : state === 'authenticated' ? 'Autenticação recebida. Aguarde a sincronização do WhatsApp.' : state === 'waiting' ? 'Aguardando um novo QR enviado pelo WhatsApp.' : 'QR indisponível. O bot atualizado precisa estar em execução.';
+  byId('pairing-instructions').textContent = demo ? 'Demonstração do laboratório: este QR não autentica uma conta WhatsApp.' : 'No celular: WhatsApp → Aparelhos conectados → Conectar um aparelho.';
+}
+
+function renderPairing(data) {
+  if (data?.state !== 'qr') { clearPairing(data?.state, data?.demonstration === true); return; }
+  const rows = data.rows;
+  if (typeof data.revision !== 'string' || !/^[a-f0-9-]{36}$/.test(data.revision) ||
+    !Number.isFinite(data.expiresAt) || data.expiresAt <= Date.now() || data.expiresAt > Date.now() + 60000 ||
+    !Array.isArray(rows) || rows.length < 21 || rows.length > 177 || (rows.length - 21) % 4 !== 0 ||
+    rows.some(row => typeof row !== 'string' || row.length !== rows.length || !/^[01]+$/.test(row))) { clearPairing(); return; }
+  const canvas = byId('pairing-qr');
+  if (pairingRevision !== data.revision) {
+    canvas.hidden = true;
+    const scale = Math.max(4, Math.floor(320 / (rows.length + 8)));
+    canvas.width = canvas.height = (rows.length + 8) * scale;
+    const context = canvas.getContext('2d');
+    if (!context) { clearPairing(); return; }
+    context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = '#000';
+    rows.forEach((row, y) => { for (let x = 0; x < row.length; x += 1) if (row[x] === '1') context.fillRect((x + 4) * scale, (y + 4) * scale, scale, scale); });
+    pairingRevision = data.revision;
+    canvas.dataset.revision = data.revision;
+  }
+  pairingExpiresAt = data.expiresAt;
+  canvas.hidden = false;
+  byId('pairing-empty').hidden = true;
+  document.querySelector('.pairing-card').dataset.state = 'qr';
+  badge('pairing-badge', data.demonstration === true ? 'QR de demonstração' : 'Escaneie o QR atual', 'warning');
+  byId('pairing-instructions').textContent = data.demonstration === true ? 'Demonstração do laboratório: este QR não autentica uma conta WhatsApp.' : 'No celular: WhatsApp → Aparelhos conectados → Conectar um aparelho.';
+  byId('pairing-note').textContent = 'Quando chegar um novo QR, esta imagem será apagada e substituída automaticamente.';
+}
+
+async function refreshPairing() {
+  if (pairingRefreshing || document.hidden) return;
+  pairingRefreshing = true;
+  try {
+    if (!token) token = (await api('session', { signal: AbortSignal.timeout(2500) })).token;
+    const data = await api('pairing', { method: 'POST', headers: { 'content-type': 'application/json', 'x-control-token': token }, body: '{}', signal: AbortSignal.timeout(2500) });
+    if (!document.hidden) renderPairing(data);
+  } catch { token = null; clearPairing(); }
+  finally { pairingRefreshing = false; }
+}
 
 async function api(route, options) {
   const response = await fetch(`/api/${route}`, { cache: 'no-store', ...options });
@@ -128,6 +184,7 @@ async function refresh() {
     byId('sync').textContent = `Atualizado às ${time(new Date())}`;
     byId('sync-dot').style.background = '';
   } catch {
+    clearPairing();
     snapshot = null; updateButtons();
     badge('service-badge', unavailable, 'neutral'); badge('whatsapp-badge', unavailable, 'neutral');
     byId('service-description').textContent = 'A comunicação com o painel está indisponível.';
@@ -138,5 +195,8 @@ async function refresh() {
   } finally { refreshing = false; }
 }
 void refresh();
+void refreshPairing();
+setInterval(() => { void refreshPairing(); }, 2000);
+setInterval(() => { if (pairingExpiresAt && Date.now() >= pairingExpiresAt) clearPairing('waiting'); }, 500);
 setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });
+document.addEventListener('visibilitychange', () => { clearPairing(); if (!document.hidden) { void refresh(); void refreshPairing(); } });

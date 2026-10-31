@@ -57,6 +57,11 @@
       <article class="card status-card"><span class="icon-square blue"><svg class="icon" aria-hidden="true"><use href="#icon-clock"/></svg></span><div><h2>Uptime</h2><strong class="status-value" id="uptime">Não disponível</strong><p>Tempo de atividade do processo.</p></div></article>
     </section>
 
+    <section class="card pairing-card" aria-labelledby="pairing-heading" data-state="unavailable">
+      <div class="pairing-description"><div class="section-heading"><svg class="icon section-icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg><div><h2 id="pairing-heading">Conectar WhatsApp</h2><p>O QR aparece quando o WhatsApp solicitar autenticação.</p></div></div><span id="pairing-badge" class="badge neutral">Não disponível</span><p id="pairing-instructions">No celular: WhatsApp → Aparelhos conectados → Conectar um aparelho.</p><p id="pairing-note" class="footnote" aria-live="polite">Aguardando informação do processo do bot.</p></div>
+      <div class="pairing-frame"><canvas id="pairing-qr" width="0" height="0" role="img" aria-label="QR Code atual para conectar o WhatsApp" hidden></canvas><div id="pairing-empty"><svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg><p>Sem QR no momento</p></div></div>
+    </section>
+
     <div class="dashboard-grid">
       <section id="system" class="card controls" aria-labelledby="controls-heading">
         <div class="section-heading"><svg class="icon section-icon filled" aria-hidden="true"><use href="#icon-play"/></svg><div><h2 id="controls-heading">Controle do sistema</h2><p>Gerencie o serviço do TireFlow no servidor local.</p></div></div>

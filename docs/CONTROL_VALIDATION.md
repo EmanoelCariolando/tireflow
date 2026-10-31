@@ -101,3 +101,32 @@ acionáveis após corrigir os limites de privacidade identificados. A simplifica
 preservou o leitor existente e substituiu a filtragem ampla por mensagens e
 formatos seguros explícitos. Nenhuma dependência, migration, alteração de serviço
 Windows, backup operacional, push ou deploy foi necessário nesta correção.
+
+## QR atual no painel
+
+Incluída a área de autenticação com um único canvas. Cada evento `qr` troca a
+matriz e a revisão; autenticação, conexão, falha, desconexão, encerramento,
+expiração e perda de comunicação removem a imagem. Nova solicitação de QR após
+uma conexão anterior também retorna o estado do cliente a desconectado.
+
+O QR fica em memória e percorre somente o canal local autenticado e o endpoint
+com Origin/CSRF. O descritor ignorado contém PID, porta e credencial, sem QR.
+O painel valida o PID do processo configurado, a validade e os limites da matriz.
+Nenhuma dependência ou migration foi adicionada.
+
+Os 22 testes focados passaram, incluindo eventos reais do cliente com payloads
+fictícios, ausência de QR nos logs e transporte HTTP em processo isolado.
+Chrome headless conferiu a troca efetiva da demonstração após 20 segundos,
+limpeza dos pixels nos estados sem QR, expiração, matriz inválida, falha de rede
+e desenho exato dos módulos com margem branca. Layout conferido em 1440, 390 e
+320 pixels, sem overflow horizontal ou erros JavaScript. Capturas contêm apenas
+QR fictício, sem autenticar conta. A revisão independente local do diff não
+encontrou bloqueios de correção ou privacidade. Typecheck, build e sintaxe do
+JavaScript aprovados.
+
+Verificação final desta etapa: **643 testes da suíte isolada aprovados**, zero
+falhas, além das conferências de transporte local e navegador descritas acima.
+
+Pareamento real, serviço NSSM e ativação no servidor permanecem fora dessa
+verificação. O laboratório usa somente o processo descartável e identifica
+permanentemente seus códigos como demonstração.
