@@ -133,12 +133,20 @@ e seu progresso é indicado como conferência. Backup criado pelo painel também
 passa pelo validador existente. Falhas, ausência de configuração e indisponibilidade
 do worker são estados explícitos; não há restauração pelo navegador.
 
-Os logs são eventos estruturados da aplicação, com horário, nível e descrição
-predefinida. Mensagens livres, dados de clientes, detalhes de erros, stdout/stderr
-bruto e QR são ocultados. O leitor consulta os últimos três arquivos rotativos,
-lê até 32 KiB novos por arquivo por consulta e mantém até 300 eventos. O filtro
-age sobre esse conjunto; não é uma busca em todo o histórico. Atividades
-administrativas ficam em memória e são limpas ao encerrar o painel.
+Os logs vêm dos arquivos reais `logs\tireflow-AAAA-MM-DD.log`, incluindo suas
+rotações por tamanho. Mensagens operacionais, como carregamento do WhatsApp,
+autenticação e agendamento, preservam o texto original quando seguro. Payloads,
+conteúdo de mensagens, credenciais, QR, endereços e identificadores são ocultados.
+Texto livre não reconhecido e stdout/stderr bruto continuam protegidos.
+
+A tela identifica os arquivos de origem e mostra a data/hora original em UTC.
+O leitor reúne os últimos três arquivos em ordem cronológica, acompanha a criação
+do arquivo do novo dia, lê no máximo 32 KiB por arquivo por consulta e mantém até
+300 eventos. Se o arquivo crescer muito entre consultas, prioriza a cauda recente.
+O filtro age sobre esse conjunto; não é uma busca em todo o histórico. A rotação
+diária e a retenção existentes permanecem; nenhum arquivo é unido ou modificado
+pelo painel. Atividades administrativas ficam em memória e são limpas ao encerrar
+o painel.
 
 A criação de backup não tem cancelamento nem timeout forçado: o worker precisa
 liberar os bloqueios persistentes pelo próprio fluxo existente. Se uma criação

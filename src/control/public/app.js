@@ -75,9 +75,12 @@ function renderLogs() {
   const scroll = target.scrollTop;
   target.replaceChildren();
   const filtered = logs.filter(entry => level === 'ALL' || entry.level === level);
+  const files = [...new Set(logs.map(entry => entry.file).filter(Boolean))];
+  byId('log-source').textContent = files.length ? `Pasta logs: ${files.join(' · ')}` : 'Pasta logs: nenhum arquivo diário disponível';
   for (const entry of filtered) {
     const line = document.createElement('div'); line.className = 'log-line';
-    for (const [className, text] of [['log-time', time(entry.timestamp)], [`log-level ${entry.level}`, entry.level], ['log-message', entry.message]]) {
+    if (entry.file) line.title = `Arquivo: logs/${entry.file}`;
+    for (const [className, text] of [['log-time', `[${entry.timestamp}]`], [`log-level ${entry.level}`, `[${entry.level}]`], ['log-message', entry.message]]) {
       const part = document.createElement('span'); part.className = className; part.textContent = text; line.append(part);
     }
     target.append(line);

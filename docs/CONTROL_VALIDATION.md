@@ -72,3 +72,32 @@ configurado; nenhuma operação administrativa real foi executada.
 
 Estados indisponíveis continuam explícitos. A atualização permanece desabilitada;
 o desenho não acrescenta controles fictícios de agendamento ou configuração.
+
+## Leitura dos arquivos diários de log
+
+Corrigida a exibição que substituía mensagens operacionais por descrições genéricas.
+O leitor agora preserva mensagens reconhecidas de carregamento, autenticação,
+conexão, agendamento e diagnósticos seguros, com data/hora UTC original e nome do
+arquivo. A prévia e o laboratório locais também passaram a consultar os arquivos
+reais da pasta `logs`, somente por leitura, além dos eventos do processo de teste.
+
+Arquivos diários e suas rotações permanecem separados. A tela reúne os três mais
+recentes, acompanha o novo arquivo do dia e prioriza a cauda quando houver grande
+volume entre consultas. O resultado fica limitado a 300 eventos cronológicos.
+Payloads, mensagens privadas, credenciais, URLs, caminhos e identificadores
+continuam protegidos. Texto livre desconhecido, inclusive do console do navegador,
+é ocultado; uma tag operacional sozinha não autoriza sua exposição.
+
+Verificação final: **636 testes da suíte isolada aprovados**, zero falhas;
+typecheck, build e sintaxe JavaScript aprovados. Os 18 testes administrativos
+incluem regressões de mensagens operacionais, fonte, troca de dia, crescimento
+grande, limite cronológico, privacidade e leitura incremental. Conferência visual
+por leitura em Chrome, em 1440, 390 e 320 pixels, sem erros ou overflow horizontal.
+Os arquivos reais disponíveis produziram 220 eventos; carregamento e autenticação
+do WhatsApp foram conferidos no navegador com filtros e fonte do arquivo.
+
+Revisão focada concluída em `20261031-log-operational-review`, sem achados
+acionáveis após corrigir os limites de privacidade identificados. A simplificação
+preservou o leitor existente e substituiu a filtragem ampla por mensagens e
+formatos seguros explícitos. Nenhuma dependência, migration, alteração de serviço
+Windows, backup operacional, push ou deploy foi necessário nesta correção.
