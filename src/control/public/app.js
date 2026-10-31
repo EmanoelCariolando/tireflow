@@ -42,6 +42,8 @@ function showStatus(data) {
   byId('uptime').textContent = seconds === null ? unavailable : `${Math.floor(seconds / 86400)}d ${Math.floor(seconds % 86400 / 3600)}h ${Math.floor(seconds % 3600 / 60)}min`;
   byId('service-name').textContent = data.serviceName || unavailable;
   byId('version').textContent = data.version ? `v${data.version}` : unavailable;
+  byId('installed-version').textContent = data.version ? `v${data.version}` : unavailable;
+  byId('available-version').parentElement.classList.toggle('has-update', data.update?.available === true);
   byId('current-commit').textContent = data.currentCommit ? `commit ${data.currentCommit.slice(0, 10)}` : 'Commit não disponível';
   byId('production-branch').textContent = data.productionBranch || 'Branch não configurada';
   byId('last-update').textContent = date(data.lastUpdate);
@@ -113,6 +115,7 @@ for (const link of document.querySelectorAll('nav a')) link.addEventListener('cl
   for (const other of document.querySelectorAll('nav a')) other.classList.toggle('selected', other === link);
 });
 let refreshing = false;
+byId('refresh-logs').addEventListener('click', () => { void refresh(); });
 async function refresh() {
   if (refreshing) return;
   refreshing = true;

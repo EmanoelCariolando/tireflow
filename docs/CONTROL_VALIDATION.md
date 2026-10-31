@@ -54,5 +54,21 @@ dependências, migrations, regras comerciais ou outro supervisor de processos.
   principalmente quando houver migrations. **A etapa de aplicação permanece
   não implementada e bloqueada; a entrega do pedido integral está pendente.**
 - Última data de instalação indisponível: não há registro confiável existente.
-- O desenho seguiu a descrição textual; a referência visual citada não estava
-  anexada ao pedido recebido.
+
+## Ajuste à referência visual recebida
+
+Após a primeira entrega, foi recebida a imagem `TireFlow Server Dashboard in Dark
+Mode.png`. O painel passou a seguir sua composição: quatro cards de status no
+topo, controles verde/vermelho/azul, destaque para atualização, logs em estilo de
+terminal e coluna direita de backup e atividades. Ícones SVG locais, sem novas
+dependências, fontes externas ou imagens de dados fictícios.
+
+Build, typecheck, sintaxe do JavaScript e 14 testes administrativos aprovados nesta
+etapa. Chrome headless conferido em larguras 1672, 1440, 1024, 390 e 320 pixels,
+sem overflow horizontal ou erros JavaScript, incluindo filtros e atualização
+manual dos logs. Revisão independente do diff visual sem achados acionáveis.
+As conferências usaram cópia temporária sem ambiente, banco, sessões ou serviço
+configurado; nenhuma operação administrativa real foi executada.
+
+Estados indisponíveis continuam explícitos. A atualização permanece desabilitada;
+o desenho não acrescenta controles fictícios de agendamento ou configuração.
