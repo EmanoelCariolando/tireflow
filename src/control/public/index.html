@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Controle local do serviço TireFlow">
+  <title>TireFlow Control</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar" aria-label="Menu principal">
+    <a class="brand" href="#overview"><span class="brand-icon">T</span><span>TireFlow<small>CONTROL CENTER</small></span></a>
+    <div class="nav-label">GERENCIAMENTO</div>
+    <nav>
+      <a href="#overview" class="selected"><span aria-hidden="true">▦</span> Visão geral</a>
+      <a href="#system"><span aria-hidden="true">◉</span> Serviço</a>
+      <a href="#updates"><span aria-hidden="true">↓</span> Atualizações</a>
+      <a href="#logs"><span aria-hidden="true">≡</span> Logs do sistema</a>
+      <a href="#backups"><span aria-hidden="true">▤</span> Backups</a>
+    </nav>
+    <div class="sidebar-bottom"><span class="local-dot"></span> Acesso local<small>127.0.0.1 · Windows</small></div>
+  </aside>
+
+  <main id="overview">
+    <header class="topbar"><div class="breadcrumb">TireFlow <span>/</span> Administração</div><span class="local-badge"><span class="local-dot"></span> Ambiente local</span></header>
+    <div class="page-heading"><div><p class="eyebrow">CENTRAL DE CONTROLE</p><h1>Visão geral</h1><p>Acompanhe e gerencie sua instalação do TireFlow.</p></div><div class="sync-status"><span id="sync-dot" class="local-dot"></span><span id="sync">Conectando ao painel…</span></div></div>
+
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <section id="system" class="status-grid" aria-label="Status do sistema">
+      <article class="card status-card"><div class="card-top"><span class="icon-square blue" aria-hidden="true">◉</span><span id="service-badge" class="badge neutral">Não disponível</span></div><h2>TireFlow</h2><p id="service-description">Aguardando consulta ao serviço Windows.</p><dl class="metrics"><div><dt>Tempo de atividade</dt><dd id="uptime">Não disponível</dd></div><div><dt>Serviço</dt><dd id="service-name">Não disponível</dd></div></dl></article>
+      <article class="card status-card"><div class="card-top"><span class="icon-square green" aria-hidden="true">↗</span><span id="whatsapp-badge" class="badge neutral">Não disponível</span></div><h2>WhatsApp</h2><p id="whatsapp-description">Aguardando informação recente do bot.</p><dl class="metrics"><div><dt>Fonte do status</dt><dd>Heartbeat do bot</dd></div><div><dt>Atualização</dt><dd>Até 15 segundos</dd></div></dl></article>
+    </section>
+
+    <section class="card controls" aria-labelledby="controls-heading"><div><h2 id="controls-heading">Controle do serviço</h2><p id="control-hint">Validando instalação e permissões.</p></div><div class="button-group"><button class="button primary" data-action="start" disabled><span aria-hidden="true">▶</span> Iniciar</button><button class="button danger" data-action="stop" disabled><span aria-hidden="true">■</span> Parar</button><button class="button secondary" data-action="restart" disabled><span aria-hidden="true">↻</span> Reiniciar</button></div></section>
+
+    <div class="management-grid">
+      <section id="updates" class="card"><div class="section-heading"><div><p class="eyebrow">VERSÕES</p><h2>Atualizações do GitHub</h2></div><span class="icon-square blue" aria-hidden="true">↓</span></div><p id="update-description">Verifique manualmente a branch de produção configurada.</p><dl class="version-grid"><div><dt>Versão instalada</dt><dd id="version">Não disponível</dd><small id="current-commit">Não disponível</small></div><div><dt>Versão disponível</dt><dd id="available-version">Não verificada</dd><small id="production-branch">Branch não configurada</small></div></dl><p class="subtle">Última atualização: <span id="last-update">Não disponível</span></p><div class="button-group"><button class="button secondary" data-action="check-update">Verificar atualização</button><button class="button primary" disabled title="Aguarda definição da estratégia de atualização e recuperação">Atualizar</button></div><p id="update-blocked" class="footnote">Aplicação aguarda confirmação da estratégia de atualização, migrations e recuperação.</p></section>
+
+      <section id="backups" class="card"><div class="section-heading"><div><p class="eyebrow">PROTEÇÃO DOS DADOS</p><h2>Backups</h2></div><span class="icon-square blue" aria-hidden="true">▤</span></div><p>Snapshot do banco e fotos pelo mecanismo do TireFlow.</p><dl class="backup-details"><div><dt>Último backup</dt><dd id="backup-date">Não disponível</dd></div><div><dt>Verificação</dt><dd><span id="backup-badge" class="badge neutral">Não disponível</span></dd></div><div><dt>Última conferência</dt><dd id="backup-verified">Não disponível</dd></div></dl><button class="button secondary" data-action="backup">Executar backup</button><p class="footnote">A verificação confere SQLite, migrations e fotos. A restauração exige manutenção fora do painel.</p></section>
+    </div>
+
+    <div class="details-grid">
+      <section id="logs" class="card log-card"><div class="section-heading"><div><h2>Logs do sistema</h2><p>Eventos recentes · atualização a cada 5 segundos</p></div><span class="badge neutral">Somente leitura</span></div><div class="log-toolbar"><div class="filters" role="group" aria-label="Filtrar logs"><button data-level="ALL" class="active" aria-pressed="true">Todos</button><button data-level="INFO" aria-pressed="false">Informação</button><button data-level="WARN" aria-pressed="false">Aviso</button><button data-level="ERROR" aria-pressed="false">Erro</button></div><label class="follow"><input type="checkbox" id="follow" checked> Acompanhar</label></div><div id="log-output" class="log-output" role="region" aria-label="Eventos do serviço" tabindex="0"><p class="empty">Aguardando logs…</p></div><div class="log-footer"><span id="log-count">0 eventos</span><span>Detalhes confidenciais ocultos · até 300 eventos</span></div></section>
+
+      <section class="card activities"><h2>Atividades recentes</h2><p>Ações realizadas nesta sessão do painel.</p><ol id="activities"><li class="empty">Nenhuma ação nesta sessão.</li></ol><div class="session-note"><span aria-hidden="true">◷</span> O histórico desta tela é mantido enquanto o processo do painel estiver aberto.</div></section>
+    </div>
+    <footer>TireFlow Control <span>Administração local da instalação</span></footer>
+  </main>
+
+  <dialog id="confirm-dialog" aria-labelledby="dialog-title"><form method="dialog"><span class="icon-square blue" aria-hidden="true">!</span><h2 id="dialog-title">Confirmar ação</h2><p id="dialog-description"></p><div class="button-group"><button class="button secondary" value="cancel">Cancelar</button><button class="button primary" value="confirm">Confirmar</button></div></form></dialog>
+</body>
+</html>

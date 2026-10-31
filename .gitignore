@@ -8,6 +8,8 @@ dist/
 .env
 .env.local
 .env.*.local
+control.config.json
+data/control-health.json*
 
 # Logs
 logs/
