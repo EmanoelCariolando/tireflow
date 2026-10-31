@@ -4,6 +4,10 @@
 
 O **TireFlow** transforma o WhatsApp em uma interface simples para consultar produtos, registrar vendas e manter o estoque atualizado em tempo real.
 
+O [TireFlow Control](docs/CONTROL.md) oferece um painel local independente para
+status, logs, controles NSSM e backups pelo navegador. A aplicação de atualizações
+aguarda a definição da política de produção descrita nessa documentação.
+
 ## Funcionalidades
 
 - Consulta de pneus por medida
