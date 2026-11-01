@@ -7,6 +7,9 @@ O **TireFlow** transforma o WhatsApp em uma interface simples para consultar pro
 O [TireFlow Control](docs/CONTROL.md) oferece um painel local independente para
 status, logs, controles NSSM e backups pelo navegador. A aplicação de atualizações
 aguarda a definição da política de produção descrita nessa documentação.
+Para controlar o bot real neste PC sem NSSM, use `npm run control:local` e abra
+`http://127.0.0.1:4282`. O botão Iniciar usa a mesma configuração de `npm run dev`;
+encerre antes a execução manual no terminal. O laboratório 4281 é demonstração.
 
 ## Funcionalidades
 

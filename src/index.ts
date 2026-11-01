@@ -13,6 +13,7 @@ import { resolveSqliteDatabasePath } from './database/databasePath.js';
 import { startHealthMonitor, stopHealthMonitor } from './services/healthService.js';
 import { startPairingBridge } from './control/pairingBridge.js';
 import { whatsappPairing } from './control/pairing.js';
+import { attachLocalPanelLifecycle } from './control/localLifecycle.js';
 import {
   cancelStartupRecoveryReset,
   clearStartupRecoveryState,
@@ -172,4 +173,4 @@ process.on('uncaughtException', (error: Error) => {
 });
 
 // Start the application
-void main();
+if (attachLocalPanelLifecycle(shutdown)) void main();

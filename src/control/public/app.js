@@ -83,11 +83,20 @@ function updateButtons() {
       disabled ||= action === 'stop' && state?.state !== 'online';
     }
     if (action === 'check-update') disabled ||= !snapshot?.productionBranch;
+    if (action === 'backup') disabled ||= snapshot?.controlMode === 'local';
     button.disabled = disabled;
   }
 }
 function showStatus(data) {
   snapshot = data;
+  const localMode = data.controlMode === 'local';
+  byId('local-mode-notice').hidden = !localMode;
+  if (localMode) {
+    document.querySelector('h1').textContent = 'Painel do bot local';
+    document.querySelector('#system .section-heading p').textContent = 'Inicie, pare e reinicie o bot real neste PC.';
+    document.querySelector('[data-action="start"] small').textContent = 'Inicia o bot neste PC';
+    document.querySelector('[data-action="stop"] small').textContent = 'Encerra o bot local';
+  }
   const labels = { online: ['Online', 'success'], offline: ['Offline', 'neutral'], starting: ['Iniciando', 'warning'], stopping: ['Parando', 'warning'], error: ['Erro', 'error'], unavailable: [unavailable, 'neutral'] };
   badge('service-badge', ...(labels[data.service.state] || labels.unavailable));
   byId('service-description').textContent = data.service.message || ({ online: 'Processo do bot ativo no serviço Windows.', offline: 'Serviço parado. O painel continua disponível.', starting: 'Aguardando o processo do bot iniciar.', stopping: 'Aguardando o encerramento do processo.', error: 'O serviço requer atenção. Confira os logs.' }[data.service.state] || unavailable);

@@ -130,3 +130,33 @@ falhas, além das conferências de transporte local e navegador descritas acima.
 Pareamento real, serviço NSSM e ativação no servidor permanecem fora dessa
 verificação. O laboratório usa somente o processo descartável e identifica
 permanentemente seus códigos como demonstração.
+
+## Controle do bot real no PC de desenvolvimento
+
+O usuário confirmou que `npm run dev` funciona, mas o botão do laboratório não
+inicia o bot. O laboratório era deliberadamente simulado. Adicionado modo
+explícito `npm run control:local`, em `127.0.0.1:4282`, usando Node/tsx e a mesma
+entrada do comando de desenvolvimento. A porta 4281 permanece demonstração.
+
+O adaptador mantém a referência de seu próprio filho; não adota nem encerra PIDs
+externos. A desconexão IPC solicita a rotina existente de encerramento do bot,
+inclusive quando acontece antes de seus módulos terminarem de carregar. Uma
+marca interna limita esse comportamento ao filho do painel; o CLI habitual
+preserva seu ciclo. O modo local bloqueia backups/atualizações e mostra aviso
+permanente de uso dos dados reais. Não inicia o bot automaticamente.
+
+Cinco testes com processos descartáveis conferem início, reinício/troca de PID,
+limpeza na parada, falhas síncronas e assíncronas, saída espontânea, encerramento
+precoce e compatibilidade do CLI. Chrome conferiu os botões reais do adaptador,
+confirmação/cancelamento, parada, troca de PID, bloqueio de backup e layout em
+1440, 390 e 320 pixels, sem overflow ou erros JavaScript.
+
+O painel real foi aberto com estado offline e PID nulo; consultas somente de
+leitura e requisições rejeitadas de backup/atualização confirmaram os bloqueios.
+O teste não iniciou o bot, abriu uma sessão WhatsApp nem alterou serviço Windows.
+Typecheck, build e sintaxe JavaScript aprovados. Revisão independente do diff
+sem bloqueios confirmados. A revisão registrou a limitação herdada de possível
+sobreposição entre etapas assíncronas de inicialização e o encerramento existente;
+esse ciclo real do SDK precisa ser homologado, assim como já ocorria com Ctrl+C.
+
+Verificação final desta etapa: **648 testes isolados aprovados**, zero falhas.

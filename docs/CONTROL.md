@@ -22,6 +22,38 @@ bloqueio. A etapa de aplicação e recuperação de código permanece pendente.
 
 ## Preparação inicial
 
+### Teste do bot real neste PC, sem NSSM
+
+Se `npm run dev` já funciona, encerre essa execução com Ctrl+C e abra o painel:
+
+```powershell
+npm.cmd run control:local
+```
+
+Acesse **`http://127.0.0.1:4282`** e clique **Iniciar**. Esse modo abre o bot real
+com o mesmo Node/tsx, `src/index.ts`, `.env`, banco e sessão usados por
+`npm run dev`; não é um ambiente com dados fictícios. O painel não inicia o bot
+sozinho. Aguarde a confirmação da conexão nos logs; se a sessão exigir nova
+autenticação, o QR real aparece na área Conectar WhatsApp.
+
+**Parar** solicita o encerramento normal, incluindo Chrome e liberação do banco;
+**Reiniciar** aguarda essa limpeza antes de abrir outro processo. O painel só
+controla o filho que ele próprio criou. Uma execução manual no terminal não é
+adotada pelo painel; a proteção existente do banco recusa uma segunda instância.
+`Online` indica processo ativo, enquanto o card WhatsApp confirma a conexão.
+
+Mantenha o terminal do painel aberto: erros anteriores ao logger aparecem nele.
+Fechar apenas a aba do navegador mantém painel e bot em execução. Ctrl+C no
+terminal do painel solicita também o encerramento do bot. Em caso de espera
+prolongada, confira os logs; o painel não força o encerramento nem remove locks.
+
+Backups e atualizações ficam bloqueados nesse modo. Nenhum serviço Windows é
+instalado ou alterado. O comando `control` continua usando o modo NSSM descrito
+abaixo. A porta **4281 é somente o laboratório de demonstração** e não inicia o
+bot real; use 4282 para este teste.
+
+### Instalação com NSSM
+
 Na instalação correta, depois de revisar e integrar os commits locais:
 
 ```powershell
