@@ -6,8 +6,10 @@ import { getMessageChatId, getMessageUserId, getSerializedMessageId } from '../u
 import {
   getCurrentProductStock,
   InsufficientStockError,
+  InvalidPaymentBreakdownError,
   registerSaleItems,
   SaleProductNotFoundError,
+  SaleOperationConflictError,
 } from '../services/saleService.js';
 import {
   forwardMessageToBoss,
@@ -168,6 +170,7 @@ export async function handleSaleCommand(message: Message, body: string): Promise
   }
 
   const saleSession: SaleSession = {
+    operationId: getSerializedMessageId(message) ?? undefined,
     userId,
     chatId,
     step: 'awaiting_price_type',
@@ -494,11 +497,13 @@ async function handlePendingPriceStep(
   const currentTotalValue = session.totalValue;
   const previousTotalValue = session.pendingPreviousTotalValue ?? currentTotalValue;
   const totalValue = amountInCents / 100;
+  const repricedItems = buildPersistenceItems({ ...session, totalValue });
   const nextSession: SaleSession = {
     ...session,
     step: 'awaiting_payment',
     unitPrice: items.length === 1 ? totalValue / session.quantity : session.unitPrice,
     totalValue,
+    items: items.map((item, index) => ({ ...item, ...repricedItems[index]! })),
     originalTotalValue: undefined,
     discountPercent: undefined,
     discountAmount: undefined,
@@ -1437,6 +1442,7 @@ async function handleConfirmationStep(
 
   try {
     registeredSale = await registerSaleItems({
+      operationId: session.operationId,
       items: buildPersistenceItems(session),
       sellerPhone: session.pendingAssigneeId ?? session.userId,
       sellerName: session.pendingAssigneeName ?? sellerName,
@@ -1453,7 +1459,17 @@ async function handleConfirmationStep(
       allowPendingPriceChange: session.pendingPriceChanged === true,
     });
   } catch (error) {
-    clearSaleSession(session.userId, session.chatId);
+    if (error instanceof SaleOperationConflictError || error instanceof InsufficientStockError ||
+      error instanceof SaleProductNotFoundError || error instanceof InvalidPaymentBreakdownError) {
+      clearSaleSession(session.userId, session.chatId);
+    } else {
+      saveSaleSession({ ...session, step: 'awaiting_confirmation', updatedAt: Date.now() });
+    }
+
+    if (error instanceof SaleOperationConflictError) {
+      await message.reply('⚠️ Esta operação já foi registrada com outros valores. Confira a venda antes de iniciar outra.');
+      return;
+    }
 
     if (error instanceof InsufficientStockError) {
       const unavailableItem = getSaleItems(session).find(
@@ -1477,8 +1493,13 @@ async function handleConfirmationStep(
       return;
     }
 
+    if (error instanceof InvalidPaymentBreakdownError) {
+      await message.reply('⚠️ Os pagamentos não correspondem ao total. Faça uma nova consulta.');
+      return;
+    }
+
     console.error('[SALE] Error registering sale:', error);
-    await message.reply('Ocorreu um erro ao registrar a venda. Tente novamente.');
+    await runPostCommitTask('sale retry notice', () => message.reply('Não foi possível confirmar o resultado. Envie *confirmar* novamente para conferir a mesma venda, sem iniciar outra.'));
     return;
   }
 

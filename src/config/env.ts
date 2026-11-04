@@ -3,7 +3,7 @@ import path from 'node:path';
 import { isGroupChatId } from '../utils/messageContext.js';
 
 // Tests supply their own environment and must never load an installation's .env.
-if (process.env.NODE_ENV !== 'test') dotenv.config({ quiet: true });
+if (process.env.NODE_ENV?.trim().toLowerCase() !== 'test') dotenv.config({ quiet: true });
 
 export const DEFAULT_BRANCH_NAME = 'ATC PNEUS';
 
@@ -71,6 +71,10 @@ export function validateEnvironment(source: NodeJS.ProcessEnv): string[] {
   const nodeEnv = source.NODE_ENV?.trim().toLowerCase() || '';
   if (nodeEnv && !['development', 'test', 'production'].includes(nodeEnv)) {
     errors.push('NODE_ENV: use development, test ou production');
+  }
+
+  if (nodeEnv === 'production' && source.ALLOW_PRIVATE_TEST_MODE?.trim().toLowerCase() !== 'false') {
+    errors.push('ALLOW_PRIVATE_TEST_MODE: em production deve ser explicitamente false');
   }
 
   const branchName = source.BRANCH_NAME?.trim() || '';
@@ -164,9 +168,11 @@ export function assertRuntimeEnvironment(source: NodeJS.ProcessEnv = process.env
  * Validated environment configuration.
  * All required values are loaded here with sensible defaults.
  */
+const nodeEnv = process.env.NODE_ENV?.trim().toLowerCase();
+
 export const env: EnvConfig = {
-  nodeEnv: process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'test'
-    ? process.env.NODE_ENV
+  nodeEnv: nodeEnv === 'production' || nodeEnv === 'test'
+    ? nodeEnv
     : 'development',
   databaseUrl: process.env.DATABASE_URL?.trim() || '',
   branchName: process.env.BRANCH_NAME?.trim() || DEFAULT_BRANCH_NAME,

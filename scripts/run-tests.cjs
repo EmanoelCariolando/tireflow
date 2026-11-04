@@ -69,7 +69,7 @@ function runTests(projectRoot = path.resolve(__dirname, '..'), requestedFiles = 
       assert.ok(fs.lstatSync(dependency).isSymbolicLink());
       fs.unlinkSync(dependency);
     }
-    fs.rmSync(workspace, { recursive: true, force: true });
+    fs.rmSync(workspace, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   }
 }
 

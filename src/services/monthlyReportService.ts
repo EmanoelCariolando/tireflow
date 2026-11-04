@@ -4,7 +4,9 @@ import env from '../config/env.js';
 import { movementRepository } from '../repositories/movementRepository.js';
 import { pendingSaleReportRepository, type ReportPendingSale } from '../repositories/pendingSaleReportRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
+import { findClosedFinancialPeriod, findFinancialRefunds } from '../repositories/financialLedgerRepository.js';
 import { formatCurrency } from '../utils/formatCurrency.js';
+import { getFinancialMonth, getFinancialPeriod } from '../utils/financialPeriod.js';
 import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
 import {
   DISCOUNTED_COMMISSION_PERCENT,
@@ -111,20 +113,22 @@ export async function buildMonthlyReport(
 ): Promise<string[]> {
   const period = getPreviousMonthPeriod(referenceDate);
   const previousPeriod = getPreviousMonthPeriod(period.start);
+  const closing = await findClosedFinancialPeriod(period.start, period.end);
+  if (closing) return [closing.financialText];
   const [movements, previousMovements] = await Promise.all([
     movementRepository.findByDateRange(period.start, period.end),
     movementRepository.findByDateRange(previousPeriod.start, previousPeriod.end),
   ]);
 
-  return formatMonthlyReport(
-    summarizeMonthlyReport(
+  const summary = summarizeMonthlyReport(
       period,
       movements,
       previousMovements,
       commissionPercent,
       env.inventoryLocationsEnabled
-    )
-  );
+    );
+  await applyFinancialRefunds(summary, previousPeriod);
+  return formatMonthlyReport(summary);
 }
 
 export async function buildMonthlyReportDelivery(
@@ -142,7 +146,7 @@ export async function buildMonthlyReportDelivery(
   );
 
   return {
-    financialMessage: formatMonthlyReport(builtReport.report)[0]!,
+    financialMessage: (await findClosedFinancialPeriod(period.start, period.end))?.financialText ?? formatMonthlyReport(builtReport.report)[0]!,
     pdfBuffer: builtReport.pdfBuffer,
     pdfFileName: builtReport.pdfFileName,
   };
@@ -196,6 +200,7 @@ async function buildInventoryReportForPeriod(
     pendingSales
   );
   report.dailyHistory = buildDailyMovementHistory(period, movements, pendingSales);
+  await applyFinancialRefunds(report, previousPeriod);
 
   return {
     pdfBuffer: await buildMonthlyInventoryPdf({
@@ -244,17 +249,29 @@ export async function buildCommissionReportForPeriod(
   period: MonthlyPeriod,
   commissionPercent = env.monthlyCommissionPercent
 ): Promise<string> {
+  const closing = await findClosedFinancialPeriod(period.start, period.end);
+  if (closing) return closing.commissionText;
   const movements = await movementRepository.findByDateRange(period.start, period.end);
-  return formatCommissionReport(
+  return '⚠️ *PRÉVIA — MÊS SEM FECHAMENTO EXPLÍCITO*\nAjustes de estorno serão apurados no fechamento.\n\n' + formatCommissionReport(
     summarizeCommissionReport(period, movements, commissionPercent)
   );
 }
 
+async function applyFinancialRefunds(report: MonthlyReportFormatInput, previousPeriod: MonthlyPeriod): Promise<void> {
+  const [current, previous] = await Promise.all([
+    findFinancialRefunds(report.period.start, report.period.end),
+    findFinancialRefunds(previousPeriod.start, previousPeriod.end),
+  ]);
+  report.totalRevenue -= current.total;
+  report.previousMonthRevenue -= previous.total;
+  for (const method of PAYMENT_METHODS) report.paymentTotals[method] -= current.paymentTotals[method];
+}
+
 export function getPreviousMonthPeriod(referenceDate: Date): MonthlyPeriod {
-  const end = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
-  const start = new Date(end.getFullYear(), end.getMonth() - 1, 1);
-  const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
-  return { start, end, key };
+  const [year, month] = getFinancialMonth(referenceDate).split('-').map(Number);
+  const previousYear = month === 1 ? year - 1 : year;
+  const previousMonth = month === 1 ? 12 : month - 1;
+  return getFinancialPeriod(`${previousYear}-${String(previousMonth).padStart(2, '0')}`);
 }
 
 function getPreviousComparablePeriod(period: MonthlyPeriod): MonthlyPeriod {

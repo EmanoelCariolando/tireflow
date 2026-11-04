@@ -4,6 +4,7 @@ import env from '../config/env.js';
 import { disconnectPrisma, prisma } from './prisma.js';
 import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
 import { resolveSqliteDatabasePath } from './databasePath.js';
+import { getTenInstallmentPriceUpdate } from '../utils/productPricing.js';
 
 const CATALOG_PATH = 'data/seed/congo_motorcycle_products_2026-10-15.csv';
 const LEGACY_CATALOG_PATH = 'data/seed/congo_motorcycle_products_2026-06-09.csv';
@@ -148,6 +149,7 @@ async function main(): Promise<void> {
           batteryBrand: null,
           cashPrice: row.cashPrice,
           creditPrice: row.creditPrice,
+          ...getTenInstallmentPriceUpdate(product.cashPrice, row.cashPrice),
           stock: row.stock,
         },
       });

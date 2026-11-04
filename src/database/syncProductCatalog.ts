@@ -5,6 +5,7 @@ import env from '../config/env.js';
 import { disconnectPrisma, prisma } from './prisma.js';
 import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
 import { resolveSqliteDatabasePath } from './databasePath.js';
+import { getTenInstallmentPriceUpdate } from '../utils/productPricing.js';
 
 interface CsvCatalogRow {
   line: number;
@@ -586,6 +587,7 @@ async function main(): Promise<void> {
         stock: update.stock,
         cashPrice: update.cashPrice,
         creditPrice: update.creditPrice,
+        ...getTenInstallmentPriceUpdate(update.previousCashPrice, update.cashPrice),
       },
     })
   );

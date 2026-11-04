@@ -8,6 +8,7 @@ import {
   formatSaleConfirmation,
 } from '../src/commands/saleFormatting.js';
 import { parsePaymentMethod } from '../src/commands/saleParsers.js';
+import { buildPersistedSaleItems } from '../src/utils/saleSessionHelpers.js';
 import { getPendingReminderSlot } from '../src/services/pendingSaleReminderScheduler.js';
 import {
   clearSaleSession,
@@ -201,6 +202,57 @@ test('applies a discount before choosing payment for a pending sale', async () =
   assert.equal(discounted?.totalValue, 250);
   assert.match(replies.at(-1) ?? '', /6️⃣ \*Desconto\* ✅/);
   clearSaleSession(userId, chatId);
+});
+
+for (const [discountType, input, expected] of [
+  ['1', '10', 135], ['2', '10', 140],
+] as const) {
+  test(`discount ${discountType} uses the renegotiated pending total, not the old item prices`, async () => {
+    const userId = `pending-repriced-discount-${discountType}`;
+    const chatId = 'synthetic-chat';
+    const message = { author: userId, from: chatId, reply: async () => undefined } as unknown as Message;
+    saveSaleSession({ userId, chatId, step: 'awaiting_payment', productId: 'synthetic-product',
+      reference: '175/70 R14', description: 'SYNTHETIC', quantity: 1, cashPrice: 200, creditPrice: 211.6,
+      unitPrice: 200, totalValue: 200, priceType: 'À vista', pendingSaleId: 'synthetic-pending',
+      items: [{ productId: 'synthetic-product', reference: '175/70 R14', description: 'SYNTHETIC',
+        quantity: 1, cashPrice: 200, creditPrice: 211.6, unitPrice: 200, totalValue: 200, priceType: 'À vista' }],
+      updatedAt: Date.now() });
+    try {
+      await handleSaleConversation(message, '7');
+      await handleSaleConversation(message, '150');
+      await handleSaleConversation(message, '6');
+      await handleSaleConversation(message, discountType);
+      await handleSaleConversation(message, input);
+      const result = getSaleSession(userId, chatId);
+      assert.equal(result?.originalTotalValue, 150);
+      assert.equal(result?.totalValue, expected);
+      assert.equal(result?.pendingPreviousTotalValue, 200);
+      assert.equal(result?.items?.[0].cashPrice, 200, 'A negotiated pending total must preserve the price snapshot.');
+    } finally { clearSaleSession(userId, chatId); }
+  });
+}
+
+test('repriced pending items preserve every cent before and after a discount', async () => {
+  const userId = 'synthetic-pending-cents';
+  const chatId = 'synthetic-chat';
+  const message = { author: userId, from: chatId, reply: async () => undefined } as unknown as Message;
+  const items = ['one', 'two'].map(productId => ({ productId, reference: '175/70 R14', description: 'SYNTHETIC',
+    quantity: 1, cashPrice: 100, creditPrice: 105.8, unitPrice: 100, totalValue: 100, priceType: 'À vista' as const }));
+  saveSaleSession({ userId, chatId, ...items[1], step: 'awaiting_payment', pendingSaleId: 'synthetic-pending',
+    totalValue: 200, items, updatedAt: Date.now() } as SaleSession);
+  try {
+    await handleSaleConversation(message, '7');
+    await handleSaleConversation(message, '199,99');
+    const repriced = getSaleSession(userId, chatId)!;
+    assert.deepEqual(repriced.items?.map(item => item.totalValue), [100, 99.99]);
+    await handleSaleConversation(message, '6');
+    await handleSaleConversation(message, '2');
+    await handleSaleConversation(message, '0,01');
+    const discounted = getSaleSession(userId, chatId)!;
+    assert.equal(discounted.originalTotalValue, 199.99);
+    assert.equal(discounted.totalValue, 199.98);
+    assert.equal(buildPersistedSaleItems(discounted).reduce((sum, item) => sum + Math.round(item.totalValue * 100), 0), 19998);
+  } finally { clearSaleSession(userId, chatId); }
 });
 
 test('asks for exactly one mentioned employee before confirming a pending sale', async () => {

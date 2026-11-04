@@ -1,4 +1,5 @@
 import { clearSaleSession, getSaleSession, hasExpiredSaleSession } from './saleSessionStore.js';
+import { clearFinancialSession, getFinancialSession } from './financialSessionStore.js';
 import { clearEntrySession, getEntrySession, hasExpiredEntrySession } from './entrySessionStore.js';
 import {
   clearAdjustmentSession,
@@ -60,6 +61,7 @@ export async function runOperationMessage(
 
 export function hasActiveOperationSession(userId: string, chatId: string): boolean {
   return Boolean(
+    getFinancialSession(userId, chatId) ||
     getProductNameSession(userId, chatId) ||
       getSaleSession(userId, chatId) ||
       getEntrySession(userId, chatId) ||
@@ -75,6 +77,7 @@ export function hasActiveOperationSession(userId: string, chatId: string): boole
 }
 
 export function clearAllOperationSessions(userId: string, chatId: string): void {
+  clearFinancialSession(userId, chatId);
   clearProductActionSession(userId, chatId);
   clearProductNameSession(userId, chatId);
   clearSaleSession(userId, chatId);
@@ -107,6 +110,7 @@ export function clearExpiredOperationSessions(userId: string, chatId: string): b
 }
 
 export function isOperationStartCommand(body: string): boolean {
+  if (/^(financeiro|estorno|retorno\s+estorno|fechar\s+m[eê]s|fechamento|pagar\s+comiss[aã]o)\b/i.test(body.trim())) return true;
   return /^(pendentes?|relat[oó]rio\s+(mensal|estoque|comiss[oõ]es)|venda\s+\d+\s+\d+|entrada\s+\d+|ajuste\s+\d+|pre[cç]o\s+\d+|addfoto\s+\d+|local\s+\d+|nome\s+\d+|(cadastrar|adicionar)\s+pneu)$/i.test(
     body.trim()
   );

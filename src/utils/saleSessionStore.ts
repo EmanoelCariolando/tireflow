@@ -1,4 +1,5 @@
 import type { Message } from 'whatsapp-web.js';
+import { randomUUID } from 'node:crypto';
 import type { QueriedProduct } from './lastQueryStore.js';
 import type { BatteryBrand, ProductCategory } from '@prisma/client';
 import { EMPLOYEE_SESSION_TTL_MS } from './employeeSessionDuration.js';
@@ -56,6 +57,7 @@ export type SaleSessionStep =
   | 'processing';
 
 export interface SaleSession {
+  operationId?: string;
   userId: string;
   chatId: string;
   step: SaleSessionStep;
@@ -113,6 +115,7 @@ function isExpired(session: SaleSession): boolean {
 export function saveSaleSession(session: SaleSession): void {
   saleSessions.set(buildKey(session.userId, session.chatId), {
     ...session,
+    operationId: session.operationId ?? randomUUID(),
     updatedAt: Date.now(),
   });
 }

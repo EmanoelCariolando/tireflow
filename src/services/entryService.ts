@@ -5,7 +5,7 @@ import { productRepository } from '../repositories/productRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 import { generateMovementCode } from '../utils/generateMovementCode.js';
 import { withInventoryMutationLock } from './inventoryMutationLock.js';
-import { calculateCreditPrice } from '../utils/productPricing.js';
+import { calculateCreditPrice, calculateTenInstallmentPrice } from '../utils/productPricing.js';
 import { normalizeStockLocation } from '../utils/stockLocation.js';
 import { isValidStockQuantity } from '../utils/stockQuantity.js';
 import { isSafeMonetaryValue } from '../utils/salePayment.js';
@@ -217,6 +217,7 @@ function hasValidEntryItems(items: RegisterEntryItemInput[]): boolean {
     (item.stockLocation === undefined ||
       normalizeStockLocation(item.stockLocation) === item.stockLocation) &&
     (item.newCashPrice === undefined ||
-      (isSafeMonetaryValue(item.newCashPrice) && isSafeMonetaryValue(calculateCreditPrice(item.newCashPrice))))
+      (isSafeMonetaryValue(item.newCashPrice) && isSafeMonetaryValue(calculateCreditPrice(item.newCashPrice)) &&
+        isSafeMonetaryValue(calculateTenInstallmentPrice(item.newCashPrice))))
   );
 }
