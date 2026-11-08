@@ -5,6 +5,7 @@ import env from '../config/env.js';
 import { PRODUCT_UPLOAD_DIRECTORY, PROJECT_ROOT } from '../config/appPaths.js';
 import { prisma } from '../database/prisma.js';
 import { isWhatsAppConnected } from '../whatsapp/client.js';
+import { writeHeartbeat } from '../control/heartbeat.js';
 
 export interface HealthSnapshot {
   branchName: string;
@@ -16,6 +17,7 @@ export interface HealthSnapshot {
 }
 
 let monitor: NodeJS.Timeout | null = null;
+let heartbeatMonitor: NodeJS.Timeout | null = null;
 
 async function getVersion(): Promise<string> {
   try {
@@ -71,6 +73,18 @@ export function formatHealthStatus(health: HealthSnapshot): string {
 
 export function startHealthMonitor(): void {
   if (monitor) return;
+  let writing = false;
+  const publish = async () => {
+    if (writing) return;
+    writing = true;
+    try {
+      await writeHeartbeat(PROJECT_ROOT, { pid: process.pid, uptimeSeconds: Math.floor(process.uptime()), whatsappConnected: isWhatsAppConnected() });
+    } catch { /* Administrative telemetry must never interrupt the bot. */ }
+    finally { writing = false; }
+  };
+  void publish();
+  heartbeatMonitor = setInterval(() => { void publish(); }, 15000);
+  heartbeatMonitor.unref();
   const intervalMs = env.healthLogIntervalMinutes * 60 * 1000;
   monitor = setInterval(() => {
     void getHealthSnapshot().then((health) => {
@@ -86,6 +100,8 @@ export function startHealthMonitor(): void {
 }
 
 export function stopHealthMonitor(): void {
+  if (heartbeatMonitor) clearInterval(heartbeatMonitor);
+  heartbeatMonitor = null;
   if (!monitor) return;
   clearInterval(monitor);
   monitor = null;

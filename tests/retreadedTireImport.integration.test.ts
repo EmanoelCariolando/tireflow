@@ -83,6 +83,12 @@ test('imports the priced retreaded-tire catalog idempotently and preserves exist
     });
     assert.deepEqual(duplicateDescription.map((product) => Number(product.cashPrice)), [1149, 1199]);
 
+    await prisma.product.update({ where: { id: existing.id }, data: { stock: 4, tenInstallmentPrice: 129.99 } });
+    execFileSync(process.execPath, [tsxCli, 'src/database/importRetreadedTires.ts', '--apply'],
+      { cwd: process.cwd(), env: congoEnvironment, stdio: 'pipe' });
+    assert.equal(Number((await prisma.product.findUniqueOrThrow({ where: { id: existing.id } })).tenInstallmentPrice), 129.99,
+      'A stock-only import must preserve the current 10X price.');
+
     const secondPreview = execFileSync(
       process.execPath,
       [tsxCli, 'src/database/importRetreadedTires.ts'],

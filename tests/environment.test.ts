@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validateEnvironment } from '../src/config/env.js';
+import { assertRuntimeEnvironment, validateEnvironment } from '../src/config/env.js';
 
 function validEnvironment(): NodeJS.ProcessEnv {
   return {
@@ -39,11 +39,32 @@ test('reports every missing required variable by name', () => {
   }
 });
 
-test('accepts private test mode in production', () => {
+for (const mode of ['true', ' TRUE ', 'talvez', '1', '0', '', '   ', undefined]) {
+  test(`production refuses to start unless private test mode is explicitly false: ${JSON.stringify(mode)}`, () => {
+    const source = validEnvironment();
+    source.NODE_ENV = ' PRODUCTION ';
+    if (mode === undefined) delete source.ALLOW_PRIVATE_TEST_MODE;
+    else source.ALLOW_PRIVATE_TEST_MODE = mode;
+    assert.ok(validateEnvironment(source).some(error => error.startsWith('ALLOW_PRIVATE_TEST_MODE:')));
+    assert.throws(() => assertRuntimeEnvironment(source), /ALLOW_PRIVATE_TEST_MODE:.*false/);
+  });
+}
+
+test('production accepts an explicit false with normalized casing and whitespace', () => {
   const source = validEnvironment();
-  source.ALLOW_PRIVATE_TEST_MODE = 'true';
-  assert.deepEqual(validateEnvironment(source), []);
+  source.NODE_ENV = ' PRODUCTION ';
+  source.ALLOW_PRIVATE_TEST_MODE = ' FALSE ';
+  assert.doesNotThrow(() => assertRuntimeEnvironment(source));
 });
+
+for (const nodeEnv of ['development', ' DEVELOPMENT ', 'test', ' TEST ']) {
+  test(`preserves private test mode outside production: ${JSON.stringify(nodeEnv)}`, () => {
+    const source = validEnvironment();
+    source.NODE_ENV = nodeEnv;
+    source.ALLOW_PRIVATE_TEST_MODE = 'true';
+    assert.doesNotThrow(() => assertRuntimeEnvironment(source));
+  });
+}
 
 test('rejects malformed values in production', () => {
   const source = validEnvironment();
@@ -55,7 +76,7 @@ test('rejects malformed values in production', () => {
   source.MONTHLY_REPORT_TIME = '25:90';
   source.MONTHLY_COMMISSION_PERCENT = 'cento e dez';
   const errors = validateEnvironment(source);
-  assert.ok(!errors.some((error) => error.startsWith('ALLOW_PRIVATE_TEST_MODE')));
+  assert.ok(errors.some((error) => error.startsWith('ALLOW_PRIVATE_TEST_MODE')));
   assert.ok(errors.some((error) => error.startsWith('WHATSAPP_OFFICIAL_GROUP_ID')));
   assert.ok(errors.some((error) => error.startsWith('DAILY_REPORT_TIME')));
   assert.ok(errors.some((error) => error.startsWith('LOG_TO_CONSOLE')));

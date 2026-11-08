@@ -50,6 +50,12 @@ model User {
   searchSessions       SearchSession[]
   createdPendingSales  PendingSale[]   @relation("PendingSaleCreator")
   assignedPendingSales PendingSale[]   @relation("PendingSaleAssignee")
+  authorizedReversals SaleReversal[]
+  authorizedReturns SaleReversalReturn[]
+  financialClosings FinancialClosing[]
+  closingCommissions FinancialClosingSeller[] @relation("ClosingSeller")
+  markedCommissionPayments FinancialClosingSeller[] @relation("CommissionPaidBy")
+  commissionAdjustments CommissionAdjustment[]
 
   @@map("users")
 }
@@ -106,6 +112,9 @@ model Movement {
 
   product Product @relation(fields: [productId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
+
+  reversalItems SaleReversalItem[]
+  reversalReturn SaleReversalReturn?
 
   @@index([type])
   @@index([productId])
@@ -197,4 +206,98 @@ model PendingSaleItem {
   @@unique([pendingSaleId, position])
   @@index([productId])
   @@map("pending_sale_items")
+}
+
+model FinancialClosing {
+  id String @id @default(cuid())
+  period String @unique
+  closedAt DateTime @default(now())
+  closedById String
+  snapshotJson String
+  financialText String
+  commissionText String
+  closedBy User @relation(fields: [closedById], references: [id], onDelete: Restrict)
+  sellers FinancialClosingSeller[]
+  adjustments CommissionAdjustment[]
+  @@map("financial_closings")
+}
+
+model FinancialClosingSeller {
+  id String @id @default(cuid())
+  closingId String
+  sellerId String
+  amount Decimal
+  paidAt DateTime?
+  paidById String?
+  closing FinancialClosing @relation(fields: [closingId], references: [id], onDelete: Restrict)
+  seller User @relation("ClosingSeller", fields: [sellerId], references: [id], onDelete: Restrict)
+  paidBy User? @relation("CommissionPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
+  @@unique([closingId, sellerId])
+  @@map("financial_closing_sellers")
+}
+
+model SaleReversal {
+  id String @id @default(cuid())
+  code String @unique
+  operationId String @unique
+  requestHash String
+  requestJson String
+  saleGroupCode String
+  authorizedById String
+  reason String
+  amount Decimal
+  createdAt DateTime @default(now())
+  authorizedBy User @relation(fields: [authorizedById], references: [id], onDelete: Restrict)
+  items SaleReversalItem[]
+  @@index([createdAt])
+  @@index([saleGroupCode])
+  @@map("sale_reversals")
+}
+
+model SaleReversalItem {
+  id String @id @default(cuid())
+  reversalId String
+  movementId String
+  position Int
+  quantity Int
+  amount Decimal
+  paymentDetails String
+  reversal SaleReversal @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+  movement Movement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  returns SaleReversalReturn[]
+  commissionAdjustment CommissionAdjustment?
+  @@unique([reversalId, movementId])
+  @@unique([reversalId, position])
+  @@index([movementId])
+  @@map("sale_reversal_items")
+}
+
+model SaleReversalReturn {
+  id String @id @default(cuid())
+  operationId String @unique
+  requestHash String
+  reversalItemId String
+  quantity Int
+  authorizedById String
+  movementId String @unique
+  createdAt DateTime @default(now())
+  reversalItem SaleReversalItem @relation(fields: [reversalItemId], references: [id], onDelete: Restrict)
+  authorizedBy User @relation(fields: [authorizedById], references: [id], onDelete: Restrict)
+  movement Movement @relation(fields: [movementId], references: [id], onDelete: Restrict)
+  @@index([reversalItemId])
+  @@map("sale_reversal_returns")
+}
+
+model CommissionAdjustment {
+  id String @id @default(cuid())
+  reversalItemId String @unique
+  sellerId String
+  amount Decimal?
+  createdAt DateTime @default(now())
+  closingId String?
+  reversalItem SaleReversalItem @relation(fields: [reversalItemId], references: [id], onDelete: Restrict)
+  seller User @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  closing FinancialClosing? @relation(fields: [closingId], references: [id], onDelete: Restrict)
+  @@index([closingId, createdAt])
+  @@map("commission_adjustments")
 }

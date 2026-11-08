@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { ChildProcess } from 'node:child_process';
 import type { ConsoleMessage, HTTPRequest, Page } from 'puppeteer';
 import env from '../config/env.js';
+import { whatsappPairing } from '../control/pairing.js';
 import { isStartupErrorPage, isRetryableStartupFailure, startupNetworkRetryDelay, WhatsAppStartupPageError } from './startupFailure.js';
 import {
   forceStopBrowserProcessTree,
@@ -400,6 +401,7 @@ function profileConflictRetryDelay(conflictCount: number, recovery: BrowserProfi
 function markWhatsAppReady(source: 'ready event' | 'manual recovery'): void {
   if (whatsappReady) return;
   whatsappReady = true;
+  whatsappPairing.clear('connected');
   console.log('✅ WhatsApp client is ready!');
   console.log('🤖 TireFlow bot is now listening for messages.');
   if (source === 'manual recovery') {
@@ -455,8 +457,10 @@ export const whatsappClient = new Client({
 export function initializeWhatsAppClient(): void {
   // Show QR code in terminal when authentication is needed
   whatsappClient.on('qr', (qr: string) => {
+    whatsappReady = false;
+    whatsappPairing.setQr(qr);
     if (!process.stdout.isTTY) {
-      if (!qrPromptShown) console.warn('[WHATSAPP] Authentication required. Stop the service and pair in an interactive terminal.');
+      if (!qrPromptShown) console.warn('[WHATSAPP] Authentication required. Open the local control panel or pair in an interactive terminal.');
       qrPromptShown = true;
       return;
     }
@@ -477,18 +481,21 @@ export function initializeWhatsAppClient(): void {
   });
 
   whatsappClient.on('authenticated', () => {
+    whatsappPairing.clear('authenticated');
     console.log('✅ WhatsApp authentication successful.');
   });
 
   // Handle authentication failures
   whatsappClient.on('auth_failure', (msg: string) => {
     whatsappReady = false;
+    whatsappPairing.clear('waiting');
     console.error('❌ Authentication failed:', msg);
   });
 
   // Handle disconnection
   whatsappClient.on('disconnected', (reason: string) => {
     whatsappReady = false;
+    whatsappPairing.clear('waiting');
     console.log('⚠️ WhatsApp client disconnected:', reason);
     void logWhatsAppPageDiagnostics();
   });
@@ -510,6 +517,7 @@ export function isWhatsAppConnected(): boolean {
  * Start the WhatsApp client.
  */
 export async function startWhatsAppClient(): Promise<void> {
+  whatsappPairing.clear('waiting');
   console.log('🚀 Starting WhatsApp client...');
   qrPromptShown = false;
   let profileConflictCount = 0;
@@ -572,6 +580,7 @@ export async function startWhatsAppClient(): Promise<void> {
  * Stop the WhatsApp client and close the controlled browser.
  */
 export async function stopWhatsAppClient(): Promise<void> {
+  whatsappPairing.clear('unavailable');
   whatsappReady = false;
   diagnosticsAttached = false;
   const browserProcess = whatsappClient.pupBrowser?.process?.();

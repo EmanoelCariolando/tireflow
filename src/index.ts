@@ -4,12 +4,16 @@ import { startDailyReportScheduler, stopDailyReportScheduler } from './services/
 import { startMonthlyReportScheduler, stopMonthlyReportScheduler } from './services/monthlyReportScheduler.js';
 import { warmUpNotificationTargets } from './services/notificationService.js';
 import env from './config/env.js';
+import { PROJECT_ROOT } from './config/appPaths.js';
 import { disconnectPrisma } from './database/prisma.js';
 import { installStructuredLogging } from './services/logger.js';
 import { runStartupChecks } from './services/startupService.js';
 import { acquireDatabaseMaintenanceLock } from './database/maintenanceLock.js';
 import { resolveSqliteDatabasePath } from './database/databasePath.js';
 import { startHealthMonitor, stopHealthMonitor } from './services/healthService.js';
+import { startPairingBridge } from './control/pairingBridge.js';
+import { whatsappPairing } from './control/pairing.js';
+import { attachLocalPanelLifecycle } from './control/localLifecycle.js';
 import {
   cancelStartupRecoveryReset,
   clearStartupRecoveryState,
@@ -24,6 +28,7 @@ import {
 
 let isShuttingDown = false;
 let releaseDatabaseLock: (() => Promise<void>) | undefined;
+let closePairingBridge: (() => Promise<void>) | undefined;
 
 /**
  * whatsapp-web.js may evaluate the page while WhatsApp Web is replacing its
@@ -68,6 +73,8 @@ async function main(): Promise<void> {
     releaseDatabaseLock = await acquireDatabaseMaintenanceLock(resolveSqliteDatabasePath());
     // 1. Refuse to start with an incomplete installation.
     await runStartupChecks();
+    try { closePairingBridge = await startPairingBridge(PROJECT_ROOT, whatsappPairing); }
+    catch { console.warn('[CONTROL] Canal local de autenticação indisponível.'); }
 
     // 2. Initialize WhatsApp client (sets up event listeners)
     initializeWhatsAppClient();
@@ -122,6 +129,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   } catch (error) {
     console.error('Error while stopping WhatsApp client:', error);
   } finally {
+    if (closePairingBridge) await closePairingBridge().catch(() => undefined);
     cancelStartupRecoveryReset();
     if (exitCode === 0) {
       await clearStartupRecoveryState().catch((error: unknown) => {
@@ -165,4 +173,4 @@ process.on('uncaughtException', (error: Error) => {
 });
 
 // Start the application
-void main();
+if (attachLocalPanelLifecycle(shutdown)) void main();

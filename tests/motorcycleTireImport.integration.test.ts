@@ -64,6 +64,7 @@ test('imports the motorcycle PDF catalog idempotently and preserves existing pro
     assert.equal(updatedRenamed.category, 'MOTORCYCLE_TIRE');
     assert.equal(updatedRenamed.stock, 22);
     assert.equal(Number(updatedRenamed.cashPrice), 169);
+    assert.equal(Number(updatedRenamed.tenInstallmentPrice), 184.55);
     assert.equal(updatedRenamed.stockLocation, 'CG');
     assert.equal(updatedRenamed.imagePath, 'uploads/products/moto.jpg');
 
@@ -75,6 +76,7 @@ test('imports the motorcycle PDF catalog idempotently and preserves existing pro
     const updatedLegacyOnly = await prisma.product.findUniqueOrThrow({ where: { id: legacyOnly.id } });
     assert.equal(updatedLegacyOnly.category, 'MOTORCYCLE_TIRE');
     assert.equal(updatedLegacyOnly.stock, 7);
+    assert.equal(updatedLegacyOnly.tenInstallmentPrice, null, 'Category changes alone must not recalculate 10X.');
     assert.equal(await prisma.product.count(), 47);
 
     const secondPreview = execFileSync(

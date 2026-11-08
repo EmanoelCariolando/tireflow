@@ -1,4 +1,5 @@
-import { MovementType, PendingSaleStatus } from '@prisma/client';
+import { MovementType, PendingSaleStatus, Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
 import { prisma } from '../database/prisma.js';
 import { movementRepository } from '../repositories/movementRepository.js';
 import { productRepository } from '../repositories/productRepository.js';
@@ -8,9 +9,8 @@ import { allocatePaymentBreakdownAcrossTotals } from '../utils/saleAllocation.js
 import { isSafeMonetaryValue, serializePaymentBreakdown } from '../utils/salePayment.js';
 import { isValidStockQuantity } from '../utils/stockQuantity.js';
 import {
-  DISCOUNTED_COMMISSION_PERCENT,
   getCommissionPercentForCategory,
-  STANDARD_COMMISSION_PERCENT,
+  getSaleCommissionPercent,
 } from '../utils/commissionRates.js';
 import type {
   PaymentBreakdownPart,
@@ -40,6 +40,12 @@ export class InvalidPaymentBreakdownError extends Error {
   }
 }
 
+export class SaleOperationConflictError extends Error {
+  constructor() {
+    super('This sale operation was already registered with different data.');
+  }
+}
+
 export interface RegisterSaleItemInput {
   productId: string;
   quantity: number;
@@ -48,6 +54,7 @@ export interface RegisterSaleItemInput {
 }
 
 interface RegisterSaleInput extends RegisterSaleItemInput {
+  operationId?: string;
   sellerPhone: string;
   sellerName: string;
   paymentMethod: PaymentMethod;
@@ -64,6 +71,7 @@ interface RegisteredSale {
 }
 
 export interface RegisterSaleItemsInput {
+  operationId?: string;
   items: RegisterSaleItemInput[];
   sellerPhone: string;
   sellerName: string;
@@ -105,6 +113,7 @@ export async function getCurrentProductStock(productId: string): Promise<number 
 
 export async function registerSale(input: RegisterSaleInput): Promise<RegisteredSale> {
   const registeredGroup = await registerSaleItems({
+    operationId: input.operationId,
     items: [{
       productId: input.productId,
       quantity: input.quantity,
@@ -131,12 +140,30 @@ export async function registerSaleItems(
   }
 
   return withInventoryMutationLock(() => prisma.$transaction(async (tx) => {
+    const operationId = input.operationId
+      ? `sale:${createHash('sha256').update(input.operationId).digest('hex')}`
+      : undefined;
+    const requestHash = operationId ? getSaleRequestHash(input) : undefined;
+    if (operationId) {
+      const existing = await tx.movement.findUnique({ where: { id: `${operationId}:0` } });
+      if (existing) {
+        const receipt = JSON.parse(existing.observation ?? '{}') as {
+          requestHash?: string; result?: RegisteredSaleGroup;
+        };
+        if (receipt.requestHash !== requestHash || !receipt.result?.saleGroupCode ||
+          receipt.result.items.length !== input.items.length) throw new SaleOperationConflictError();
+        return receipt.result;
+      }
+    }
     const pendingSale = input.pendingSaleId
       ? await tx.pendingSale.findUnique({
           where: { id: input.pendingSaleId },
           include: { items: { orderBy: { position: 'asc' } } },
         })
       : null;
+    const pendingCommissionBase = pendingSale
+      ? Prisma.Decimal.max(pendingSale.totalValue, pendingSale.originalTotalValue ?? pendingSale.totalValue)
+      : undefined;
     if (input.pendingSaleId) {
       const pendingTotalInCents = Math.round(Number(pendingSale?.totalValue) * 100);
       const resolvedTotalInCents = Math.round(input.totalValue * 100);
@@ -160,8 +187,8 @@ export async function registerSaleItems(
           resolvedAt: new Date(),
           totalValue: input.totalValue,
           originalTotalValue: input.allowPendingPriceChange
-            ? pendingSale.totalValue
-            : input.originalTotalValue,
+            ? pendingCommissionBase
+            : input.originalTotalValue ?? pendingSale.originalTotalValue ?? undefined,
           discountPercent: input.allowPendingPriceChange ? null : input.discountPercent,
           discountAmount: input.allowPendingPriceChange ? null : input.discountAmount,
         },
@@ -178,6 +205,7 @@ export async function registerSaleItems(
     }
 
     for (const [productId, requestedQuantity] of requestedByProduct) {
+      // The session quote is agreed: confirmation rechecks availability and stock, not catalog prices.
       const product = await productRepository.findById(productId, tx);
 
       if (!product || !product.isActive) {
@@ -234,6 +262,7 @@ export async function registerSaleItems(
 
       await movementRepository.create(
         {
+          id: operationId ? `${operationId}:${index}` : undefined,
           code: movementCode,
           saleGroupCode,
           type: MovementType.SALE,
@@ -257,7 +286,7 @@ export async function registerSaleItems(
           isCityHallSale: input.paymentMethod === 'Nota' && input.isCityHallSale === true,
           commissionPercent: getCommissionPercentForCategory(
             product.category,
-            getSaleCommissionPercent(input)
+            getSaleCommissionPercent(input, pendingCommissionBase?.toNumber())
           ),
         },
         tx
@@ -278,17 +307,28 @@ export async function registerSaleItems(
       });
     }
 
-    return { saleGroupCode, items: registeredItems };
+    const result = { saleGroupCode, items: registeredItems };
+    if (operationId) {
+      // The existing unique movement ID and receipt commit atomically with stock and sale values.
+      await tx.movement.update({ where: { id: `${operationId}:0` },
+        data: { observation: JSON.stringify({ requestHash, result }) } });
+    }
+    return result;
   }));
 }
 
-function getSaleCommissionPercent(input: RegisterSaleItemsInput): number {
-  if (input.paymentMethod === 'Nota' && input.isCityHallSale === true) {
-    return 0;
-  }
-  return (input.discountAmount ?? 0) > 0 || (input.discountPercent ?? 0) > 0
-    ? DISCOUNTED_COMMISSION_PERCENT
-    : STANDARD_COMMISSION_PERCENT;
+function getSaleRequestHash(input: RegisterSaleItemsInput): string {
+  return createHash('sha256').update(JSON.stringify({
+    items: input.items.map(item => ({ productId: item.productId, quantity: item.quantity,
+      unitPrice: item.unitPrice, totalValue: item.totalValue })),
+    sellerPhone: input.sellerPhone, totalValue: input.totalValue,
+    paymentMethod: input.paymentMethod,
+    paymentBreakdown: input.paymentBreakdown?.map(part => ({ method: part.method, amount: part.amount })),
+    invoiceName: input.invoiceName, invoiceNumber: input.invoiceNumber,
+    isCityHallSale: input.isCityHallSale === true, pendingSaleId: input.pendingSaleId,
+    originalTotalValue: input.originalTotalValue, discountPercent: input.discountPercent,
+    discountAmount: input.discountAmount, allowPendingPriceChange: input.allowPendingPriceChange === true,
+  })).digest('hex');
 }
 
 function hasValidSaleItems(items: RegisterSaleItemInput[], totalValue: number): boolean {

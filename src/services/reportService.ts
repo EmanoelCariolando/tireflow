@@ -8,6 +8,7 @@ import { parseStoredPaymentBreakdown } from '../utils/salePayment.js';
 import { formatStockLocationLine } from '../utils/stockLocation.js';
 import { getProductIcon } from '../utils/productCategory.js';
 import { pendingSaleReportRepository } from '../repositories/pendingSaleReportRepository.js';
+import { findFinancialRefunds } from '../repositories/financialLedgerRepository.js';
 import { buildStockHistory, type StockHistoryEvent } from './monthlyReportService.js';
 
 type MovementWithRelations = Movement & {
@@ -135,6 +136,8 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
   ]);
   const sales = movements.filter((movement) => movement.type === MovementType.SALE);
   const paymentTotals = calculatePaymentTotals(sales);
+  const refunds = await findFinancialRefunds(range.start, range.end);
+  for (const method of PAYMENT_METHODS) paymentTotals[method] -= refunds.paymentTotals[method];
   const totalRevenue = sales.reduce(
     (sum, sale) => sum + toNumber(sale.totalValue),
     0
@@ -146,9 +149,9 @@ export async function buildTodayReport(referenceDate = new Date()): Promise<stri
 
   return formatTodayReport({
     referenceDate,
-    hasMovements: movements.length > 0 || stockHistory.length > 0,
+    hasMovements: movements.length > 0 || stockHistory.length > 0 || refunds.total > 0,
     paymentTotals,
-    totalRevenue,
+    totalRevenue: totalRevenue - refunds.total,
     movementCounts,
     zeroStockProducts,
     bestSeller: bestSeller

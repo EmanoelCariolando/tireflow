@@ -4,6 +4,7 @@ import env from '../config/env.js';
 import { disconnectPrisma, prisma } from './prisma.js';
 import { withDatabaseMaintenanceLock } from './maintenanceLock.js';
 import { resolveSqliteDatabasePath } from './databasePath.js';
+import { getTenInstallmentPriceUpdate } from '../utils/productPricing.js';
 
 const CATALOG_PATH = 'data/seed/congo_retreaded_tires_2026-10-15.csv';
 
@@ -139,7 +140,6 @@ async function main(): Promise<void> {
       product.category !== row.category ||
       product.cashPrice.toFixed(2) !== row.cashPrice ||
       product.creditPrice.toFixed(2) !== row.creditPrice ||
-      product.tenInstallmentPrice?.toFixed(2) !== row.tenInstallmentPrice ||
       product.stock !== row.stock;
     if (changed) {
       updates.push({
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
           batteryBrand: null,
           cashPrice: row.cashPrice,
           creditPrice: row.creditPrice,
-          tenInstallmentPrice: row.tenInstallmentPrice,
+          ...getTenInstallmentPriceUpdate(product.cashPrice, row.cashPrice),
           stock: row.stock,
         },
       });

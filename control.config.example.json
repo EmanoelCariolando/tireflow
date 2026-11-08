@@ -1,0 +1,6 @@
+{
+  "port": 4280,
+  "serviceName": null,
+  "nssmPath": "C:\\Tools\\nssm\\win64\\nssm.exe",
+  "productionBranch": null
+}

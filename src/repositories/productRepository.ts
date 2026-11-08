@@ -1,5 +1,6 @@
 import { prisma } from '../database/prisma.js';
 import { ProductCategory, type Prisma } from '@prisma/client';
+import { getTenInstallmentPriceUpdate } from '../utils/productPricing.js';
 
 type PrismaClientOrTransaction = Prisma.TransactionClient | typeof prisma;
 
@@ -283,12 +284,14 @@ export const productRepository = {
     });
   },
 
-  updatePricesIfActive(
+  async updatePricesIfActive(
     id: string,
     cashPrice: number,
     creditPrice: number,
     client: PrismaClientOrTransaction = prisma
   ) {
+    const product = await client.product.findUnique({ where: { id }, select: { cashPrice: true } });
+    if (!product) return { count: 0 };
     return client.product.updateMany({
       where: {
         id,
@@ -297,6 +300,7 @@ export const productRepository = {
       data: {
         cashPrice,
         creditPrice,
+        ...getTenInstallmentPriceUpdate(product.cashPrice, cashPrice),
       },
     });
   },

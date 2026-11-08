@@ -1,4 +1,5 @@
 import { Message } from 'whatsapp-web.js';
+import { handleFinancialCommand, handleFinancialConversation, isFinancialCommand } from '../commands/financialCommand.js';
 import { isTireFlapCommand, handleTireFlapCommand } from '../commands/tireFlapCommand.js';
 import { parseInnerTubeCommand, handleInnerTubeCommand } from '../commands/innerTubeCommand.js';
 import { parseRetreadedTireCommand, handleRetreadedTireCommand } from '../commands/retreadedTireCommand.js';
@@ -208,6 +209,12 @@ async function handleAuthorizedMessage(message: Message, body: string): Promise<
     return;
   }
 
+  if (await handleFinancialConversation(message, body)) return;
+  if (isFinancialCommand(body)) {
+    await handleFinancialCommand(message, body);
+    return;
+  }
+
   if (await handleMonthlyInventoryReportConversation(message, body)) {
     return;
   }
@@ -403,5 +410,5 @@ export function isAuthorizedChat(message: Message): boolean {
     return Boolean(env.whatsappOfficialGroupId) && message.from === env.whatsappOfficialGroupId;
   }
 
-  return env.allowPrivateTestMode;
+  return env.nodeEnv !== 'production' && env.allowPrivateTestMode;
 }

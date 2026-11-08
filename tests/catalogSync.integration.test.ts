@@ -153,6 +153,7 @@ test('updates Congo stock and prices, preserves identities and creates only appr
     assert.equal(updated.description, 'NOME EXISTENTE');
     assert.equal(updated.stock, 8);
     assert.equal(Number(updated.cashPrice), 350);
+    assert.equal(Number(updated.tenInstallmentPrice), 382.20);
     assert.equal(Number(updated.creditPrice), 370);
     assert.equal(updated.stockLocation, 'CG');
     assert.equal(updated.imagePath, 'uploads/products/existing.jpg');
@@ -165,6 +166,7 @@ test('updates Congo stock and prices, preserves identities and creates only appr
     assert.equal(preservedIdentity.description, 'NOME ANTIGO PRESERVADO');
     assert.equal(preservedIdentity.stock, 6);
     assert.equal(Number(preservedIdentity.cashPrice), 450);
+    assert.equal(Number(preservedIdentity.tenInstallmentPrice), 491.40);
     assert.equal(Number(preservedIdentity.creditPrice), 480);
     assert.equal(preservedIdentity.imagePath, 'uploads/products/preserved-name.jpg');
 
