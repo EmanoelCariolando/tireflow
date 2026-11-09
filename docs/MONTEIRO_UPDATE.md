@@ -168,3 +168,15 @@ mesma opção aparece na lista de produtos com estoque zero.
 - Se a conferência de localizações falhar, o banco não terá sido modificado por ela.
 - A migration adiciona somente uma coluna opcional; o sistema anterior ignora essa coluna.
 - Guarde o caminho do backup e as mensagens do terminal antes de tentar restauração.
+
+## 10. Atalho: script de atualização
+
+`scripts\update-server.ps1 -ServiceName TireFlow-Monteiro` (como Administrador) faz os passos 2, 4 e 5
+na ordem certa e só religa o serviço se tudo passar.
+
+Erros comuns:
+
+- `database is locked` no `migrate deploy`: o bot (ou `npm run dev`, Prisma Studio, outro terminal)
+  ainda está com o banco aberto. Pare-o antes. Se o migrate falhou, o `prisma generate` não rodou.
+- Dezenas de erros de TypeScript (`INNER_TUBE`, `TIRE_FLAP`, `financialService`...): o Prisma Client está
+  desatualizado. Rode `npx prisma generate` depois de migrar.
