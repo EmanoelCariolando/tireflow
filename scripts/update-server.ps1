@@ -20,7 +20,7 @@ else { Write-Warning 'NSSM não encontrado: pare o bot manualmente (Ctrl+C) ante
 Step 'Baixar código do GitHub' { git pull --ff-only }
 
 # O Prisma Client SEMPRE é gerado antes do typecheck: client velho = centenas de erros de tipo (INNER_TUBE, TIRE_FLAP...).
-Step 'npm install'        { npm.cmd install }
+Step 'npm ci (versões exatas do lock)' { npm.cmd ci }
 Step 'Backup verificado'  { npm.cmd run backup }
 Step 'Migrar banco'       { npx.cmd prisma migrate deploy }
 Step 'Gerar Prisma Client'{ npx.cmd prisma generate }
