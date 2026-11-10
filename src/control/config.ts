@@ -30,7 +30,7 @@ export function parseControlConfig(input: unknown): ControlConfig {
 }
 
 export async function loadControlConfig(root: string): Promise<ControlConfig> {
-  try { return parseControlConfig(JSON.parse(await readFile(path.join(root, 'control.config.json'), 'utf8'))); }
+  try { return parseControlConfig(JSON.parse((await readFile(path.join(root, 'control.config.json'), 'utf8')).replace(/^﻿/, ''))); }
   catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return parseControlConfig({});
     throw error;

@@ -79,4 +79,4 @@ async function main(): Promise<void> {
   });
 }
 
-void main().catch(() => { console.error('Painel não iniciado. Confira control.config.json e o build.'); process.exitCode = 1; });
+void main().catch(error => { console.error('Painel não iniciado. Confira control.config.json e o build.', error instanceof Error ? `Motivo: ${error.message}` : ''); process.exitCode = 1; });
