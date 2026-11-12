@@ -31,7 +31,7 @@ function Get-ProcessStatus {
       $expectedEntry = Join-Path $ProjectDirectory 'dist\index.js'
       foreach ($child in $children) {
         # The NSSM wrapper being alive alone does not mean the bot is running.
-        if ($child.ExecutablePath -ieq $NodePath -and $child.CommandLine.Contains($expectedEntry)) {
+        if ($child.ExecutablePath -ieq $NodePath -and $child.CommandLine.IndexOf($expectedEntry, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
           $state = 'online'
           $childId = [int]$child.ProcessId
           $uptime = [Math]::Max(0, [int]((Get-Date) - $child.CreationDate).TotalSeconds)
