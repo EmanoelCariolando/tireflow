@@ -12,7 +12,7 @@ $ErrorActionPreference = 'Stop'
 function Read-NssmValue([string]$Setting) {
   $result = @(& $NssmPath get $ServiceName $Setting 2>$null)
   if ($LASTEXITCODE -ne 0) { throw 'NSSM configuration unavailable.' }
-  return ($result -join "`n").Trim()
+  return (($result -join "`n") -replace "`0", "").Trim()
 }
 
 function Get-ProcessStatus {
